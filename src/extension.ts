@@ -6,7 +6,7 @@ import { createSettings } from "./settings";
 
 export function activate(context: vscode.ExtensionContext) {
     const settings = createSettings();
-    const client = new Client("127.0.0.1:9092");
+    const client = new Client(settings.host);
     const explorer = new KafkaExplorer(client, settings);
 
     const settingsChangedHandlerDisposable = settings.onDidChangeSettings(async () => {

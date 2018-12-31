@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 export interface Settings extends vscode.Disposable {
-    host?: string;
+    host: string;
 }
 
 class KafkaWorkspaceSettings implements Settings {
@@ -12,7 +12,7 @@ class KafkaWorkspaceSettings implements Settings {
     private _onDidChangeSettings = new vscode.EventEmitter<undefined>();
     public onDidChangeSettings: vscode.Event<undefined> = this._onDidChangeSettings.event;
 
-    public host?: string;
+    public host: string = "";
 
     private constructor() {
         this.configurationChangeHandlerDisposable = vscode.workspace.onDidChangeConfiguration(
@@ -30,7 +30,7 @@ class KafkaWorkspaceSettings implements Settings {
 
     private reload() {
         const configuration = vscode.workspace.getConfiguration("kafka");
-        this.host = configuration.get<string>("hosts");
+        this.host = configuration.get<string>("hosts", "");
     }
 
     dispose() {
