@@ -30,12 +30,18 @@ export class BrokerGroupItem implements NodeBase {
 
 export class BrokerItem implements NodeBase {
     public label: string;
+    public description?: string;
     public readonly contextValue = "broker";
 
     private broker: Broker;
 
     constructor(broker: Broker) {
-        this.label = broker.host;
+        this.label = `${broker.host}:${broker.port}`;
+
+        if (broker.isController) {
+            this.description = "Controller";
+        }
+
         this.broker = broker;
     }
 
@@ -46,6 +52,7 @@ export class BrokerItem implements NodeBase {
     getTreeItem(): vscode.TreeItem {
         return {
             label: this.label,
+            description: this.description,
             collapsibleState: vscode.TreeItemCollapsibleState.None,
             iconPath: this.broker.isConnected ? icons.serverConnected : icons.server,
         };
