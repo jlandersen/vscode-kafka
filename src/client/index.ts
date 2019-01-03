@@ -11,7 +11,15 @@ export interface Broker {
 }
 
 export interface Topic {
-    name: string;
+    id: string;
+    partitionCount: number;
+    replicationFactor: number;
+    partitions: {
+        [id: string]: {
+            isr: string[],
+            replicas: string[];
+        };
+    };
 }
 
 export class Client implements Disposable {
@@ -84,9 +92,20 @@ export class Client implements Disposable {
     }
 
     private parseTopics(topicMetadata: any): Topic[] {
-        return Object.keys(topicMetadata).map((topicName) => {
+        return Object.keys(topicMetadata).map((topicId) => {
+            const partitions = Object.keys(topicMetadata[topicId]);
+            let replicationFactor = 0;
+
+            if (partitions.length > 0) {
+                replicationFactor = topicMetadata[topicId][partitions[0]].replicas.length;
+            }
+
             return {
-                name: topicName,
+                id: topicId,
+                partitionCount: partitions.length,
+                replicationFactor,
+                partitions: {
+                },
             };
         });
     }

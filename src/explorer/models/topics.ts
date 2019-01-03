@@ -30,10 +30,12 @@ export class TopicGroupItem implements NodeBase {
 
 export class TopicItem implements NodeBase {
     public label: string;
+    public description: string;
     public readonly contextValue = "topic";
 
     constructor(topic: Topic) {
-        this.label = topic.name;
+        this.label = topic.id;
+        this.description = `Partitions: ${topic.partitionCount}, Replicas: ${topic.replicationFactor}`;
     }
 
     getChildren(element: NodeBase): Promise<NodeBase[]> {
@@ -43,6 +45,7 @@ export class TopicItem implements NodeBase {
     getTreeItem(): vscode.TreeItem {
         return {
             label: this.label,
+            description: this.description,
             collapsibleState: vscode.TreeItemCollapsibleState.None,
             iconPath: icons.topic,
         };
