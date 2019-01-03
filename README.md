@@ -12,6 +12,9 @@ Planned features in no particular order:
 - Producing
 - Connect to multiple clusters
 
+## Screenshots
+![Screenshot-1](assets/screen-1.png)
+
 ## Configuration
 The extension connects to a Kafka cluster by providing one or more brokers in the `kafka.hosts` settings (user or workspace).
 Example:
