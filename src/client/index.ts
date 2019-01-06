@@ -15,11 +15,15 @@ export interface Topic {
     partitionCount: number;
     replicationFactor: number;
     partitions: {
-        [id: string]: {
-            isr: string[],
-            replicas: string[];
-        };
+        [id: string]: TopicPartition;
     };
+}
+
+export interface TopicPartition {
+    partition: string;
+    isr: string[];
+            replicas: string[];
+    leader: string;
 }
 
 export class Client implements Disposable {
@@ -104,8 +108,7 @@ export class Client implements Disposable {
                 id: topicId,
                 partitionCount: partitions.length,
                 replicationFactor,
-                partitions: {
-                },
+                partitions: topicMetadata[topicId],
             };
         });
     }

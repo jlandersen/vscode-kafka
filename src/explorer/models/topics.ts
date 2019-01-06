@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import { Client, Topic } from "../../client";
+import { Client, Topic, TopicPartition } from "../../client";
 import { icons } from "../../constants";
 import { NodeBase } from "./nodeBase";
 
@@ -33,13 +33,43 @@ export class TopicItem implements NodeBase {
     public description: string;
     public readonly contextValue = "topic";
 
-    constructor(topic: Topic) {
+    constructor(private topic: Topic) {
         this.label = topic.id;
         this.description = `Partitions: ${topic.partitionCount}, Replicas: ${topic.replicationFactor}`;
     }
 
-    getChildren(element: NodeBase): Promise<NodeBase[]> {
-        return Promise.resolve([]);
+    async getChildren(element: NodeBase): Promise<NodeBase[]> {
+        return Promise.resolve(Object.keys(this.topic.partitions).map((partition) => {
+            return new TopicPartitionItem(this.topic.partitions[partition]);
+        }));
+    }
+
+    getTreeItem(): vscode.TreeItem {
+        return {
+            label: this.label,
+            description: this.description,
+            collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
+            iconPath: icons.topic,
+        };
+    }
+}
+
+export class TopicPartitionItem implements NodeBase {
+    public label: string;
+    public description: string;
+    public isrStatus: "in-sync" | "not-in-sync";
+    public readonly contextValue = "topicpartition";
+
+    constructor(partition: TopicPartition) {
+        this.label = `Partition: ${partition.partition}`;
+
+        if (partition.isr.length === partition.replicas.length) {
+            this.isrStatus = "in-sync";
+        } else {
+            this.isrStatus = "not-in-sync";
+        }
+
+        this.description = `Leader: ${partition.leader}, ISR: ${this.isrStatus}`;
     }
 
     getTreeItem(): vscode.TreeItem {
@@ -47,7 +77,10 @@ export class TopicItem implements NodeBase {
             label: this.label,
             description: this.description,
             collapsibleState: vscode.TreeItemCollapsibleState.None,
-            iconPath: icons.topic,
         };
+    }
+
+    getChildren(element: NodeBase): Promise<NodeBase[]> {
+        return Promise.resolve([]);
     }
 }
