@@ -1,7 +1,7 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
 
-## [0.2.0] - 2018-01-03
+## [0.2.0] - 2019-01-03
 ### Added
 - Add partition and replica count for topics
 - Add port and controller indicator for brokers
