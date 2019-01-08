@@ -1,7 +1,7 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
 
-## Unreleased
+## [0.3.0] - 2019-01-09
 ### Added
 - Add create topic action
 
