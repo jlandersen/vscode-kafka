@@ -4,9 +4,10 @@ Work with Kafka directly in Visual Studio Code. Kafka clusters running version 0
 Features:
 - View brokers in cluster
 - View topics
+- Create topic
 
 Planned features in no particular order:
-- Administration (create, delete topics)
+- More administration features (delete topics)
 - View and update configs
 - Consuming
 - Producing

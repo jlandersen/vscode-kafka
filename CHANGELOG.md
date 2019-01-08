@@ -1,6 +1,13 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
 
+## Unreleased
+### Added
+- Add create topic action
+
+### Changed
+ - Show additional topic partition information in explorer (leader and ISR status)
+
 ## [0.2.0] - 2019-01-03
 ### Added
 - Add partition and replica count for topics
