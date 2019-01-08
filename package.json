@@ -23,7 +23,8 @@
 		"kafka"
 	],
 	"activationEvents": [
-		"command:vscode-docker.explorer.refresh",
+        "onCommand:vscode-kafka.explorer.createtopic",
+		"onCommand:vscode-kafka.explorer.refresh",
 		"onView:kafkaExplorer",
 		"onDebug"
 	],
@@ -43,10 +44,20 @@
 		"commands": [
 			{
 				"command": "vscode-kafka.explorer.refresh",
-				"title": "Refresh",
+                "title": "Refresh",
+                "category": "Kafka",
 				"icon": {
 					"light": "images/light/refresh.svg",
 					"dark": "images/dark/refresh.svg"
+				}
+            },
+            {
+				"command": "vscode-kafka.explorer.createtopic",
+                "title": "Create Topic",
+                "category": "Kafka",
+				"icon": {
+					"light": "images/light/createtopic.svg",
+					"dark": "images/dark/createtopic.svg"
 				}
 			}
 		],
@@ -54,6 +65,11 @@
 			"view/title": [
 				{
 					"command": "vscode-kafka.explorer.refresh",
+					"when": "view == kafkaExplorer",
+					"group": "navigation"
+                },
+                {
+					"command": "vscode-kafka.explorer.createtopic",
 					"when": "view == kafkaExplorer",
 					"group": "navigation"
 				}
