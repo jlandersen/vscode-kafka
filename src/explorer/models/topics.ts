@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
 
-import { Client, Topic, TopicConfigEntry, TopicPartition } from "../../client";
+import { Client, Topic, TopicPartition } from "../../client";
 import { icons } from "../../constants";
-import { NodeBase } from "./nodeBase";
+import { ConfigsItem, NodeBase } from "./nodeBase";
 
 export class TopicGroupItem implements NodeBase {
     public readonly contextValue = "topics";
@@ -39,7 +39,7 @@ export class TopicItem implements NodeBase {
     }
 
     async getChildren(element: NodeBase): Promise<NodeBase[]> {
-        const configNode = new TopicConfigsItem(this.client, this.topic.id);
+        const configNode = new ConfigsItem("topicconfigs", () => this.client.getTopicConfigs(this.topic.id));
         const partitionNodes = Object.keys(this.topic.partitions).map((partition) => {
             return new TopicPartitionItem(this.topic.partitions[partition]);
         });
@@ -54,49 +54,6 @@ export class TopicItem implements NodeBase {
             iconPath: icons.topic,
         };
     }
-}
-
-export class TopicConfigsItem  implements NodeBase {
-    public label: string = "Configs";
-    public readonly contextValue: string = "topicconfigs";
-
-    constructor(private client: Client, private topicName: string) {
-    }
-
-    getTreeItem(): vscode.TreeItem {
-        return {
-            label: this.label,
-            collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
-        };
-    }
-
-    async getChildren(element: NodeBase): Promise<NodeBase[]> {
-        const configEntries = await this.client.getTopicConfigs(this.topicName);
-        return configEntries.map((configEntry) => (new TopicConfigItem(configEntry)));
-    }
-}
-
-class TopicConfigItem implements NodeBase {
-    public label: string;
-    public description: string;
-    public readonly contextValue: string = "topicconfig";
-
-    constructor(configEntry: TopicConfigEntry) {
-        this.label = configEntry.configName;
-        this.description = configEntry.configValue;
-    }
-
-    getTreeItem(): vscode.TreeItem {
-        return {
-            label: this.label,
-            description: this.description,
-        };
-    }
-
-    getChildren(element: NodeBase): Promise<NodeBase[]> {
-        return Promise.resolve([]);
-    }
-
 }
 
 export class TopicPartitionItem implements NodeBase {

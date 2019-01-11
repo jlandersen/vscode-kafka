@@ -27,7 +27,7 @@ export interface TopicPartition {
     leader: string;
 }
 
-export interface TopicConfigEntry {
+export interface ConfigEntry {
     configName: string;
     configValue: string;
 }
@@ -105,34 +105,12 @@ export class Client implements Disposable {
         return this.metadata.brokers;
     }
 
-    getTopicConfigs(topicId: string): Promise<TopicConfigEntry[]> {
-        const resource = {
-            resourceType: this.kafkaAdminClient.RESOURCE_TYPES.topic,
-            resourceName: topicId,
-            configNames: [],
-        };
+    getBrokerConfigs(brokerId: string): Promise<ConfigEntry[]> {
+        return this.getResourceConfigs(this.kafkaAdminClient.RESOURCE_TYPES.broker, brokerId);
+    }
 
-        const payload = {
-            resources: [resource],
-            includeSynonyms: false,
-        };
-
-        return new Promise((resolve, reject) => {
-            this.kafkaAdminClient.describeConfigs(payload,
-                (err: any, res: Array<{ configEntries: TopicConfigEntry[] }>) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-
-                if (res.length === 0) {
-                    return [];
-                }
-
-                resolve(res[0].configEntries);
-            });
-        });
-
+    getTopicConfigs(topicId: string): Promise<ConfigEntry[]> {
+        return this.getResourceConfigs(this.kafkaAdminClient.RESOURCE_TYPES.topic, topicId);
     }
 
     createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]> {
@@ -225,5 +203,34 @@ export class Client implements Disposable {
         });
 
         return brokers;
+    }
+
+    private getResourceConfigs(resourceType: string, resourceName: string): Promise<ConfigEntry[]> {
+        const resource = {
+            resourceType,
+            resourceName,
+            configNames: [],
+        };
+
+        const payload = {
+            resources: [resource],
+            includeSynonyms: false,
+        };
+
+        return new Promise((resolve, reject) => {
+            this.kafkaAdminClient.describeConfigs(payload,
+                (err: any, res: Array<{ configEntries: ConfigEntry[] }>) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+
+                if (res.length === 0) {
+                    return [];
+                }
+
+                resolve(res[0].configEntries);
+            });
+        });
     }
 }

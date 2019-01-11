@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 
 import { Broker, Client } from "../../client";
 import { icons } from "../../constants";
-import { NodeBase } from "./nodeBase";
+import { ConfigsItem, NodeBase } from "./nodeBase";
 
 export class BrokerGroupItem implements NodeBase {
     public readonly contextValue = "brokers";
@@ -14,7 +14,7 @@ export class BrokerGroupItem implements NodeBase {
 
     public getChildren(element: NodeBase): Promise<NodeBase[]> {
         return Promise.resolve(this.client.getBrokers().map((broker) => {
-            return new BrokerItem(broker);
+            return new BrokerItem(this.client, broker);
         }));
     }
 
@@ -35,7 +35,7 @@ export class BrokerItem implements NodeBase {
 
     private broker: Broker;
 
-    constructor(broker: Broker) {
+    constructor(private client: Client, broker: Broker) {
         this.label = `${broker.host}:${broker.port}`;
 
         if (broker.isController) {
@@ -46,14 +46,15 @@ export class BrokerItem implements NodeBase {
     }
 
     getChildren(element: NodeBase): Promise<NodeBase[]> {
-        return Promise.resolve([]);
+        const configNode = new ConfigsItem("brokerconfigs", () => this.client.getBrokerConfigs(this.broker.id));
+        return Promise.resolve([configNode]);
     }
 
     getTreeItem(): vscode.TreeItem {
         return {
             label: this.label,
             description: this.description,
-            collapsibleState: vscode.TreeItemCollapsibleState.None,
+            collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
             iconPath: this.broker.isConnected ? icons.serverConnected : icons.server,
         };
     }
