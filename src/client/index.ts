@@ -27,6 +27,11 @@ export interface TopicPartition {
     leader: string;
 }
 
+export interface TopicConfigEntry {
+    configName: string;
+    configValue: string;
+}
+
 export interface CreateTopicRequest {
     topic: string;
     partitions: number;
@@ -39,6 +44,7 @@ export interface Options {
 
 export class Client implements Disposable {
     private kafkaClient: any;
+    private kafkaAdminClient: any;
     private host: string;
 
     private metadata: {
@@ -69,6 +75,8 @@ export class Client implements Disposable {
             kafkaHost: this.host,
         });
 
+        this.kafkaAdminClient = new kafka.Admin(this.kafkaClient);
+
         return new Promise((resolve, reject) => {
             this.kafkaClient.connect();
             this.kafkaClient.on("ready", () => {
@@ -95,6 +103,36 @@ export class Client implements Disposable {
 
     getBrokers(): Broker[] {
         return this.metadata.brokers;
+    }
+
+    getTopicConfigs(topicId: string): Promise<TopicConfigEntry[]> {
+        const resource = {
+            resourceType: this.kafkaAdminClient.RESOURCE_TYPES.topic,
+            resourceName: topicId,
+            configNames: [],
+        };
+
+        const payload = {
+            resources: [resource],
+            includeSynonyms: false,
+        };
+
+        return new Promise((resolve, reject) => {
+            this.kafkaAdminClient.describeConfigs(payload,
+                (err: any, res: Array<{ configEntries: TopicConfigEntry[] }>) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+
+                if (res.length === 0) {
+                    return [];
+                }
+
+                resolve(res[0].configEntries);
+            });
+        });
+
     }
 
     createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]> {
@@ -134,6 +172,9 @@ export class Client implements Disposable {
         if (this.kafkaClient) {
             this.kafkaClient.close();
         }
+
+        this.kafkaClient = null;
+        this.kafkaAdminClient = null;
     }
 
     private parseMetadataResponse(response: any[]): { topics: Topic[], brokers: Broker[] } {

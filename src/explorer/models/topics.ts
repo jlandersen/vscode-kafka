@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import { Client, Topic, TopicPartition } from "../../client";
+import { Client, Topic, TopicConfigEntry, TopicPartition } from "../../client";
 import { icons } from "../../constants";
 import { NodeBase } from "./nodeBase";
 
@@ -14,7 +14,7 @@ export class TopicGroupItem implements NodeBase {
 
     public getChildren(element: NodeBase): Promise<NodeBase[]> {
         return Promise.resolve(this.client.getTopics().map((topic) => {
-            return new TopicItem(topic);
+            return new TopicItem(this.client, topic);
         }));
     }
 
@@ -33,15 +33,17 @@ export class TopicItem implements NodeBase {
     public description: string;
     public readonly contextValue = "topic";
 
-    constructor(private topic: Topic) {
+    constructor(private client: Client, private topic: Topic) {
         this.label = topic.id;
         this.description = `Partitions: ${topic.partitionCount}, Replicas: ${topic.replicationFactor}`;
     }
 
     async getChildren(element: NodeBase): Promise<NodeBase[]> {
-        return Promise.resolve(Object.keys(this.topic.partitions).map((partition) => {
+        const configNode = new TopicConfigsItem(this.client, this.topic.id);
+        const partitionNodes = Object.keys(this.topic.partitions).map((partition) => {
             return new TopicPartitionItem(this.topic.partitions[partition]);
-        }));
+        });
+        return Promise.resolve([configNode, ...partitionNodes]);
     }
 
     getTreeItem(): vscode.TreeItem {
@@ -52,6 +54,49 @@ export class TopicItem implements NodeBase {
             iconPath: icons.topic,
         };
     }
+}
+
+export class TopicConfigsItem  implements NodeBase {
+    public label: string = "Configs";
+    public readonly contextValue: string = "topicconfigs";
+
+    constructor(private client: Client, private topicName: string) {
+    }
+
+    getTreeItem(): vscode.TreeItem {
+        return {
+            label: this.label,
+            collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
+        };
+    }
+
+    async getChildren(element: NodeBase): Promise<NodeBase[]> {
+        const configEntries = await this.client.getTopicConfigs(this.topicName);
+        return configEntries.map((configEntry) => (new TopicConfigItem(configEntry)));
+    }
+}
+
+class TopicConfigItem implements NodeBase {
+    public label: string;
+    public description: string;
+    public readonly contextValue: string = "topicconfig";
+
+    constructor(configEntry: TopicConfigEntry) {
+        this.label = configEntry.configName;
+        this.description = configEntry.configValue;
+    }
+
+    getTreeItem(): vscode.TreeItem {
+        return {
+            label: this.label,
+            description: this.description,
+        };
+    }
+
+    getChildren(element: NodeBase): Promise<NodeBase[]> {
+        return Promise.resolve([]);
+    }
+
 }
 
 export class TopicPartitionItem implements NodeBase {
