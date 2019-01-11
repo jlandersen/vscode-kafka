@@ -23,7 +23,7 @@
 		"kafka"
 	],
 	"activationEvents": [
-        "onCommand:vscode-kafka.explorer.createtopic",
+		"onCommand:vscode-kafka.explorer.createtopic",
 		"onCommand:vscode-kafka.explorer.refresh",
 		"onView:kafkaExplorer",
 		"onDebug"
@@ -44,17 +44,17 @@
 		"commands": [
 			{
 				"command": "vscode-kafka.explorer.refresh",
-                "title": "Refresh",
-                "category": "Kafka",
+				"title": "Refresh",
+				"category": "Kafka",
 				"icon": {
 					"light": "images/light/refresh.svg",
 					"dark": "images/dark/refresh.svg"
 				}
-            },
-            {
+			},
+			{
 				"command": "vscode-kafka.explorer.createtopic",
-                "title": "Create Topic",
-                "category": "Kafka",
+				"title": "Create Topic",
+				"category": "Kafka",
 				"icon": {
 					"light": "images/light/createtopic.svg",
 					"dark": "images/dark/createtopic.svg"
@@ -67,8 +67,8 @@
 					"command": "vscode-kafka.explorer.refresh",
 					"when": "view == kafkaExplorer",
 					"group": "navigation"
-                },
-                {
+				},
+				{
 					"command": "vscode-kafka.explorer.createtopic",
 					"when": "view == kafkaExplorer",
 					"group": "navigation"
@@ -108,6 +108,6 @@
 		"@types/mocha": "^2.2.42"
 	},
 	"dependencies": {
-		"kafka-node": "^3.0.1"
+		"kafka-node": "^4.0.0"
 	}
 }
