@@ -36,7 +36,7 @@ export class BrokerItem implements NodeBase {
     private broker: Broker;
 
     constructor(private client: Client, broker: Broker) {
-        this.label = `${broker.host}:${broker.port}`;
+        this.label = `${broker.id} (${broker.host}:${broker.port})`;
 
         if (broker.isController) {
             this.description = "Controller";
