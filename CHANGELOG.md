@@ -1,6 +1,13 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
 
+## Unreleased
+### Added
+- Configuration entries for brokers and topics
+
+### Changed
+- Show broker id for brokers in addition to host
+
 ## [0.3.0] - 2019-01-09
 ### Added
 - Add create topic action
