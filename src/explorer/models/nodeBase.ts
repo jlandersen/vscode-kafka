@@ -18,6 +18,7 @@ export class ConfigsItem  implements NodeBase {
     getTreeItem(): vscode.TreeItem {
         return {
             label: this.label,
+            contextValue: this.contextValue,
             collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
         };
     }
@@ -33,7 +34,7 @@ export class ConfigsItem  implements NodeBase {
 class ConfigItem implements NodeBase {
     public label: string;
     public description: string;
-    public readonly contextValue: string = "topicconfig";
+    public readonly contextValue: string = "configitem";
 
     constructor(configEntry: ConfigEntry) {
         this.label = configEntry.configName;

@@ -17,6 +17,7 @@ export const icons = {
     server: getDarkLightPath("server.svg"),
     serverConnected: getDarkLightPath("server-connected.svg"),
     topic: getDarkLightPath("topic.svg"),
+    group: getDarkLightPath("group.svg"),
     warning: getIconPath("warning.svg"),
     information: getDarkLightPath("info.svg"),
 };

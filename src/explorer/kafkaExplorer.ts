@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import { Client } from "../client";
 import { Settings } from "../settings";
 import { BrokerGroupItem } from "./models/brokers";
+import { ConsumerGroupsItem } from "./models/consumerGroups";
 import { ErrorItem } from "./models/errorNode";
 import { InformationItem } from "./models/infoNode";
 import { NodeBase } from "./models/nodeBase";
@@ -64,6 +65,7 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
         return [
             new BrokerGroupItem(this.client),
             new TopicGroupItem(this.client),
+            new ConsumerGroupsItem(this.client),
         ];
     }
 }

@@ -113,6 +113,18 @@ export class Client implements Disposable {
         return this.getResourceConfigs(this.kafkaAdminClient.RESOURCE_TYPES.topic, topicId);
     }
 
+    getConsumerGroupIds(): Promise<string[]> {
+        return new Promise((resolve, reject) => {
+            this.kafkaAdminClient.listGroups((error: any, result: any) => {
+                if (error) {
+                    return reject(error);
+                }
+
+                resolve(Object.keys(result));
+            });
+        });
+    }
+
     createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]> {
         return new Promise((resolve, reject) => {
             this.kafkaClient.createTopics([createTopicRequest], (error: any, result: any) => {
