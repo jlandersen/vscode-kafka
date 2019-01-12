@@ -11,7 +11,7 @@ export function activate(context: vscode.ExtensionContext) {
     const explorer = new KafkaExplorer(client, settings);
     const createTopicCommandHandler = new CreateTopicCommandHandler(client, explorer);
 
-    const settingsChangedHandlerDisposable = settings.onDidChangeSettings(async () => {
+    const settingsChangedHandlerDisposable = settings.onDidChangeSettings(() => {
         client.refresh({ host: settings.host });
         explorer.refresh();
     });
