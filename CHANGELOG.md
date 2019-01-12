@@ -1,9 +1,10 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
 
-## Unreleased
+## [0.4.0]
 ### Added
-- Configuration entries for brokers and topics
+- New consumer group view in explorer
+- Configuration entries now available for brokers and topics
 
 ### Changed
 - Show broker id for brokers in addition to host
