@@ -42,6 +42,21 @@ export interface Options {
     host: string;
 }
 
+export interface ConsumerGroup {
+    groupId: string;
+    state: "Dead" | "Stable" | "CompletingRebalance" | "PreparingRebalance" | "Empty";
+    error: any;
+    protocol: string;
+    protocolType: string;
+    members: ConsumerGroupMember[];
+}
+
+export interface ConsumerGroupMember {
+    memberId: string;
+    clientId: string;
+    clientHost: string;
+}
+
 export class Client implements Disposable {
     private kafkaClient: any;
     private kafkaAdminClient: any;
@@ -121,6 +136,18 @@ export class Client implements Disposable {
                 }
 
                 resolve(Object.keys(result));
+            });
+        });
+    }
+
+    getConsumerGroupDetails(groupId: string): Promise<ConsumerGroup> {
+        return new Promise((resolve, reject) => {
+            this.kafkaAdminClient.describeGroups([groupId], (error: any, result: any) => {
+                if (error) {
+                    return reject(error);
+                }
+
+                resolve(result[groupId]);
             });
         });
     }
