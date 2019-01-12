@@ -1,7 +1,7 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
 
-## [0.4.0]
+## [0.4.0] - 2019-01-12
 ### Added
 - New consumer group view in explorer
 - Configuration entries now available for brokers and topics
