@@ -4,6 +4,7 @@ import { Client } from "./client";
 import { CreateTopicCommandHandler, waitUntilConnected } from "./commands";
 import { ProduceRecordCommandHandler } from "./commands/produceRecordCommandHandler";
 import { KafkaExplorer } from "./explorer";
+import { OutputChannelProvider } from "./providers/outputChannelProvider";
 import { ProducerCodeLensProvider } from "./providers/producerCodeLensProvider";
 import { createSettings } from "./settings";
 
@@ -11,8 +12,11 @@ export function activate(context: vscode.ExtensionContext) {
     const settings = createSettings();
     const client = new Client({ host: settings.host });
     const explorer = new KafkaExplorer(client, settings);
+    const outputChannelProvider = new OutputChannelProvider();
+    context.subscriptions.push(outputChannelProvider);
+
     const createTopicCommandHandler = new CreateTopicCommandHandler(client, explorer);
-    const produceRecordCommandHandler = new ProduceRecordCommandHandler(client);
+    const produceRecordCommandHandler = new ProduceRecordCommandHandler(client, outputChannelProvider);
 
     const settingsChangedHandlerDisposable = settings.onDidChangeSettings(() => {
         client.refresh({ host: settings.host });

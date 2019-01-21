@@ -2,9 +2,10 @@ import * as kafka from "kafka-node";
 import * as vscode from "vscode";
 
 import { Client } from "../client";
+import { OutputChannelProvider } from "../providers/outputChannelProvider";
 
 export class ProduceRecordCommandHandler {
-    constructor(private client: Client) {
+    constructor(private client: Client, private channelProvider: OutputChannelProvider) {
     }
 
     async execute(document: vscode.TextDocument, range: vscode.Range, times: number) {
@@ -12,12 +13,30 @@ export class ProduceRecordCommandHandler {
         const producer = new kafka.HighLevelProducer(this.client.kafkaClient);
         const messages = [...Array(times).keys()].map(() => value);
 
+        const channel = this.channelProvider.getChannel("Kafka Producer Log");
+        channel.show(false);
+
+        channel.appendLine(`Producing record(s)...`);
+
         producer.send([{
             topic,
             attributes: 0,
             key,
             messages,
         }], (error, result) => {
+            if (error) {
+                channel.appendLine("Failed to produce record(s)");
+
+                if (error.message) {
+                    channel.appendLine("Error: " + error.message);
+                } else {
+                    channel.appendLine("Error: " + error);
+                }
+
+                return;
+            }
+
+            channel.appendLine(`Produced ${times} record(s)`);
         });
     }
 
