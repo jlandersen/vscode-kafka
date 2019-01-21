@@ -25,10 +25,11 @@
 	"activationEvents": [
 		"onCommand:vscode-kafka.explorer.createtopic",
 		"onCommand:vscode-kafka.explorer.refresh",
-		"onView:kafkaExplorer",
+        "onView:kafkaExplorer",
+        "onLanguage:kafka",
 		"onDebug"
 	],
-	"main": "./out/extension.js",
+    "main": "./out/extension.js",
 	"contributes": {
 		"configuration": {
 			"type": "object",
@@ -40,7 +41,24 @@
 					"description": "Initial set of brokers (host:ip) to connect to. Separate by comma for multiple hosts."
 				}
 			}
-		},
+        },
+        "languages": [
+            {
+                "id": "kafka",
+                "extensions": [
+                    ".kafka"
+                ],
+                "aliases": ["kafka"],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "kafka",
+                "scopeName": "source.kafka",
+                "path": "./syntaxes/kafka.tmLanguage.json"
+            }
+        ],
 		"commands": [
 			{
 				"command": "vscode-kafka.explorer.refresh",

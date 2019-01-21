@@ -1,0 +1,54 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "kafka",
+    "fileTypes": [
+        ".kafka"
+    ],
+    "scopeName": "source.kafka",
+    "patterns": [
+        {
+            "include": "#kafka.producerdefinitionline"
+        },
+        {
+            "include": "#kafka.headerdefinitionline"
+        },
+        {
+            "include": "#kafka.value.json"
+        }
+    ],
+    "repository": {
+        "kafka.producerdefinitionline": {
+            "patterns": [
+                {
+                    "name": "kafka.producerdefinition",
+                    "match": "(?i)^(?:(producer)\\s*)([a-zA-Z\\-]+)?$",
+                    "captures": {
+                        "1": { "name": "keyword.control.kafka.producer" },
+                        "2": { "name": "kafka.producer.definition.identifier" }
+                    }
+                }
+            ]
+        },
+        "kafka.headerdefinitionline": {
+            "patterns": [
+                {
+                    "name": "kafka.headerdefinition",
+                    "match": "(?i)^(?:(topic|key):\\s*)([a-zA-Z\\-]+)?$",
+                    "captures": {
+                        "1": { "name": "support.variable.kafka" },
+                        "2": { "name": "kafka.header.identifier" }
+                    }
+                }
+            ]
+        },
+        "kafka.value.json": {
+            "patterns": [
+                {
+                    "begin": "\\s*(?=(\\[|{[^{]))",
+                    "end": "\\s*(?=(\\]|}[^}}))",
+                    "include": "source.json"
+                }
+            ]
+        }
+    }
+}

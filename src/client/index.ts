@@ -58,7 +58,7 @@ export interface ConsumerGroupMember {
 }
 
 export class Client implements Disposable {
-    private kafkaClient: any;
+    public kafkaClient: any;
     private kafkaAdminClient: any;
     private host: string;
 
