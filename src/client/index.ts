@@ -76,6 +76,10 @@ export class Client implements Disposable {
         this.host = options.host;
     }
 
+    canConnect() {
+        return this.host !== "";
+    }
+
     connect(): Promise<void> {
         if (this.kafkaClient && this.kafkaClient.ready) {
             return this.refreshMetadata();
