@@ -9,9 +9,11 @@ export class ProduceRecordCommandHandler {
     }
 
     async execute(document: vscode.TextDocument, range: vscode.Range, times: number) {
-        const producer = this.client.kafkaProducerClient;
         const { topic, key, value } = this.parseDocumentRange(document, range);
         const messages = [...Array(times).keys()].map(() => value);
+
+        const producer = key !== undefined ?
+            this.client.kafkaKeyedProducerClient : this.client.kafkaCyclicProducerClient;
 
         const channel = this.channelProvider.getChannel("Kafka Producer Log");
         channel.show(false);

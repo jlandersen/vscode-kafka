@@ -59,7 +59,8 @@ export interface ConsumerGroupMember {
 
 export class Client implements Disposable {
     public kafkaClient: any;
-    public kafkaProducerClient: any;
+    public kafkaCyclicProducerClient: any;
+    public kafkaKeyedProducerClient: any;
     private kafkaAdminClient: any;
     private host: string;
 
@@ -100,7 +101,12 @@ export class Client implements Disposable {
         return new Promise((resolve, reject) => {
             this.kafkaClient.connect();
             this.kafkaClient.on("ready", () => {
-                this.kafkaProducerClient = new kafka.HighLevelProducer(this.kafkaClient);
+                this.kafkaCyclicProducerClient = new kafka.HighLevelProducer(this.kafkaClient, {
+                    partitionerType: 2,
+                });
+                this.kafkaKeyedProducerClient = new kafka.HighLevelProducer(this.kafkaClient, {
+                    partitionerType: 3,
+                });
                 this.kafkaClient.loadMetadataForTopics([], (error: any, result: any) => {
                     if (error) {
                         reject(error);
@@ -198,7 +204,8 @@ export class Client implements Disposable {
 
         this.kafkaClient = null;
         this.kafkaAdminClient = null;
-        this.kafkaProducerClient = null;
+        this.kafkaCyclicProducerClient = null;
+        this.kafkaKeyedProducerClient = null;
     }
 
     private parseMetadataResponse(response: any[]): { topics: Topic[], brokers: Broker[] } {
