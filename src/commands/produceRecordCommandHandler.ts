@@ -9,13 +9,18 @@ export class ProduceRecordCommandHandler {
     }
 
     async execute(document: vscode.TextDocument, range: vscode.Range, times: number) {
+        const channel = this.channelProvider.getChannel("Kafka Producer Log");
         const { topic, key, value } = this.parseDocumentRange(document, range);
         const messages = [...Array(times).keys()].map(() => value);
+
+        if (topic === undefined) {
+            channel.appendLine("No topic");
+            return;
+        }
 
         const producer = key !== undefined ?
             this.client.kafkaKeyedProducerClient : this.client.kafkaCyclicProducerClient;
 
-        const channel = this.channelProvider.getChannel("Kafka Producer Log");
         channel.show(false);
 
         channel.appendLine(`Producing record(s)`);
@@ -47,7 +52,7 @@ export class ProduceRecordCommandHandler {
     }
 
     private parseDocumentRange(document: vscode.TextDocument, range: vscode.Range) {
-        let topic = "";
+        let topic;
         let key;
         let value = "";
         for (let currentLine = range.start.line + 1; currentLine <= range.end.line; currentLine++) {
@@ -60,6 +65,10 @@ export class ProduceRecordCommandHandler {
 
             if (line.text.startsWith("key:")) {
                 key = line.text.substr("key:".length).trim();
+                continue;
+            }
+
+            if (line.text.startsWith("--")) {
                 continue;
             }
 
