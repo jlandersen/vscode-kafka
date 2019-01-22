@@ -4,17 +4,20 @@ Work with Kafka directly in Visual Studio Code. Kafka clusters running version 0
 Features:
 - View brokers in cluster
 - View topics
+- View configs
 - Create topic
+- Producing
 
 Planned features in no particular order:
 - More administration features (delete topics)
-- View and update configs
+- Update configs
 - Consuming
-- Producing
 - Connect to multiple clusters
 
 ## Screenshots
 ![Screenshot-1](assets/screen-1.png)
+
+![Screenshot-2](assets/screen-2.png)
 
 ## Configuration
 The extension connects to a Kafka cluster by providing one or more brokers in the `kafka.hosts` settings (user or workspace).
@@ -25,3 +28,22 @@ Example:
     "kafka.hosts": "127.0.0.1:9092,127.0.0.1:9093"
 }
 ```
+
+## Producing
+Producing can be done by creating a `.kafka` file. Write simple producers using the following format:
+
+```json
+PRODUCER keyed-message
+topic: my-topic
+key: mykey
+record content
+
+###
+
+PRODUCER non-keyed-json-message
+topic: json-events
+{
+    "type": "my_test_event"
+}
+```
+

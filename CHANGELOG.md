@@ -1,6 +1,13 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
 
+## [0.5.0] - 2019-01-21
+### Added
+- Producing is now possible using the "Kafka" language mode (.kafka files)
+
+### Changed
+- Show info message instead of error when no host is configured for certain actions (.g. create topic)
+
 ## [0.4.0] - 2019-01-12
 ### Added
 - New consumer group view in explorer
