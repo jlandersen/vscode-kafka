@@ -9,23 +9,26 @@ export class ProducerCodeLensProvider implements vscode.CodeLensProvider {
 
         let blockStartLine = 0;
         let blockEndLine = 0;
+        let blockInProgress = false;
 
         for (let currentLine = 0; currentLine < document.lineCount; currentLine++) {
             const line = document.lineAt(currentLine);
 
             if (this.isBlockStart(line.text)) {
                 blockStartLine = currentLine;
+                blockInProgress = true;
                 continue;
             }
 
             if (this.isSeparator(line.text)) {
                 blockEndLine = currentLine - 1;
                 lenses.push(...this.createLens(blockStartLine, blockEndLine, document));
+                blockInProgress = false;
                 continue;
             }
         }
 
-        if (blockStartLine > blockEndLine) {
+        if (blockInProgress) {
             lenses.push(...this.createLens(blockStartLine, document.lineCount - 1, document));
         }
 
