@@ -1,4 +1,3 @@
-import * as kafka from "kafka-node";
 import * as vscode from "vscode";
 
 import { performance } from "perf_hooks";
@@ -10,8 +9,8 @@ export class ProduceRecordCommandHandler {
     }
 
     async execute(document: vscode.TextDocument, range: vscode.Range, times: number) {
+        const producer = this.client.kafkaProducerClient;
         const { topic, key, value } = this.parseDocumentRange(document, range);
-        const producer = new kafka.HighLevelProducer(this.client.kafkaClient);
         const messages = [...Array(times).keys()].map(() => value);
 
         const channel = this.channelProvider.getChannel("Kafka Producer Log");
@@ -25,7 +24,7 @@ export class ProduceRecordCommandHandler {
             attributes: 0,
             key,
             messages,
-        }], (error, result) => {
+        }], (error: any, result: any) => {
             const finishedOperation = performance.now();
             const elapsed = (finishedOperation - startOperation).toFixed(2);
 
