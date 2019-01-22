@@ -47,7 +47,7 @@ export class ProduceRecordCommandHandler {
 
     private parseDocumentRange(document: vscode.TextDocument, range: vscode.Range) {
         let topic = "";
-        let key = "";
+        let key;
         let value = "";
         for (let currentLine = range.start.line + 1; currentLine <= range.end.line; currentLine++) {
             const line = document.lineAt(currentLine);
