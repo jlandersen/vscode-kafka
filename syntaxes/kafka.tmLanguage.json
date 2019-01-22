@@ -13,6 +13,12 @@
             "include": "#kafka.headerdefinitionline"
         },
         {
+            "include": "#kafka.separator"
+        },
+        {
+            "include": "#kafka.commentline"
+        },
+        {
             "include": "#kafka.value.json"
         }
     ],
@@ -47,6 +53,22 @@
                     "begin": "\\s*(?=(\\[|{[^{]))",
                     "end": "\\s*(?=(\\]|}[^}}))",
                     "include": "source.json"
+                }
+            ]
+        },
+        "kafka.separator": {
+            "patterns": [
+                {
+                    "name": "keyword.other.separator",
+                    "match": "^###$"
+                }
+            ]
+        },
+        "kafka.commentline": {
+            "patterns": [
+                {
+                    "name": "comment.line.hash",
+                    "match": "^--.*"
                 }
             ]
         }
