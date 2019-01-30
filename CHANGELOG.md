@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
 
+## [0.5.1] - 2019-01-30
+### Changed
+- Fix handling when unable to connect to cluster
+- Fix syntax for topic in kafka file when topic name includes number, dot or underscore
+
 ## [0.5.0] - 2019-01-21
 ### Added
 - Producing is now possible using the "Kafka" language mode (.kafka files)
