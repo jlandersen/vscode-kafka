@@ -39,7 +39,7 @@
             "patterns": [
                 {
                     "name": "kafka.headerdefinition",
-                    "match": "(?i)^(?:(topic|key):\\s*)([a-zA-Z\\-]+)?$",
+                    "match": "(?i)^(?:(topic|key):\\s*)([a-zA-Z0-9\\-\\.\\_]+)?$",
                     "captures": {
                         "1": { "name": "support.variable.kafka" },
                         "2": { "name": "kafka.header.identifier" }
