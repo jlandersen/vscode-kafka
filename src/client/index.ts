@@ -97,6 +97,9 @@ export class Client implements Disposable {
         });
 
         this.kafkaAdminClient = new kafka.Admin(this.kafkaClient);
+        this.kafkaAdminClient.on("error", (error: any) => {
+            // Ignore this, connection error is handled using kafkaClient error event
+        });
 
         return new Promise((resolve, reject) => {
             this.kafkaClient.connect();
@@ -107,6 +110,7 @@ export class Client implements Disposable {
                 this.kafkaKeyedProducerClient = new kafka.HighLevelProducer(this.kafkaClient, {
                     partitionerType: 3,
                 });
+
                 this.kafkaClient.loadMetadataForTopics([], (error: any, result: any) => {
                     if (error) {
                         reject(error);
