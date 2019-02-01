@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
 
+## [0.5.2] - 2019-02-01
+### Changed
+- Update to latest kafka-node package which fixes an issue when controller id is 0
+
 ## [0.5.1] - 2019-01-30
 ### Changed
 - Fix handling when unable to connect to cluster
