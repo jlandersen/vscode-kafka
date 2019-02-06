@@ -2,14 +2,16 @@ import * as vscode from "vscode";
 
 import { Broker, Client } from "../../client";
 import { icons } from "../../constants";
-import { ConfigsItem, NodeBase } from "./nodeBase";
+import { ConfigsItem } from "./common";
+import { NodeBase } from "./nodeBase";
 
-export class BrokerGroupItem implements NodeBase {
-    public readonly contextValue = "brokers";
-    public readonly label = "Brokers";
-    public iconPath?: string;
+export class BrokerGroupItem extends NodeBase {
+    public contextValue = "brokers";
+    public label = "Brokers";
+    public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 
     constructor(private client: Client) {
+        super();
     }
 
     public getChildren(element: NodeBase): Promise<NodeBase[]> {
@@ -17,45 +19,25 @@ export class BrokerGroupItem implements NodeBase {
             return new BrokerItem(this.client, broker);
         }));
     }
-
-    getTreeItem(): vscode.TreeItem {
-        return {
-            label: this.label,
-            contextValue: this.contextValue,
-            collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
-            iconPath: this.iconPath,
-        };
-    }
 }
 
-export class BrokerItem implements NodeBase {
-    public label: string;
-    public description?: string;
-    public readonly contextValue = "broker";
+export class BrokerItem extends NodeBase {
+    public contextValue = "broker";
+    public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 
-    private broker: Broker;
-
-    constructor(private client: Client, broker: Broker) {
+    constructor(private client: Client, private broker: Broker) {
+        super();
         this.label = `${broker.id} (${broker.host}:${broker.port})`;
 
         if (broker.isController) {
             this.description = "Controller";
         }
 
-        this.broker = broker;
+        this.iconPath = this.broker.isConnected ? icons.serverConnected : icons.server;
     }
 
     getChildren(element: NodeBase): Promise<NodeBase[]> {
-        const configNode = new ConfigsItem("brokerconfigs", () => this.client.getBrokerConfigs(this.broker.id));
+        const configNode = new ConfigsItem(() => this.client.getBrokerConfigs(this.broker.id));
         return Promise.resolve([configNode]);
-    }
-
-    getTreeItem(): vscode.TreeItem {
-        return {
-            label: this.label,
-            description: this.description,
-            collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
-            iconPath: this.broker.isConnected ? icons.serverConnected : icons.server,
-        };
     }
 }

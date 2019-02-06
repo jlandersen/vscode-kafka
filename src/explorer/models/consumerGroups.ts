@@ -4,19 +4,13 @@ import { Client, ConsumerGroupMember } from "../../client";
 import { icons } from "../../constants";
 import { NodeBase } from "./nodeBase";
 
-export class ConsumerGroupsItem implements NodeBase {
+export class ConsumerGroupsItem extends NodeBase {
     public label = "Consumer Groups";
-    public readonly contextValue = "consumergroups";
+    public contextValue = "consumergroups";
+    public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 
     constructor(private client: Client) {
-    }
-
-    getTreeItem(): vscode.TreeItem {
-        return {
-            label: this.label,
-            contextValue: this.contextValue,
-            collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
-        };
+        super();
     }
 
     async getChildren(element: NodeBase): Promise<NodeBase[]> {
@@ -26,22 +20,16 @@ export class ConsumerGroupsItem implements NodeBase {
     }
 }
 
-class ConsumerGroupItem implements NodeBase {
-    public label: string;
-    public readonly contextValue = "consumergroupitem";
+class ConsumerGroupItem extends NodeBase {
+    public contextValue = "consumergroupitem";
+    public iconPath = icons.group;
+    public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 
     constructor(private client: Client, private consumerGroupId: string) {
+        super();
         this.label = consumerGroupId;
     }
 
-    getTreeItem(): vscode.TreeItem {
-        return {
-            label: this.label,
-            contextValue: this.contextValue,
-            collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
-            iconPath: icons.group,
-        };
-    }
     async getChildren(element: NodeBase): Promise<NodeBase[]> {
         const groupDetails = await this.client.getConsumerGroupDetails(this.consumerGroupId);
         return Promise.resolve([
@@ -51,65 +39,42 @@ class ConsumerGroupItem implements NodeBase {
     }
 }
 
-class ConsumerGroupDetailsItem implements NodeBase {
-    public readonly contextValue = "consumergroupdetailsitem";
-
-    constructor(public label: string, public description: string) {
+class ConsumerGroupDetailsItem extends NodeBase {
+    public contextValue = "consumergroupdetailsitem";
+    public collapsibleState = vscode.TreeItemCollapsibleState.None;
+    constructor(public label: string, description: string) {
+        super();
+        this.label = label;
+        this.description = description;
     }
 
-    getTreeItem(): vscode.TreeItem {
-        return {
-            label: this.label,
-            description: this.description,
-            contextValue: this.contextValue,
-            collapsibleState: vscode.TreeItemCollapsibleState.None,
-        };
-    }
     getChildren(element: NodeBase): Promise<NodeBase[]> {
         return Promise.resolve([]);
     }
 }
 
-class ConsumerGroupMembersItem implements NodeBase {
+class ConsumerGroupMembersItem extends NodeBase {
     public label = "Members";
-    public readonly contextValue = "consumergroupmembersitems";
+    public contextValue = "consumergroupmembersitems";
+    public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 
     constructor(private members: ConsumerGroupMember[]) {
+        super();
     }
 
-    getTreeItem(): vscode.TreeItem {
-        return {
-            label: this.label,
-            contextValue: this.contextValue,
-            collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
-        };
-    }
     getChildren(element: NodeBase): Promise<NodeBase[]> {
         const members = this.members.map((member) => (new ConsumerGroupMemberItem(member)));
         return Promise.resolve(members);
     }
 }
 
-class ConsumerGroupMemberItem implements NodeBase {
-    public label: string;
-    public description: string;
-    public readonly contextValue = "consumergroupmemberitem";
+class ConsumerGroupMemberItem extends NodeBase {
+    public contextValue = "consumergroupmemberitem";
+    public collapsibleState = vscode.TreeItemCollapsibleState.None;
 
     constructor(member: ConsumerGroupMember) {
+        super();
         this.label = `${member.clientId} (${member.clientHost})`;
         this.description = member.memberId;
-    }
-
-    getTreeItem(): vscode.TreeItem {
-        return {
-            label: this.label,
-            description: this.description,
-            contextValue: this.contextValue,
-            collapsibleState: vscode.TreeItemCollapsibleState.None,
-        };
-    }
-
-    getChildren(element: NodeBase): Promise<NodeBase[]> {
-        return Promise.resolve([]);
     }
 }

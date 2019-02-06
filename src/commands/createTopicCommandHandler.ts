@@ -7,7 +7,7 @@ export class CreateTopicCommandHandler {
     constructor(private client: Client, private explorer: KafkaExplorer) {
     }
 
-    private validatePositiveNumber(value: string | undefined) {
+    private validatePositiveNumber(value?: string) {
         if (!value) {
             return "Must be a positive number";
         }

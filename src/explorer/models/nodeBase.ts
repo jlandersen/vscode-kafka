@@ -1,49 +1,18 @@
 import * as vscode from "vscode";
-import { ConfigEntry } from "../../client";
 
-export interface NodeBase {
-    label: string;
-    contextValue: string;
-    iconPath?: string;
-    getTreeItem(): vscode.TreeItem;
-    getChildren(element: NodeBase): Promise<NodeBase[]>;
-}
-
-export class ConfigsItem  implements NodeBase {
-    public label: string = "Configs";
-
-    constructor(public contextValue: string, private provider: () => Promise<ConfigEntry[]>) {
-    }
+export abstract class NodeBase {
+    public label?: string;
+    public abstract contextValue: string;
+    public abstract collapsibleState: vscode.TreeItemCollapsibleState;
+    public iconPath?: string | { light: string | vscode.Uri; dark: string | vscode.Uri };
+    public description?: string;
 
     getTreeItem(): vscode.TreeItem {
         return {
             label: this.label,
             contextValue: this.contextValue,
-            collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
-        };
-    }
-
-    async getChildren(element: NodeBase): Promise<NodeBase[]> {
-        const configEntries = await this.provider();
-        return configEntries
-            .sort((a, b) => (a.configName < b.configName ? -1 : (a.configName > b.configName) ? 1 : 0))
-            .map((configEntry) => (new ConfigItem(configEntry)));
-    }
-}
-
-class ConfigItem implements NodeBase {
-    public label: string;
-    public description: string;
-    public readonly contextValue: string = "configitem";
-
-    constructor(configEntry: ConfigEntry) {
-        this.label = configEntry.configName;
-        this.description = configEntry.configValue;
-    }
-
-    getTreeItem(): vscode.TreeItem {
-        return {
-            label: this.label,
+            collapsibleState: this.collapsibleState,
+            iconPath: this.iconPath,
             description: this.description,
         };
     }

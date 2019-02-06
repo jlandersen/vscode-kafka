@@ -3,9 +3,8 @@ import * as vscode from "vscode";
 import { Client } from "../client";
 import { Settings } from "../settings";
 import { BrokerGroupItem } from "./models/brokers";
+import { ErrorItem, InformationItem } from "./models/common";
 import { ConsumerGroupsItem } from "./models/consumerGroups";
-import { ErrorItem } from "./models/errorNode";
-import { InformationItem } from "./models/infoNode";
 import { NodeBase } from "./models/nodeBase";
 import { TopicGroupItem } from "./models/topics";
 
@@ -39,7 +38,7 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
         return element.getTreeItem();
     }
 
-    public getChildren(element?: NodeBase | undefined): vscode.ProviderResult<NodeBase[]> {
+    public getChildren(element?: NodeBase): vscode.ProviderResult<NodeBase[]> {
         if (!this.settings.host) {
             return [new InformationItem("Set kafka.hosts setting to connect")];
         }
