@@ -47,3 +47,4 @@ topic: json-events
 }
 ```
 
+Producers with a key will assign partition based on a hash of the key. If no key is provided a round robin assignment is used.
