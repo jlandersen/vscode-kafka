@@ -1,9 +1,8 @@
 import * as vscode from "vscode";
 
 import { Client } from "../client";
-import { CreateTopicCommandHandler } from "./createTopicCommandHandler";
 
-const waitUntilConnected = async (client: Client, handler: () => Promise<any>) => {
+export const waitUntilConnected = async (client: Client, handler: () => Promise<any>) => {
     if (!client.canConnect()) {
         vscode.window.showInformationMessage("No kafka host configured");
         return;
@@ -21,4 +20,6 @@ const waitUntilConnected = async (client: Client, handler: () => Promise<any>) =
     }
 };
 
-export { CreateTopicCommandHandler, waitUntilConnected };
+export * from "./consumers";
+export * from "./topics";
+export * from "./producers";

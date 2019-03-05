@@ -291,3 +291,5 @@ export class Client implements Disposable {
         });
     }
 }
+
+export * from "./consumer";

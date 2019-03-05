@@ -24,7 +24,10 @@
 	],
 	"activationEvents": [
 		"onCommand:vscode-kafka.explorer.createtopic",
-		"onCommand:vscode-kafka.explorer.refresh",
+        "onCommand:vscode-kafka.explorer.refresh",
+        "onCommand:vscode-kafka.consumer.consume",
+        "onCommand:vscode-kafka.consumer.list",
+        "onCommand:vscode-kafka.consumer.toggle",
 		"onView:kafkaExplorer",
 		"onLanguage:kafka",
 		"onDebug"
@@ -39,6 +42,15 @@
 					"type": "string",
 					"default": "",
 					"description": "Initial set of brokers (host:ip) to connect to. Separate by comma for multiple hosts."
+                },
+                "kafka.consumers.offset": {
+					"type": "string",
+					"enum": [
+                        "earliest",
+                        "latest"
+                    ],
+                    "default": "latest",
+                    "description": "Initial offset to read from for new consumers."
 				}
 			}
 		},
@@ -50,7 +62,7 @@
 				],
 				"aliases": [
 					"kafka"
-				],
+                ],
 				"configuration": "./language-configuration.json"
 			}
 		],
@@ -79,6 +91,25 @@
 					"light": "images/light/createtopic.svg",
 					"dark": "images/dark/createtopic.svg"
 				}
+            },
+            {
+				"command": "vscode-kafka.consumer.consume",
+                "title": "Start Consumer (UTF-8 record values)",
+                "category": "Kafka"
+            },
+            {
+				"command": "vscode-kafka.consumer.list",
+                "title": "View Consumers",
+                "category": "Kafka"
+            },
+            {
+				"command": "vscode-kafka.consumer.toggle",
+                "title": "Start/Stop Consumer",
+                "category": "Kafka",
+				"icon": {
+					"light": "images/light/toggle.svg",
+					"dark": "images/dark/toggle.svg"
+				}
 			}
 		],
 		"menus": {
@@ -93,7 +124,20 @@
 					"when": "view == kafkaExplorer",
 					"group": "navigation"
 				}
-			]
+            ],
+            "view/item/context": [
+                {
+                    "command": "vscode-kafka.consumer.consume",
+                    "when": "view == kafkaExplorer && viewItem == topic"
+                }
+            ],
+            "editor/title": [
+                {
+                  "command": "vscode-kafka.consumer.toggle",
+                  "group": "navigation",
+                  "when": "resourceScheme == kafka"
+                }
+              ]
 		},
 		"viewsContainers": {
 			"activitybar": [

@@ -1,0 +1,112 @@
+import { Message } from "kafka-node";
+import * as vscode from "vscode";
+
+import { ConsumerCollection } from "../client";
+
+export const ConsumerVirtualTextDocumentProvider = new class
+        implements vscode.TextDocumentContentProvider, vscode.Disposable {
+    public SCHEME = "kafka";
+    private buffer: { [id: string]: string; } = {};
+    private disposables: vscode.Disposable[] = [];
+
+    private consumerCollection = ConsumerCollection.getInstance();
+
+    private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
+    public onDidChange = this.onDidChangeEmitter.event;
+
+    constructor() {
+        this.disposables.push(vscode.workspace.onDidCloseTextDocument((e) => {
+            this.onDidCloseTextDocument(e);
+        }));
+
+        this.disposables.push(this.consumerCollection.onDidChangeCollection((arg) => {
+            for (const startedUri of arg.created) {
+                if (!this.buffer[startedUri.toString()]) {
+                    this.buffer[startedUri.toString()] = "Consumer: started\n\n";
+                } else {
+                    this.buffer[startedUri.toString()] += "Consumer started\n\n";
+                }
+
+                this.attachToConsumer(startedUri);
+            }
+
+            for (const closedUri of arg.closed) {
+                this.onDidCloseConsumer(closedUri);
+            }
+        }));
+    }
+
+    public provideTextDocumentContent(uri: vscode.Uri): string {
+        if (!this.buffer.hasOwnProperty(uri.toString())) {
+            return "";
+        }
+
+        return this.buffer[uri.toString()];
+    }
+
+    public attachToConsumer(uri: vscode.Uri) {
+        const consumer = this.consumerCollection.get(uri);
+
+        if (consumer === null) {
+            return;
+        }
+
+        this.disposables.push(consumer.onDidReceiveRecord((arg) => {
+            this.onDidReceiveRecord(arg.uri, arg.record);
+        }));
+
+        this.disposables.push(consumer.onDidChangeStatus((arg) => {
+            this.onDidChangeStatus(arg.uri, arg.status);
+        }));
+    }
+
+    public onDidChangeStatus(uri: vscode.Uri, status: string) {
+        let uriBuffer = this.buffer[uri.toString()];
+        const line = `Consumer: ${status}\n\n`;
+        uriBuffer = uriBuffer + line;
+
+        this.buffer[uri.toString()] = uriBuffer;
+        this.onDidChangeEmitter.fire(uri);
+    }
+
+    public onDidReceiveRecord(uri: vscode.Uri, message: Message) {
+        let uriBuffer = this.buffer[uri.toString()];
+        let line = `Key: ${message.key}\nPartition: ${message.partition}\nOffset: ${message.offset}\n`;
+        line = line + `Value:\n${message.value}\n\n`;
+        uriBuffer = uriBuffer + line;
+
+        this.buffer[uri.toString()] = uriBuffer;
+        this.onDidChangeEmitter.fire(uri);
+    }
+
+    public onDidCloseConsumer(uri: vscode.Uri) {
+        let uriBuffer = this.buffer[uri.toString()];
+        const line = `Consumer closed\n`;
+        uriBuffer = uriBuffer + line;
+
+        this.buffer[uri.toString()] = uriBuffer;
+        this.onDidChangeEmitter.fire(uri);
+    }
+
+    public onDidReceiveError(error: any) {
+        // TODO: handle error
+    }
+
+    public onDidCloseTextDocument(document: vscode.TextDocument) {
+        if (document.uri.scheme !== "kafka") {
+            return;
+        }
+
+        const buffer = this.buffer[document.uri.toString()];
+
+        if (!buffer) {
+            return;
+        }
+
+        delete this.buffer[document.uri.toString()];
+    }
+
+    public dispose() {
+        this.consumerCollection.dispose();
+    }
+}();

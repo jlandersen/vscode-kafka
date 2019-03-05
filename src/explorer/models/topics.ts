@@ -26,7 +26,7 @@ export class TopicItem extends NodeBase {
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
     public iconPath = icons.topic;
 
-    constructor(private client: Client, private topic: Topic) {
+    constructor(private client: Client, public topic: Topic) {
         super();
         this.label = topic.id;
         this.description = `Partitions: ${topic.partitionCount}, Replicas: ${topic.replicationFactor}`;
