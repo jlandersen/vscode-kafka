@@ -1,6 +1,16 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
 
+## [0.6.0] - 2019-03-05
+### Added
+- Consuming is now possible! Activate either by right clicking a topic in the explorer or from the command palette. Make sure to read the [README](https://github.com/jlandersen/vscode-kafka) for details.
+
+### Changed
+ - Some refactorings that improves things behind the scenes here and there
+
+ ### Known issues
+ - Expanding configs for brokers in clusters of more than one broker results in an error. Pending fix in kafka-node ([issue](https://github.com/SOHU-Co/kafka-node/issues/1172)).
+
 ## [0.5.2] - 2019-02-01
 ### Changed
 - Update to latest kafka-node package which fixes an issue when controller id is 0
