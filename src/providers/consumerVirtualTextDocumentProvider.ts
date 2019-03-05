@@ -71,6 +71,11 @@ export const ConsumerVirtualTextDocumentProvider = new class
 
     public onDidReceiveRecord(uri: vscode.Uri, message: Message) {
         let uriBuffer = this.buffer[uri.toString()];
+
+        if (!uriBuffer) {
+            return;
+        }
+
         let line = `Key: ${message.key}\nPartition: ${message.partition}\nOffset: ${message.offset}\n`;
         line = line + `Value:\n${message.value}\n\n`;
         uriBuffer = uriBuffer + line;
@@ -81,6 +86,11 @@ export const ConsumerVirtualTextDocumentProvider = new class
 
     public onDidCloseConsumer(uri: vscode.Uri) {
         let uriBuffer = this.buffer[uri.toString()];
+
+        if (!uriBuffer) {
+            return;
+        }
+
         const line = `Consumer closed\n`;
         uriBuffer = uriBuffer + line;
 
@@ -101,6 +111,10 @@ export const ConsumerVirtualTextDocumentProvider = new class
 
         if (!buffer) {
             return;
+        }
+
+        if (this.consumerCollection.has(document.uri)) {
+            this.consumerCollection.close(document.uri);
         }
 
         delete this.buffer[document.uri.toString()];
