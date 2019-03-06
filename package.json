@@ -51,6 +51,15 @@
                     ],
                     "default": "latest",
                     "description": "Initial offset to read from for new consumers."
+                },
+                "kafka.explorer.topics.sort": {
+					"type": "string",
+					"enum": [
+                        "name",
+                        "partitions"
+                    ],
+                    "default": "name",
+                    "description": "Choose sorting for topics in explorer"
 				}
 			}
 		},

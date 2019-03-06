@@ -2,6 +2,8 @@ import * as vscode from "vscode";
 
 import { Client, Topic, TopicPartition } from "../../client";
 import { icons } from "../../constants";
+import { getSettings } from "../../settings";
+import { TopicSortOption } from "../../settings/settings";
 import { ConfigsItem } from "./common";
 import { NodeBase } from "./nodeBase";
 
@@ -15,9 +17,33 @@ export class TopicGroupItem extends NodeBase {
     }
 
     getChildren(element: NodeBase): Promise<NodeBase[]> {
-        return Promise.resolve(this.client.getTopics().map((topic) => {
+        const settings = getSettings();
+        let topics = this.client.getTopics();
+
+        switch (settings.topicSortOption) {
+            case TopicSortOption.Name:
+                topics = topics.sort(this.sortByNameAscending);
+                break;
+            case TopicSortOption.Partitions:
+                topics = topics.sort(this.sortByPartitionsAscending);
+                break;
+        }
+
+        return Promise.resolve(topics.map((topic) => {
             return new TopicItem(this.client, topic);
         }));
+    }
+
+    private sortByNameAscending(a: Topic, b: Topic) {
+        if (a.id.toLowerCase() < b.id.toLowerCase()) { return -1; }
+        if (a.id.toLowerCase() > b.id.toLowerCase()) { return 1; }
+        return 0;
+    }
+
+    private sortByPartitionsAscending(a: Topic, b: Topic) {
+        if (a.partitionCount < b.partitionCount) { return -1; }
+        if (a.partitionCount > b.partitionCount) { return 1; }
+        return 0;
     }
 }
 

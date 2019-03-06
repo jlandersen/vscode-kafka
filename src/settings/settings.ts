@@ -1,8 +1,14 @@
 import * as vscode from "vscode";
 
+export enum TopicSortOption {
+    Name = "name",
+    Partitions = "partitions",
+}
+
 export interface Settings extends vscode.Disposable {
     host: string;
     consumerOffset: string;
+    topicSortOption: TopicSortOption;
 }
 
 class KafkaWorkspaceSettings implements Settings {
@@ -15,6 +21,7 @@ class KafkaWorkspaceSettings implements Settings {
 
     public host: string = "";
     public consumerOffset: string = "";
+    public topicSortOption: TopicSortOption = TopicSortOption.Name;
 
     private constructor() {
         this.configurationChangeHandlerDisposable = vscode.workspace.onDidChangeConfiguration(
@@ -34,6 +41,7 @@ class KafkaWorkspaceSettings implements Settings {
         const configuration = vscode.workspace.getConfiguration("kafka");
         this.host = configuration.get<string>("hosts", "");
         this.consumerOffset = configuration.get<string>("consumers.offset", "latest");
+        this.topicSortOption = configuration.get<TopicSortOption>("explorer.topics.sort", TopicSortOption.Name);
     }
 
     dispose() {
