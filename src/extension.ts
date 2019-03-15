@@ -3,14 +3,16 @@ import * as vscode from "vscode";
 import { Client } from "./client";
 import {
     CreateTopicCommandHandler,
+    DumpClusterMetadataCommandHandler,
+    DumpTopicMetadataCommandHandler,
     ListConsumersCommandHandler,
     ProduceRecordCommandHandler,
     StartConsumerCommandHandler,
     ToggleConsumerCommandHandler,
     waitUntilConnected,
-    DumpTopicMetadataCommandHandler,
+    DumpBrokerMetadataCommandHandler,
 } from "./commands";
-import { KafkaExplorer, TopicItem } from "./explorer";
+import { BrokerItem, KafkaExplorer, TopicItem } from "./explorer";
 import { ConsumerVirtualTextDocumentProvider, OutputChannelProvider, ProducerCodeLensProvider } from "./providers";
 import { createSettings } from "./settings";
 import { ConsumerStatusBarItem } from "./views/consumerStatusBarItem";
@@ -26,6 +28,8 @@ export function activate(context: vscode.ExtensionContext) {
     const listConsumersCommandHandler = new ListConsumersCommandHandler();
     const toggleConsumerCommandHandler = new ToggleConsumerCommandHandler();
     const dumpTopicMetadataCommandHandler = new DumpTopicMetadataCommandHandler(client, outputChannelProvider);
+    const dumpClusterMetadataCommandHandler = new DumpClusterMetadataCommandHandler(client, outputChannelProvider);
+    const dumpBrokerMetadataCommandHandler = new DumpBrokerMetadataCommandHandler(client, outputChannelProvider);
 
     context.subscriptions.push(settings.onDidChangeSettings(() => {
         client.refresh({ host: settings.host });
@@ -50,6 +54,16 @@ export function activate(context: vscode.ExtensionContext) {
         "vscode-kafka.explorer.dumptopicmetadata",
         (topic?: TopicItem) => {
             waitUntilConnected(client, () => dumpTopicMetadataCommandHandler.execute(topic));
+        }));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        "vscode-kafka.explorer.dumpclustermetadata",
+        () => {
+            waitUntilConnected(client, () => dumpClusterMetadataCommandHandler.execute());
+        }));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        "vscode-kafka.explorer.dumpbrokermetadata",
+        (broker?: BrokerItem) => {
+            waitUntilConnected(client, () => dumpBrokerMetadataCommandHandler.execute(broker));
         }));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.consumer.consume",

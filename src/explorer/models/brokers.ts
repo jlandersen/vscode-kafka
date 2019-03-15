@@ -25,7 +25,7 @@ export class BrokerItem extends NodeBase {
     public contextValue = "broker";
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 
-    constructor(private client: Client, private broker: Broker) {
+    constructor(private client: Client, public broker: Broker) {
         super();
         this.label = `${broker.id} (${broker.host}:${broker.port})`;
 

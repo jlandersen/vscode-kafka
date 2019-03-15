@@ -23,3 +23,4 @@ export const waitUntilConnected = async (client: Client, handler: () => Promise<
 export * from "./consumers";
 export * from "./topics";
 export * from "./producers";
+export * from "./cluster";
