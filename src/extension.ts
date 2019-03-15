@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import { Client } from "./client";
 import {
     CreateTopicCommandHandler,
+    DumpBrokerMetadataCommandHandler,
     DumpClusterMetadataCommandHandler,
     DumpTopicMetadataCommandHandler,
     ListConsumersCommandHandler,
@@ -10,7 +11,6 @@ import {
     StartConsumerCommandHandler,
     ToggleConsumerCommandHandler,
     waitUntilConnected,
-    DumpBrokerMetadataCommandHandler,
 } from "./commands";
 import { BrokerItem, KafkaExplorer, TopicItem } from "./explorer";
 import { ConsumerVirtualTextDocumentProvider, OutputChannelProvider, ProducerCodeLensProvider } from "./providers";

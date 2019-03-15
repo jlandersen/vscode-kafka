@@ -81,9 +81,15 @@ export class DumpTopicMetadataCommandHandler {
             return;
         }
 
+        const configs = await this.client.getTopicConfigs(topicToDump.id);
+        const data = {
+            ...topicToDump,
+            configs,
+        };
+
         const channel = this.outputChannelProvider.getChannel("Topic Metadata");
         channel.clear();
-        channel.append(dump(topicToDump));
+        channel.append(dump(data));
         channel.show();
     }
 }
