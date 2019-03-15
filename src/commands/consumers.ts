@@ -1,5 +1,7 @@
 import * as vscode from "vscode";
+
 import { Client, ConsumerCollection, Topic } from "../client";
+import { pickTopic } from "./common";
 
 export interface StartConsumerCommand {
     topic: Topic;
@@ -13,7 +15,7 @@ export class StartConsumerCommandHandler {
 
     async execute(startConsumerCommand?: StartConsumerCommand) {
         if (!startConsumerCommand) {
-            const topic = await this.pickTopic();
+            const topic = await pickTopic(this.client);
 
             if (topic === undefined) {
                 return;
@@ -41,25 +43,6 @@ export class StartConsumerCommandHandler {
                 preserveFocus: true,
                 viewColumn: vscode.ViewColumn.Beside,
             });
-    }
-
-    private async pickTopic(): Promise<Topic | undefined> {
-        const topics = this.client.getTopics();
-        const topicQuickPickItems = topics.map((topic) => {
-            return {
-                label: topic.id,
-                description: `Partitions: ${topic.partitionCount}`,
-                topic,
-            };
-        });
-
-        const pickedTopic = await vscode.window.showQuickPick(topicQuickPickItems);
-
-        if (!pickedTopic) {
-            return;
-        }
-
-        return pickedTopic.topic;
     }
 }
 

@@ -8,6 +8,7 @@ import {
     StartConsumerCommandHandler,
     ToggleConsumerCommandHandler,
     waitUntilConnected,
+    DumpTopicMetadataCommandHandler,
 } from "./commands";
 import { KafkaExplorer, TopicItem } from "./explorer";
 import { ConsumerVirtualTextDocumentProvider, OutputChannelProvider, ProducerCodeLensProvider } from "./providers";
@@ -24,6 +25,7 @@ export function activate(context: vscode.ExtensionContext) {
     const startConsumerCommandHandler = new StartConsumerCommandHandler(client);
     const listConsumersCommandHandler = new ListConsumersCommandHandler();
     const toggleConsumerCommandHandler = new ToggleConsumerCommandHandler();
+    const dumpTopicMetadataCommandHandler = new DumpTopicMetadataCommandHandler(client, outputChannelProvider);
 
     context.subscriptions.push(settings.onDidChangeSettings(() => {
         client.refresh({ host: settings.host });
@@ -45,8 +47,13 @@ export function activate(context: vscode.ExtensionContext) {
         (document: vscode.TextDocument, range: vscode.Range, times: number) =>
             waitUntilConnected(client, () => produceRecordCommandHandler.execute(document, range, times))));
     context.subscriptions.push(vscode.commands.registerCommand(
+        "vscode-kafka.explorer.dumptopicmetadata",
+        (topic?: TopicItem) => {
+            waitUntilConnected(client, () => dumpTopicMetadataCommandHandler.execute(topic));
+        }));
+    context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.consumer.consume",
-        (topic: TopicItem | undefined) =>
+        (topic?: TopicItem) =>
             waitUntilConnected(client, () => startConsumerCommandHandler.execute(topic))));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.consumer.list",

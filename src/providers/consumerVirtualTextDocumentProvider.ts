@@ -15,11 +15,11 @@ export const ConsumerVirtualTextDocumentProvider = new class
     public onDidChange = this.onDidChangeEmitter.event;
 
     constructor() {
-        this.disposables.push(vscode.workspace.onDidCloseTextDocument((e) => {
+        this.disposables.push(vscode.workspace.onDidCloseTextDocument((e: any) => {
             this.onDidCloseTextDocument(e);
         }));
 
-        this.disposables.push(this.consumerCollection.onDidChangeCollection((arg) => {
+        this.disposables.push(this.consumerCollection.onDidChangeCollection((arg: any) => {
             for (const startedUri of arg.created) {
                 if (!this.buffer[startedUri.toString()]) {
                     this.buffer[startedUri.toString()] = "Consumer: started\n\n";
@@ -51,11 +51,11 @@ export const ConsumerVirtualTextDocumentProvider = new class
             return;
         }
 
-        this.disposables.push(consumer.onDidReceiveRecord((arg) => {
+        this.disposables.push(consumer.onDidReceiveRecord((arg: any) => {
             this.onDidReceiveRecord(arg.uri, arg.record);
         }));
 
-        this.disposables.push(consumer.onDidChangeStatus((arg) => {
+        this.disposables.push(consumer.onDidChangeStatus((arg: any) => {
             this.onDidChangeStatus(arg.uri, arg.status);
         }));
     }

@@ -1,7 +1,10 @@
+import { dump } from "js-yaml";
 import * as vscode from "vscode";
 
-import { Client } from "../client";
-import { KafkaExplorer } from "../explorer";
+import { Client, Topic } from "../client";
+import { KafkaExplorer, TopicItem } from "../explorer";
+import { OutputChannelProvider } from "../providers";
+import { pickTopic } from "./common";
 
 export class CreateTopicCommandHandler {
     constructor(private client: Client, private explorer: KafkaExplorer) {
@@ -64,5 +67,23 @@ export class CreateTopicCommandHandler {
                 vscode.window.showErrorMessage(error);
             }
         }
+    }
+}
+
+export class DumpTopicMetadataCommandHandler {
+    constructor(private client: Client, private outputChannelProvider: OutputChannelProvider) {
+    }
+
+    async execute(topic?: TopicItem) {
+        const topicToDump: Topic | undefined = topic ? topic.topic : await pickTopic(this.client);
+
+        if (!topicToDump) {
+            return;
+        }
+
+        const channel = this.outputChannelProvider.getChannel("Topic Metadata");
+        channel.clear();
+        channel.append(dump(topicToDump));
+        channel.show();
     }
 }
