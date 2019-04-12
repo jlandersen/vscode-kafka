@@ -1,218 +1,237 @@
 {
-	"name": "vscode-kafka",
-	"displayName": "Kafka",
-	"description": "Interact with Kafka directly in VS Code",
-	"publisher": "jeppeandersen",
-	"version": "0.6.0",
-	"engines": {
-		"vscode": "^1.30.0"
-	},
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/jlandersen/vscode-kafka"
-	},
-	"icon": "images/icon.png",
-	"galleryBanner": {
-		"color": "#1d1c1c",
-		"theme": "dark"
-	},
-	"categories": [
-		"Other"
-	],
-	"keywords": [
-		"kafka"
-	],
-	"activationEvents": [
-		"onCommand:vscode-kafka.explorer.createtopic",
-		"onCommand:vscode-kafka.explorer.refresh",
-		"onCommand:vscode-kafka.explorer.dumptopicmetadata",
-		"onCommand:vscode-kafka.explorer.dumpbrokermetadata",
-		"onCommand:vscode-kafka.explorer.dumpclustermetadata",
-		"onCommand:vscode-kafka.consumer.consume",
-		"onCommand:vscode-kafka.consumer.list",
-		"onCommand:vscode-kafka.consumer.toggle",
-		"onView:kafkaExplorer",
-		"onLanguage:kafka",
-		"onDebug"
-	],
-	"main": "./out/extension.js",
-	"contributes": {
-		"configuration": {
-			"type": "object",
-			"title": "Kafka",
-			"properties": {
-				"kafka.hosts": {
-					"type": "string",
-					"default": "",
-					"description": "Initial set of brokers (host:ip) to connect to. Separate by comma for multiple hosts."
-				},
-				"kafka.consumers.offset": {
-					"type": "string",
-					"enum": [
-						"earliest",
-						"latest"
-					],
-					"default": "latest",
-					"description": "Initial offset to read from for new consumers."
-				},
-				"kafka.explorer.topics.sort": {
-					"type": "string",
-					"enum": [
-						"name",
-						"partitions"
-					],
-					"default": "name",
-					"description": "Choose sorting for topics in explorer"
-				}
-			}
-		},
-		"languages": [
-			{
-				"id": "kafka",
-				"extensions": [
-					".kafka"
-				],
-				"aliases": [
-					"kafka"
-				],
-				"configuration": "./language-configuration.json"
-			}
-		],
-		"grammars": [
-			{
-				"language": "kafka",
-				"scopeName": "source.kafka",
-				"path": "./syntaxes/kafka.tmLanguage.json"
-			}
-		],
-		"commands": [
-			{
-				"command": "vscode-kafka.explorer.refresh",
-				"title": "Refresh",
-				"category": "Kafka",
-				"icon": {
-					"light": "images/light/refresh.svg",
-					"dark": "images/dark/refresh.svg"
-				}
-			},
-			{
-				"command": "vscode-kafka.explorer.createtopic",
-				"title": "Create Topic",
-				"category": "Kafka",
-				"icon": {
-					"light": "images/light/createtopic.svg",
-					"dark": "images/dark/createtopic.svg"
-				}
-			},
-			{
-				"command": "vscode-kafka.explorer.dumptopicmetadata",
-				"title": "Dump Topic Metadata",
-				"category": "Kafka"
-			},
-			{
-				"command": "vscode-kafka.explorer.dumpbrokermetadata",
-				"title": "Dump Broker Metadata",
-				"category": "Kafka"
-			},
-			{
-				"command": "vscode-kafka.explorer.dumpclustermetadata",
-				"title": "Dump Cluster Metadata",
-				"category": "Kafka"
-			},
-			{
-				"command": "vscode-kafka.consumer.consume",
-				"title": "Start Consumer (UTF-8 record values)",
-				"category": "Kafka"
-			},
-			{
-				"command": "vscode-kafka.consumer.list",
-				"title": "View Consumers",
-				"category": "Kafka"
-			},
-			{
-				"command": "vscode-kafka.consumer.toggle",
-				"title": "Start/Stop Consumer",
-				"category": "Kafka",
-				"icon": {
-					"light": "images/light/toggle.svg",
-					"dark": "images/dark/toggle.svg"
-				}
-			}
-		],
-		"menus": {
-			"view/title": [
-				{
-					"command": "vscode-kafka.explorer.refresh",
-					"when": "view == kafkaExplorer",
-					"group": "navigation"
-				},
-				{
-					"command": "vscode-kafka.explorer.createtopic",
-					"when": "view == kafkaExplorer",
-					"group": "navigation"
-				}
-			],
-			"view/item/context": [
-				{
-					"command": "vscode-kafka.consumer.consume",
-					"when": "view == kafkaExplorer && viewItem == topic"
-				},
-				{
-					"command": "vscode-kafka.explorer.dumptopicmetadata",
-					"when": "view == kafkaExplorer && viewItem == topic"
-				},
-				{
-					"command": "vscode-kafka.explorer.dumpclustermetadata",
-					"when": "view == kafkaExplorer && viewItem == broker"
-				},
-				{
-					"command": "vscode-kafka.explorer.dumpbrokermetadata",
-					"when": "view == kafkaExplorer && viewItem == broker"
-				}
-			],
-			"editor/title": [
-				{
-					"command": "vscode-kafka.consumer.toggle",
-					"group": "navigation",
-					"when": "resourceScheme == kafka"
-				}
-			]
-		},
-		"viewsContainers": {
-			"activitybar": [
-				{
-					"icon": "images/kafka.svg",
-					"id": "kafkaView",
-					"title": "Kafka"
-				}
-			]
-		},
-		"views": {
-			"kafkaView": [
-				{
-					"id": "kafkaExplorer",
-					"name": "Explorer"
-				}
-			]
-		}
-	},
-	"scripts": {
-		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -p ./",
-		"watch": "tsc -watch -p ./",
-		"postinstall": "node ./node_modules/vscode/bin/install",
-		"test": "npm run compile && node ./node_modules/vscode/bin/test"
-	},
-	"devDependencies": {
-		"@types/js-yaml": "^3.12.0",
-		"@types/mocha": "^2.2.42",
-		"@types/node": "^8.10.45",
-		"tslint": "^5.15.0",
-		"typescript": "^3.4.3",
-		"vscode": "^1.1.33"
-	},
-	"dependencies": {
-		"js-yaml": "^3.12.2",
-		"kafka-node": "^4.1.0"
-	}
+    "name": "vscode-kafka",
+    "displayName": "Kafka",
+    "description": "Interact with Kafka directly in VS Code",
+    "publisher": "jeppeandersen",
+    "version": "0.6.0",
+    "engines": {
+        "vscode": "^1.30.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/jlandersen/vscode-kafka"
+    },
+    "icon": "images/icon.png",
+    "galleryBanner": {
+        "color": "#1d1c1c",
+        "theme": "dark"
+    },
+    "categories": [
+        "Other"
+    ],
+    "keywords": [
+        "kafka"
+    ],
+    "activationEvents": [
+        "onCommand:vscode-kafka.explorer.createtopic",
+        "onCommand:vscode-kafka.explorer.refresh",
+        "onCommand:vscode-kafka.explorer.dumptopicmetadata",
+        "onCommand:vscode-kafka.explorer.dumpbrokermetadata",
+        "onCommand:vscode-kafka.explorer.dumpclustermetadata",
+        "onCommand:vscode-kafka.consumer.consume",
+        "onCommand:vscode-kafka.consumer.list",
+        "onCommand:vscode-kafka.consumer.toggle",
+        "onView:kafkaExplorer",
+        "onLanguage:kafka",
+        "onDebug"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "configuration": {
+            "type": "object",
+            "title": "Kafka",
+            "properties": {
+                "kafka.hosts": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Initial set of brokers (host:ip) to connect to. Separate by comma for multiple hosts."
+                },
+                "kafka.sasl.mechanism": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "plain"
+                    ],
+                    "default": "none",
+                    "description": "SASL Authentication"
+                },
+                "kafka.sasl.username": {
+                    "type": "string",
+                    "default": null,
+                    "description": "username (applies to SASL/PLAIN mechanism)"
+                },
+                "kafka.sasl.password": {
+                    "type": "string",
+                    "default": null,
+                    "description": "password (applies to SASL/PLAIN mechanism)"
+                },
+                "kafka.consumers.offset": {
+                    "type": "string",
+                    "enum": [
+                        "earliest",
+                        "latest"
+                    ],
+                    "default": "latest",
+                    "description": "Initial offset to read from for new consumers."
+                },
+                "kafka.explorer.topics.sort": {
+                    "type": "string",
+                    "enum": [
+                        "name",
+                        "partitions"
+                    ],
+                    "default": "name",
+                    "description": "Choose sorting for topics in explorer"
+                }
+            }
+        },
+        "languages": [
+            {
+                "id": "kafka",
+                "extensions": [
+                    ".kafka"
+                ],
+                "aliases": [
+                    "kafka"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "kafka",
+                "scopeName": "source.kafka",
+                "path": "./syntaxes/kafka.tmLanguage.json"
+            }
+        ],
+        "commands": [
+            {
+                "command": "vscode-kafka.explorer.refresh",
+                "title": "Refresh",
+                "category": "Kafka",
+                "icon": {
+                    "light": "images/light/refresh.svg",
+                    "dark": "images/dark/refresh.svg"
+                }
+            },
+            {
+                "command": "vscode-kafka.explorer.createtopic",
+                "title": "Create Topic",
+                "category": "Kafka",
+                "icon": {
+                    "light": "images/light/createtopic.svg",
+                    "dark": "images/dark/createtopic.svg"
+                }
+            },
+            {
+                "command": "vscode-kafka.explorer.dumptopicmetadata",
+                "title": "Dump Topic Metadata",
+                "category": "Kafka"
+            },
+            {
+                "command": "vscode-kafka.explorer.dumpbrokermetadata",
+                "title": "Dump Broker Metadata",
+                "category": "Kafka"
+            },
+            {
+                "command": "vscode-kafka.explorer.dumpclustermetadata",
+                "title": "Dump Cluster Metadata",
+                "category": "Kafka"
+            },
+            {
+                "command": "vscode-kafka.consumer.consume",
+                "title": "Start Consumer (UTF-8 record values)",
+                "category": "Kafka"
+            },
+            {
+                "command": "vscode-kafka.consumer.list",
+                "title": "View Consumers",
+                "category": "Kafka"
+            },
+            {
+                "command": "vscode-kafka.consumer.toggle",
+                "title": "Start/Stop Consumer",
+                "category": "Kafka",
+                "icon": {
+                    "light": "images/light/toggle.svg",
+                    "dark": "images/dark/toggle.svg"
+                }
+            }
+        ],
+        "menus": {
+            "view/title": [
+                {
+                    "command": "vscode-kafka.explorer.refresh",
+                    "when": "view == kafkaExplorer",
+                    "group": "navigation"
+                },
+                {
+                    "command": "vscode-kafka.explorer.createtopic",
+                    "when": "view == kafkaExplorer",
+                    "group": "navigation"
+                }
+            ],
+            "view/item/context": [
+                {
+                    "command": "vscode-kafka.consumer.consume",
+                    "when": "view == kafkaExplorer && viewItem == topic"
+                },
+                {
+                    "command": "vscode-kafka.explorer.dumptopicmetadata",
+                    "when": "view == kafkaExplorer && viewItem == topic"
+                },
+                {
+                    "command": "vscode-kafka.explorer.dumpclustermetadata",
+                    "when": "view == kafkaExplorer && viewItem == broker"
+                },
+                {
+                    "command": "vscode-kafka.explorer.dumpbrokermetadata",
+                    "when": "view == kafkaExplorer && viewItem == broker"
+                }
+            ],
+            "editor/title": [
+                {
+                    "command": "vscode-kafka.consumer.toggle",
+                    "group": "navigation",
+                    "when": "resourceScheme == kafka"
+                }
+            ]
+        },
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "icon": "images/kafka.svg",
+                    "id": "kafkaView",
+                    "title": "Kafka"
+                }
+            ]
+        },
+        "views": {
+            "kafkaView": [
+                {
+                    "id": "kafkaExplorer",
+                    "name": "Explorer"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "postinstall": "node ./node_modules/vscode/bin/install",
+        "test": "npm run compile && node ./node_modules/vscode/bin/test"
+    },
+    "devDependencies": {
+        "@types/js-yaml": "^3.12.0",
+        "@types/mocha": "^2.2.42",
+        "@types/node": "^8.10.45",
+        "tslint": "^5.15.0",
+        "typescript": "^3.4.3",
+        "vscode": "^1.1.33"
+    },
+    "dependencies": {
+        "js-yaml": "^3.12.2",
+        "kafka-node": "^4.1.0"
+    }
 }

@@ -2,6 +2,7 @@
 const kafka = require("kafka-node");
 
 import { Disposable } from "vscode";
+import { SaslOption, Settings } from "../settings";
 
 export interface Broker {
     id: string;
@@ -40,6 +41,7 @@ export interface CreateTopicRequest {
 
 export interface Options {
     host: string;
+    sasl: "none" | "SASL/PLAIN";
 }
 
 export interface ConsumerGroup {
@@ -63,19 +65,21 @@ export class Client implements Disposable {
     public kafkaKeyedProducerClient: any;
     private kafkaAdminClient: any;
     private host: string;
+    private sasl?: SaslOption;
 
     private metadata: {
         topics: Topic[];
         brokers: Broker[];
     };
 
-    constructor(options: Options) {
+    constructor(options: Settings) {
         this.metadata = {
             brokers: [],
             topics: [],
         };
 
         this.host = options.host;
+        this.sasl = options.sasl;
     }
 
     canConnect() {
@@ -92,8 +96,10 @@ export class Client implements Disposable {
             connectRetryOptions: {
                 retries: 1,
             },
+            sasl: this.sasl,
             connectTimeout: 3000,
             kafkaHost: this.host,
+
         });
 
         this.kafkaAdminClient = new kafka.Admin(this.kafkaClient);
@@ -194,10 +200,11 @@ export class Client implements Disposable {
         });
     }
 
-    refresh(options: Options) {
+    refresh(options: Settings) {
         this.dispose();
 
         this.host = options.host;
+        this.sasl = options.sasl;
         this.kafkaClient = null;
     }
 
@@ -277,17 +284,17 @@ export class Client implements Disposable {
         return new Promise((resolve, reject) => {
             this.kafkaAdminClient.describeConfigs(payload,
                 (err: any, res: Array<{ configEntries: ConfigEntry[] }>) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
 
-                if (res.length === 0) {
-                    return [];
-                }
+                    if (res.length === 0) {
+                        return [];
+                    }
 
-                resolve(res[0].configEntries);
-            });
+                    resolve(res[0].configEntries);
+                });
         });
     }
 }

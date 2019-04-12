@@ -19,7 +19,7 @@ import { ConsumerStatusBarItem } from "./views/consumerStatusBarItem";
 
 export function activate(context: vscode.ExtensionContext) {
     const settings = createSettings();
-    const client = new Client({ host: settings.host });
+    const client = new Client(settings);
     const explorer = new KafkaExplorer(client, settings);
     const outputChannelProvider = new OutputChannelProvider();
     const createTopicCommandHandler = new CreateTopicCommandHandler(client, explorer);
@@ -32,7 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
     const dumpBrokerMetadataCommandHandler = new DumpBrokerMetadataCommandHandler(client, outputChannelProvider);
 
     context.subscriptions.push(settings.onDidChangeSettings(() => {
-        client.refresh({ host: settings.host });
+        client.refresh(settings);
         explorer.refresh();
     }));
     context.subscriptions.push(outputChannelProvider);
