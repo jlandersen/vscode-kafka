@@ -24,10 +24,10 @@
 	],
 	"activationEvents": [
 		"onCommand:vscode-kafka.explorer.createtopic",
-        "onCommand:vscode-kafka.explorer.refresh",
-        "onCommand:vscode-kafka.explorer.dumptopicmetadata",
-        "onCommand:vscode-kafka.explorer.dumpbrokermetadata",
-        "onCommand:vscode-kafka.explorer.dumpclustermetadata",
+		"onCommand:vscode-kafka.explorer.refresh",
+		"onCommand:vscode-kafka.explorer.dumptopicmetadata",
+		"onCommand:vscode-kafka.explorer.dumpbrokermetadata",
+		"onCommand:vscode-kafka.explorer.dumpclustermetadata",
 		"onCommand:vscode-kafka.consumer.consume",
 		"onCommand:vscode-kafka.consumer.list",
 		"onCommand:vscode-kafka.consumer.toggle",
@@ -113,7 +113,7 @@
 				"command": "vscode-kafka.explorer.dumpbrokermetadata",
 				"title": "Dump Broker Metadata",
 				"category": "Kafka"
-            },
+			},
 			{
 				"command": "vscode-kafka.explorer.dumpclustermetadata",
 				"title": "Dump Cluster Metadata",
@@ -160,11 +160,11 @@
 				{
 					"command": "vscode-kafka.explorer.dumptopicmetadata",
 					"when": "view == kafkaExplorer && viewItem == topic"
-                },
+				},
 				{
 					"command": "vscode-kafka.explorer.dumpclustermetadata",
 					"when": "view == kafkaExplorer && viewItem == broker"
-                },
+				},
 				{
 					"command": "vscode-kafka.explorer.dumpbrokermetadata",
 					"when": "view == kafkaExplorer && viewItem == broker"
@@ -206,13 +206,13 @@
 	"devDependencies": {
 		"@types/js-yaml": "^3.12.0",
 		"@types/mocha": "^2.2.42",
-		"@types/node": "^8.10.39",
-		"tslint": "^5.12.1",
-		"typescript": "^3.3.1",
-		"vscode": "^1.1.28"
+		"@types/node": "^8.10.45",
+		"tslint": "^5.15.0",
+		"typescript": "^3.4.3",
+		"vscode": "^1.1.33"
 	},
 	"dependencies": {
 		"js-yaml": "^3.12.2",
-		"kafka-node": "^4.0.1"
+		"kafka-node": "^4.1.0"
 	}
 }
