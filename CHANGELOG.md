@@ -1,6 +1,15 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
 
+## [0.7.0] - 2019-04-12
+### Added
+ - New configuration for sorting topics (defaults to name)
+ - Dump metadata about topics or broke/cluster to YAML by right clicking the resource in explorer (or via command menu)
+ - Connecting using SASL/PLAIN authentication is now possible
+
+### Changed
+ - Bumped kafka-node to 4.1.x
+
 ## [0.6.0] - 2019-03-05
 ### Added
 - Consuming is now possible! Activate either by right clicking a topic in the explorer or from the command palette. Make sure to read the [README](https://github.com/jlandersen/vscode-kafka) for details.

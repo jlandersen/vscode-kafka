@@ -8,6 +8,7 @@ Features:
 - Create topic
 - Producing
 - Consuming
+- SASL/PLAIN Authentication (Kafka 0.10+)
 
 Planned features in no particular order:
 - More administration features (delete topics)
@@ -27,7 +28,12 @@ Example:
 
 ```json
 {
-    "kafka.hosts": "127.0.0.1:9092,127.0.0.1:9093"
+    "kafka.hosts": "127.0.0.1:9092,127.0.0.1:9093",
+
+    // Support for SASL/PLAIN
+    "kafka.sasl.mechanism": "plain",
+    "kafka.sasl.username": "username",
+    "kafka.sasl.password": "password"
 }
 ```
 
@@ -37,7 +43,7 @@ Producing can be done by creating a `.kafka` file. Write simple producers using 
 ```json
 PRODUCER keyed-message
 topic: my-topic
-key: mykey
+key: mykeyq
 record content
 
 ###
