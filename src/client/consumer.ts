@@ -1,12 +1,14 @@
 import { ConsumerGroup, Message } from "kafka-node";
+
 import * as vscode from "vscode";
 
-import { getSettings } from "../settings";
+import { getSettings, SaslOption } from "../settings";
 
 interface ConsumerOptions {
     kafkaHost: string;
     fromOffset: "earliest" | "latest";
     topic: string;
+    sasl?: SaslOption;
 }
 
 interface RecordReceivedEvent {
@@ -44,6 +46,7 @@ class Consumer implements vscode.Disposable {
             fromOffset: "latest",
             kafkaHost: settings.host,
             topic: parsedUri.topic,
+            sasl: settings.sasl,
         };
     }
 
@@ -55,6 +58,7 @@ class Consumer implements vscode.Disposable {
         this.client = new ConsumerGroup({
             kafkaHost: this.options.kafkaHost,
             fromOffset: this.options.fromOffset,
+            sasl: this.options.sasl,
             groupId: "vscode-kafka-" + this.options.topic,
         }, [this.options.topic]);
 
