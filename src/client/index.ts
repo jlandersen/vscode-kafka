@@ -99,7 +99,7 @@ export class Client implements Disposable {
             sasl: this.sasl,
             connectTimeout: 3000,
             kafkaHost: this.host,
-
+            sslOptions: this.sasl ? {} : undefined
         });
 
         this.kafkaAdminClient = new kafka.Admin(this.kafkaClient);
