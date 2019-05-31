@@ -59,6 +59,7 @@ class Consumer implements vscode.Disposable {
             kafkaHost: this.options.kafkaHost,
             fromOffset: this.options.fromOffset,
             sasl: this.options.sasl,
+            sslOptions: this.options.sasl ? {} : undefined,
             groupId: "vscode-kafka-" + this.options.topic,
         }, [this.options.topic]);
 
