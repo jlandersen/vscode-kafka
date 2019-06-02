@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
 
+## [0.7.2] - 2019-06-02
+### Changed
+ - Updated dependencies for latest kafka-node changes
+ - Force SSL when using SASL/PLAIN authentication for consumers as well (same as 0.7.1)
+
 ## [0.7.1] - 2019-05-28
 ### Changed
  - Force SSL when using SASL/PLAIN authentication (thanks @joanrieu)
