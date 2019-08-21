@@ -1,6 +1,8 @@
 .DS_Store
 out/
 
+.vscode-test/
+
 # Logs
 logs
 *.log
