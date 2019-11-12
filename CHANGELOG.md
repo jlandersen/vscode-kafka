@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
 
+## [0.8.1] - 2019-11-12
+### Changed
+ - Fix installations not always getting required dependencies installed.
+
 ## [0.8.0] - 2019-11-10
 ### Changed
  - Updated dependencies for latest kafka-node changes. This brings in an upstream fix to configs for clusters with more than 1 broker, which previously failed (https://github.com/jlandersen/vscode-kafka/issues/7).

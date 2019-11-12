@@ -3,7 +3,7 @@
     "displayName": "Kafka",
     "description": "Interact with Kafka directly in VS Code",
     "publisher": "jeppeandersen",
-    "version": "0.8.0",
+    "version": "0.8.1",
     "engines": {
         "vscode": "^1.37.0"
     },
@@ -222,15 +222,17 @@
         "pretest": "npm run compile",
         "test": "node ./out/test/runTest.js"
     },
+    "dependencies": {
+        "glob": "^7.1.6",
+        "js-yaml": "^3.13.1",
+        "kafka-node": "^5.0.0"
+    },
     "devDependencies": {
         "@types/glob": "^7.1.1",
         "@types/js-yaml": "^3.12.1",
         "@types/mocha": "^5.2.7",
         "@types/node": "^10.17.5",
         "@types/vscode": "^1.37.0",
-        "glob": "^7.1.6",
-        "js-yaml": "^3.13.1",
-        "kafka-node": "^5.0.0",
         "mocha": "^6.2.2",
         "tslint": "^5.20.1",
         "typescript": "^3.7.2",
