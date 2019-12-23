@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
 
+## [0.8.2] - 2019-12-23
+### Changed
+ - Fix initial offset not being used for new consumer groups (https://github.com/jlandersen/vscode-kafka/issues/6).
+
 ## [0.8.1] - 2019-11-12
 ### Changed
  - Fix installations not always getting required dependencies installed.
