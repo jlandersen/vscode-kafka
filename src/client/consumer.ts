@@ -2,11 +2,11 @@ import { ConsumerGroup, Message } from "kafka-node";
 
 import * as vscode from "vscode";
 
-import { getSettings, SaslOption } from "../settings";
+import { getSettings, InitialConsumerOffset, SaslOption } from "../settings";
 
 interface ConsumerOptions {
     kafkaHost: string;
-    fromOffset: "earliest" | "latest";
+    fromOffset: InitialConsumerOffset;
     topic: string;
     sasl?: SaslOption;
 }
@@ -43,7 +43,7 @@ class Consumer implements vscode.Disposable {
 
         const settings = getSettings();
         this.options = {
-            fromOffset: "latest",
+            fromOffset: settings.consumerOffset,
             kafkaHost: settings.host,
             topic: parsedUri.topic,
             sasl: settings.sasl,

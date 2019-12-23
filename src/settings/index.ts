@@ -1,1 +1,1 @@
-export { getSettings, createSettings, Settings, SaslOption } from "./settings";
+export { getSettings, createSettings, InitialConsumerOffset, Settings, SaslOption } from "./settings";

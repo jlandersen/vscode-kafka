@@ -1,11 +1,23 @@
 import * as vscode from "vscode";
 
+/**
+ * The sort options for topics.
+ */
 export enum TopicSortOption {
     Name = "name",
     Partitions = "partitions",
 }
 
+/**
+ * The supported SASL mechanisms for authentication.
+ */
 export type SaslMechanism = "plain";
+
+/**
+ * The initial consumer offset for new consumer groups.
+ * Applies when a consumer group has no committed offsets.
+ */
+export type InitialConsumerOffset = "latest" | "earliest";
 
 export interface SaslOption {
     mechanism: SaslMechanism;
@@ -15,7 +27,7 @@ export interface SaslOption {
 
 export interface Settings extends vscode.Disposable {
     host: string;
-    consumerOffset: string;
+    consumerOffset: InitialConsumerOffset;
     topicSortOption: TopicSortOption;
     sasl?: SaslOption;
 }
@@ -29,7 +41,7 @@ class KafkaWorkspaceSettings implements Settings {
     public onDidChangeSettings: vscode.Event<undefined> = this._onDidChangeSettings.event;
 
     public host: string = "";
-    public consumerOffset: string = "";
+    public consumerOffset: InitialConsumerOffset = "latest";
     public topicSortOption: TopicSortOption = TopicSortOption.Name;
     public sasl?: SaslOption;
 
@@ -50,7 +62,7 @@ class KafkaWorkspaceSettings implements Settings {
     private reload() {
         const configuration = vscode.workspace.getConfiguration("kafka");
         this.host = configuration.get<string>("hosts", "");
-        this.consumerOffset = configuration.get<string>("consumers.offset", "latest");
+        this.consumerOffset = configuration.get<InitialConsumerOffset>("consumers.offset", "latest");
         this.topicSortOption = configuration.get<TopicSortOption>("explorer.topics.sort", TopicSortOption.Name);
 
         const saslMechanism = configuration.get<"plain" | "none">("sasl.mechanism", "none");
