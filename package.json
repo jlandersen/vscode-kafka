@@ -3,7 +3,7 @@
     "displayName": "Kafka",
     "description": "Interact with Kafka directly in VS Code",
     "publisher": "jeppeandersen",
-    "version": "0.8.2",
+    "version": "0.8.3",
     "engines": {
         "vscode": "^1.37.0"
     },
