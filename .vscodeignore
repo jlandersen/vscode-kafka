@@ -9,11 +9,8 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 assets/**
-node_modules
 out/
 src/
 webpack.config.js
 
-# Includes dynamic imports, marked as external in webpack
-!node_modules/kafka-node
-!node_modules/optional
+node_modules

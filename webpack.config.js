@@ -17,9 +17,6 @@ const config = {
   devtool: 'source-map',
   externals: {
     vscode: 'commonjs vscode',
-    // Includes dynamic imports 
-    'kafka-node': 'commonjs kafka-node',
-    'optional': 'commonjs optional'
   },
   resolve: {
     extensions: ['.ts', '.js']
