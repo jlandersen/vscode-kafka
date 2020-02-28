@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 import { ConfigEntry } from "../../client";
-import { icons } from "../../constants";
+import { Icons } from "../../constants";
 import { NodeBase } from "./nodeBase";
 
 /**
@@ -10,7 +10,7 @@ import { NodeBase } from "./nodeBase";
 export class ErrorItem extends NodeBase {
     public contextValue = "error";
     public collapsibleState = vscode.TreeItemCollapsibleState.None;
-    public iconPath = icons.warning;
+    public iconPath = Icons.Warning;
 
     constructor(message: string) {
         super();
@@ -24,7 +24,7 @@ export class ErrorItem extends NodeBase {
 export class InformationItem extends NodeBase {
     public contextValue = "information";
     public collapsibleState = vscode.TreeItemCollapsibleState.None;
-    public iconPath = icons.information;
+    public iconPath = Icons.Information;
 
     constructor(message: string) {
         super();

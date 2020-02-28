@@ -35,7 +35,7 @@
         "onLanguage:kafka",
         "onDebug"
     ],
-    "main": "./dist/extension.js",
+    "main": "./dist/extension",
     "contributes": {
         "configuration": {
             "type": "object",
@@ -220,7 +220,6 @@
         "webpack": "webpack --mode development",
         "webpack-dev": "webpack --mode development --watch",
         "test-compile": "tsc -p ./",
-        "watch": "tsc -watch -p ./",
         "pretest": "npm run test-compile",
         "test": "node ./out/test/runTest.js"
     },

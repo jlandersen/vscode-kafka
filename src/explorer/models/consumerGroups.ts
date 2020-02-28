@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 import { Client, ConsumerGroupMember } from "../../client";
-import { icons } from "../../constants";
+import { Icons } from "../../constants";
 import { NodeBase } from "./nodeBase";
 
 export class ConsumerGroupsItem extends NodeBase {
@@ -22,7 +22,7 @@ export class ConsumerGroupsItem extends NodeBase {
 
 class ConsumerGroupItem extends NodeBase {
     public contextValue = "consumergroupitem";
-    public iconPath = icons.group;
+    public iconPath = Icons.Group;
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 
     constructor(private client: Client, private consumerGroupId: string) {

@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 import { Broker, Client } from "../../client";
-import { icons } from "../../constants";
+import { Icons } from "../../constants";
 import { ConfigsItem } from "./common";
 import { NodeBase } from "./nodeBase";
 
@@ -33,7 +33,7 @@ export class BrokerItem extends NodeBase {
             this.description = "Controller";
         }
 
-        this.iconPath = this.broker.isConnected ? icons.serverConnected : icons.server;
+        this.iconPath = this.broker.isConnected ? Icons.Server : Icons.ServerConnected;
     }
 
     getChildren(element: NodeBase): Promise<NodeBase[]> {

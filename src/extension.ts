@@ -12,12 +12,15 @@ import {
     ToggleConsumerCommandHandler,
     waitUntilConnected,
 } from "./commands";
+import { Context } from "./context";
 import { BrokerItem, KafkaExplorer, TopicItem } from "./explorer";
 import { ConsumerVirtualTextDocumentProvider, OutputChannelProvider, ProducerCodeLensProvider } from "./providers";
 import { createSettings } from "./settings";
 import { ConsumerStatusBarItem } from "./views/consumerStatusBarItem";
 
 export function activate(context: vscode.ExtensionContext) {
+    Context.register(context);
+
     const settings = createSettings();
     const client = new Client(settings);
     const explorer = new KafkaExplorer(client, settings);

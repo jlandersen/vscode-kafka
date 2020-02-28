@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 import { Client, Topic, TopicPartition } from "../../client";
-import { icons } from "../../constants";
+import { Icons } from "../../constants";
 import { getSettings } from "../../settings";
 import { TopicSortOption } from "../../settings/settings";
 import { ConfigsItem } from "./common";
@@ -50,7 +50,7 @@ export class TopicGroupItem extends NodeBase {
 export class TopicItem extends NodeBase {
     public contextValue = "topic";
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
-    public iconPath = icons.topic;
+    public iconPath = Icons.Topic;
 
     constructor(private client: Client, public topic: Topic) {
         super();

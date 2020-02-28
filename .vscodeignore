@@ -12,8 +12,6 @@ assets/**
 node_modules
 out/
 src/
-tsconfig.json
-tslint.json
 webpack.config.js
 
 # Includes dynamic imports, marked as external in webpack
