@@ -5,13 +5,13 @@ export const imagesPath = "images";
 
 const getDarkLightPath = (fileName: string) => {
     return {
-        light: Context.context.asAbsolutePath(path.join(imagesPath, "light", fileName)),
-        dark: Context.context.asAbsolutePath(path.join(imagesPath, "dark", fileName)),
+        light: Context.current.asAbsolutePath(path.join(imagesPath, "light", fileName)),
+        dark: Context.current.asAbsolutePath(path.join(imagesPath, "dark", fileName)),
     };
 };
 
 const getIconPath = (fileName: string) => {
-    return  Context.context.asAbsolutePath(path.join(imagesPath, fileName));
+    return  Context.current.asAbsolutePath(path.join(imagesPath, fileName));
 };
 
 export class Icons {
