@@ -1,9 +1,10 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
 
-## [0.8.3] - 2020-02-16
+## [0.8.3] - 2020-05-01
 ### Changed
  - Use webpack bundling for extension distribution.
+ - Bump dependencies
 
 ## [0.8.2] - 2019-12-23
 ### Changed
