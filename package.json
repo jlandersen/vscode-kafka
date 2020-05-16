@@ -219,8 +219,9 @@
         "vscode:prepublish": "webpack --mode production",
         "lint": "eslint -c .eslintrc.js --ext .ts src",
         "webpack": "webpack --mode development",
+        "webpack:production": "webpack --mode production",        
         "webpack:dev": "webpack --mode development --watch",
-        "pretest": "npm run test-compile",
+        "pretest": "npm run test:compile",
         "test": "node ./out/test/runTest.js",
         "test:compile": "tsc -p ./"
     },
