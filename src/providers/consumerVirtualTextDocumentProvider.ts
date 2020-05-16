@@ -6,7 +6,7 @@ import { ConsumerCollection } from "../client";
 export const ConsumerVirtualTextDocumentProvider = new class
         implements vscode.TextDocumentContentProvider, vscode.Disposable {
     public SCHEME = "kafka";
-    private buffer: { [id: string]: string; } = {};
+    private buffer: { [id: string]: string } = {};
     private disposables: vscode.Disposable[] = [];
 
     private consumerCollection = ConsumerCollection.getInstance();
@@ -44,7 +44,7 @@ export const ConsumerVirtualTextDocumentProvider = new class
         return this.buffer[uri.toString()];
     }
 
-    public attachToConsumer(uri: vscode.Uri) {
+    public attachToConsumer(uri: vscode.Uri): void {
         const consumer = this.consumerCollection.get(uri);
 
         if (consumer === null) {
@@ -60,7 +60,7 @@ export const ConsumerVirtualTextDocumentProvider = new class
         }));
     }
 
-    public onDidChangeStatus(uri: vscode.Uri, status: string) {
+    public onDidChangeStatus(uri: vscode.Uri, status: string): void {
         let uriBuffer = this.buffer[uri.toString()];
         const line = `Consumer: ${status}\n\n`;
         uriBuffer = uriBuffer + line;
@@ -69,7 +69,7 @@ export const ConsumerVirtualTextDocumentProvider = new class
         this.onDidChangeEmitter.fire(uri);
     }
 
-    public onDidReceiveRecord(uri: vscode.Uri, message: Message) {
+    public onDidReceiveRecord(uri: vscode.Uri, message: Message): void {
         let uriBuffer = this.buffer[uri.toString()];
 
         if (!uriBuffer) {
@@ -84,7 +84,7 @@ export const ConsumerVirtualTextDocumentProvider = new class
         this.onDidChangeEmitter.fire(uri);
     }
 
-    public onDidCloseConsumer(uri: vscode.Uri) {
+    public onDidCloseConsumer(uri: vscode.Uri): void {
         let uriBuffer = this.buffer[uri.toString()];
 
         if (!uriBuffer) {
@@ -98,11 +98,11 @@ export const ConsumerVirtualTextDocumentProvider = new class
         this.onDidChangeEmitter.fire(uri);
     }
 
-    public onDidReceiveError(error: any) {
+    public onDidReceiveError(error: any): void {
         // TODO: handle error
     }
 
-    public onDidCloseTextDocument(document: vscode.TextDocument) {
+    public onDidCloseTextDocument(document: vscode.TextDocument): void {
         if (document.uri.scheme !== "kafka") {
             return;
         }
@@ -120,7 +120,7 @@ export const ConsumerVirtualTextDocumentProvider = new class
         delete this.buffer[document.uri.toString()];
     }
 
-    public dispose() {
+    public dispose(): void {
         this.consumerCollection.dispose();
     }
 }();

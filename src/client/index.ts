@@ -1,4 +1,4 @@
-// tslint:disable-next-line:no-var-requires
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const kafka = require("kafka-node");
 
 import { Disposable } from "vscode";
@@ -82,7 +82,7 @@ export class Client implements Disposable {
         this.sasl = options.sasl;
     }
 
-    canConnect() {
+    canConnect(): boolean {
         return this.host !== "";
     }
 
@@ -105,6 +105,7 @@ export class Client implements Disposable {
         this.kafkaAdminClient = new kafka.Admin(this.kafkaClient);
         this.kafkaAdminClient.on("error", (error: any) => {
             // Ignore this, connection error is handled using kafkaClient error event
+            console.error(error);
         });
 
         return new Promise((resolve, reject) => {
@@ -200,7 +201,7 @@ export class Client implements Disposable {
         });
     }
 
-    refresh(options: Settings) {
+    refresh(options: Settings): void {
         this.dispose();
 
         this.host = options.host;
@@ -208,7 +209,7 @@ export class Client implements Disposable {
         this.kafkaClient = null;
     }
 
-    dispose() {
+    dispose(): void {
         if (this.kafkaClient) {
             this.kafkaClient.close();
         }
@@ -219,7 +220,7 @@ export class Client implements Disposable {
         this.kafkaKeyedProducerClient = null;
     }
 
-    private parseMetadataResponse(response: any[]): { topics: Topic[], brokers: Broker[] } {
+    private parseMetadataResponse(response: any[]): { topics: Topic[]; brokers: Broker[] } {
         return {
             brokers: this.parseBrokers(response[0], response[1].clusterMetadata),
             topics: this.parseTopics(response[1].metadata),

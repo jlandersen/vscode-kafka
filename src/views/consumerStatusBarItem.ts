@@ -14,7 +14,7 @@ export class ConsumerStatusBarItem implements vscode.Disposable {
         });
     }
 
-    render() {
+    render(): void {
         if (this.consumerCollection.length() === 0) {
             this.statusBarItem.hide();
             return;
@@ -24,7 +24,7 @@ export class ConsumerStatusBarItem implements vscode.Disposable {
         this.statusBarItem.text = `Consumers: ${this.consumerCollection.length().toString()}`;
     }
 
-    dispose() {
+    dispose(): void {
         this.statusBarItem.dispose();
     }
 }

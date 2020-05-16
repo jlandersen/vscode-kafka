@@ -2,7 +2,9 @@ import * as vscode from "vscode";
 
 import { Client } from "../client";
 
-export const waitUntilConnected = async (client: Client, handler: () => Promise<any>) => {
+type Handler = () => Promise<any>;
+
+export const waitUntilConnected = async (client: Client, handler: Handler): Promise<any> => {
     if (!client.canConnect()) {
         vscode.window.showInformationMessage("No kafka host configured");
         return;

@@ -35,11 +35,11 @@ export class ProducerCodeLensProvider implements vscode.CodeLensProvider {
         return Promise.resolve(lenses);
     }
 
-    private isBlockStart(line: string) {
+    private isBlockStart(line: string): boolean {
         return line.startsWith("PRODUCER");
     }
 
-    private isSeparator(line: string) {
+    private isSeparator(line: string): boolean {
         return line === "###";
     }
 

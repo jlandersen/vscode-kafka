@@ -56,7 +56,7 @@ export class ConfigsItem extends NodeBase {
  * A node that displays the value of a single config entry
  */
 class ConfigEntryItem extends NodeBase {
-    public contextValue: string = "configitem";
+    public contextValue = "configitem";
     public collapsibleState = vscode.TreeItemCollapsibleState.None;
 
     constructor(configEntry: ConfigEntry) {

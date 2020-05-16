@@ -40,7 +40,7 @@ class KafkaWorkspaceSettings implements Settings {
     private _onDidChangeSettings = new vscode.EventEmitter<undefined>();
     public onDidChangeSettings: vscode.Event<undefined> = this._onDidChangeSettings.event;
 
-    public host: string = "";
+    public host = "";
     public consumerOffset: InitialConsumerOffset = "latest";
     public topicSortOption: TopicSortOption = TopicSortOption.Name;
     public sasl?: SaslOption;
@@ -53,13 +53,13 @@ class KafkaWorkspaceSettings implements Settings {
             }
 
             this.reload();
-            this._onDidChangeSettings.fire();
+            this._onDidChangeSettings.fire(undefined);
         });
 
         this.reload();
     }
 
-    private reload() {
+    private reload(): void {
         const configuration = vscode.workspace.getConfiguration("kafka");
         this.host = configuration.get<string>("hosts", "");
         this.consumerOffset = configuration.get<InitialConsumerOffset>("consumers.offset", "latest");
@@ -80,12 +80,12 @@ class KafkaWorkspaceSettings implements Settings {
         }
     }
 
-    dispose() {
+    dispose(): void {
         this._onDidChangeSettings.dispose();
         this.configurationChangeHandlerDisposable.dispose();
     }
 
-    static getInstance() {
+    static getInstance(): KafkaWorkspaceSettings {
         if (!KafkaWorkspaceSettings.instance) {
             KafkaWorkspaceSettings.instance = new KafkaWorkspaceSettings();
         }
@@ -94,5 +94,5 @@ class KafkaWorkspaceSettings implements Settings {
     }
 }
 
-export const getSettings = () => KafkaWorkspaceSettings.getInstance();
-export const createSettings = () => KafkaWorkspaceSettings.getInstance();
+export const getSettings = (): KafkaWorkspaceSettings => KafkaWorkspaceSettings.getInstance();
+export const createSettings = (): KafkaWorkspaceSettings => KafkaWorkspaceSettings.getInstance();

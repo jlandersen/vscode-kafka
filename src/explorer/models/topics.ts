@@ -34,13 +34,13 @@ export class TopicGroupItem extends NodeBase {
         }));
     }
 
-    private sortByNameAscending(a: Topic, b: Topic) {
+    private sortByNameAscending(a: Topic, b: Topic): -1 | 0 | 1 {
         if (a.id.toLowerCase() < b.id.toLowerCase()) { return -1; }
         if (a.id.toLowerCase() > b.id.toLowerCase()) { return 1; }
         return 0;
     }
 
-    private sortByPartitionsAscending(a: Topic, b: Topic) {
+    private sortByPartitionsAscending(a: Topic, b: Topic): -1 | 0 | 1 {
         if (a.partitionCount < b.partitionCount) { return -1; }
         if (a.partitionCount > b.partitionCount) { return 1; }
         return 0;

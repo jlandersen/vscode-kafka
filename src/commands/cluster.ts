@@ -8,7 +8,7 @@ export class DumpBrokerMetadataCommandHandler {
     constructor(private client: Client, private outputChannelProvider: OutputChannelProvider) {
     }
 
-    async execute(broker?: BrokerItem) {
+    async execute(broker?: BrokerItem): Promise<void> {
         let brokerToDump: Broker | undefined = broker ? broker.broker : await pickBroker(this.client);
 
         if (!brokerToDump) {
@@ -30,7 +30,7 @@ export class DumpClusterMetadataCommandHandler {
     constructor(private client: Client, private outputChannelProvider: OutputChannelProvider) {
     }
 
-    async execute() {
+    async execute(): Promise<void> {
         const data = this.client.getBrokers().map((broker) => {
             // Delete extension specific property
             const sanitized = Object.assign({}, broker);

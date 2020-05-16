@@ -18,7 +18,7 @@ interface RecordReceivedEvent {
 
 interface ConsumerChangedStatusEvent {
     uri: vscode.Uri;
-    status: "created" | "rebalancing" | "rebalanced";
+    status: "created" | "rebalancing" | "rebalanced";
 }
 
 interface ConsumerCollectionChangedEvent {
@@ -54,7 +54,7 @@ class Consumer implements vscode.Disposable {
      * Starts a new consumer group that subscribes to the provided topic.
      * Received messages and/or errors are emitted via events.
      */
-    start() {
+    start(): void {
         this.client = new ConsumerGroup({
             kafkaHost: this.options.kafkaHost,
             fromOffset: this.options.fromOffset,
@@ -89,7 +89,7 @@ class Consumer implements vscode.Disposable {
         });
     }
 
-    private parseUri(uri: vscode.Uri): { topic: string, partition?: string} {
+    private parseUri(uri: vscode.Uri): { topic: string; partition?: string} {
         const [topic, partition] = uri.path.split("/");
 
         return {
@@ -98,10 +98,11 @@ class Consumer implements vscode.Disposable {
         };
     }
 
-    dispose() {
+    dispose(): void {
         if (this.client) {
             this.client.close(true, (error) => {
                 // TODO: Handle error
+                console.error(error);
             });
         }
 
@@ -115,7 +116,7 @@ class Consumer implements vscode.Disposable {
  */
 export class ConsumerCollection implements vscode.Disposable {
     private static instance: ConsumerCollection;
-    private consumers: { [id: string]: Consumer; } = {};
+    private consumers: { [id: string]: Consumer } = {};
     private disposables: vscode.Disposable[] = [];
 
     private onDidChangeCollectionEmitter = new vscode.EventEmitter<ConsumerCollectionChangedEvent>();
@@ -131,7 +132,7 @@ export class ConsumerCollection implements vscode.Disposable {
     /**
      * Creates a new consumer for a provided uri.
      */
-    create(uri: vscode.Uri) {
+    create(uri: vscode.Uri): Consumer {
         const consumer = new Consumer(uri);
         this.consumers[uri.toString()] = consumer;
         consumer.start();
@@ -172,7 +173,7 @@ export class ConsumerCollection implements vscode.Disposable {
     /**
      * Closes an existing consumer if exists.
      */
-    close(uri: vscode.Uri) {
+    close(uri: vscode.Uri): void {
         const consumer = this.get(uri);
 
         if (consumer === null) {
@@ -192,23 +193,21 @@ export class ConsumerCollection implements vscode.Disposable {
         return this.consumers.hasOwnProperty(uri.toString());
     }
 
-    dispose() {
+    dispose(): void {
         this.disposeConsumers();
         this.disposables.forEach((d) => d.dispose());
         this.onDidChangeCollectionEmitter.dispose();
     }
 
-    disposeConsumers() {
+    disposeConsumers(): void {
         Object.keys(this.consumers).forEach((key) => {
             this.consumers[key].dispose();
         });
 
         this.consumers = {};
-
-        this.onDidChangeCollectionEmitter.fire();
     }
 
-    static getInstance() {
+    static getInstance(): ConsumerCollection {
         if (!ConsumerCollection.instance) {
             ConsumerCollection.instance = new ConsumerCollection();
         }

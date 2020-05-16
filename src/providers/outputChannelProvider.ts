@@ -5,7 +5,7 @@ export class OutputChannelProvider implements vscode.Disposable {
         [id: string]: vscode.OutputChannel | undefined;
     } = {};
 
-    getChannel(name: string) {
+    getChannel(name: string): vscode.OutputChannel {
         let channel = this.channels[name];
 
         if (!channel) {
@@ -16,7 +16,7 @@ export class OutputChannelProvider implements vscode.Disposable {
         return channel;
     }
 
-    dispose() {
+    dispose(): void {
         for (const channelId of Object.keys(this.channels)) {
             const channel = this.channels[channelId];
 

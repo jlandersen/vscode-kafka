@@ -10,7 +10,7 @@ export class CreateTopicCommandHandler {
     constructor(private client: Client, private explorer: KafkaExplorer) {
     }
 
-    private validatePositiveNumber(value?: string) {
+    private validatePositiveNumber(value?: string): string | undefined {
         if (!value) {
             return "Must be a positive number";
         }
@@ -22,7 +22,7 @@ export class CreateTopicCommandHandler {
         }
     }
 
-    async execute() {
+    async execute(): Promise<void> {
         const topic = await vscode.window.showInputBox({ placeHolder: "Topic name" });
 
         if (!topic) {
@@ -74,7 +74,7 @@ export class DumpTopicMetadataCommandHandler {
     constructor(private client: Client, private outputChannelProvider: OutputChannelProvider) {
     }
 
-    async execute(topic?: TopicItem) {
+    async execute(topic?: TopicItem): Promise<void> {
         const topicToDump: Topic | undefined = topic ? topic.topic : await pickTopic(this.client);
 
         if (!topicToDump) {

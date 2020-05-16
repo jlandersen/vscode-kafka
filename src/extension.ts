@@ -18,7 +18,7 @@ import { ConsumerVirtualTextDocumentProvider, OutputChannelProvider, ProducerCod
 import { createSettings } from "./settings";
 import { ConsumerStatusBarItem } from "./views/consumerStatusBarItem";
 
-export function activate(context: vscode.ExtensionContext) {
+export function activate(context: vscode.ExtensionContext): void {
     Context.register(context);
 
     const settings = createSettings();
@@ -92,5 +92,6 @@ export function activate(context: vscode.ExtensionContext) {
         ConsumerVirtualTextDocumentProvider));
 }
 
-export function deactivate() {
+export function deactivate(): void {
+    // noop
 }

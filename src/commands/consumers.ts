@@ -13,7 +13,7 @@ export class StartConsumerCommandHandler {
     constructor(private client: Client) {
     }
 
-    async execute(startConsumerCommand?: StartConsumerCommand) {
+    async execute(startConsumerCommand?: StartConsumerCommand): Promise<void> {
         if (!startConsumerCommand) {
             const topic = await pickTopic(this.client);
 
@@ -49,7 +49,7 @@ export class StartConsumerCommandHandler {
 export class ToggleConsumerCommandHandler {
     private consumerCollection = ConsumerCollection.getInstance();
 
-    async execute() {
+    async execute(): Promise<void> {
         if (!vscode.window.activeTextEditor) {
             return;
         }
@@ -86,7 +86,7 @@ export class ListConsumersCommandHandler {
         },
     ];
 
-    async execute() {
+    async execute(): Promise<void> {
         const consumers = this.consumerCollection.getAll();
         const consumerQuickPickItems = consumers.map((c) => {
             return {
@@ -118,7 +118,7 @@ export class ListConsumersCommandHandler {
         }
     }
 
-    private async openDocument(uri: vscode.Uri) {
+    private async openDocument(uri: vscode.Uri): Promise<void> {
         let document: vscode.TextDocument | undefined;
 
         // First we check if the document is already open, in which case we just show it

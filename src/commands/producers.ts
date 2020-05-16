@@ -8,7 +8,7 @@ export class ProduceRecordCommandHandler {
     constructor(private client: Client, private channelProvider: OutputChannelProvider) {
     }
 
-    async execute(document: vscode.TextDocument, range: vscode.Range, times: number) {
+    async execute(document: vscode.TextDocument, range: vscode.Range, times: number): Promise<void> {
         const channel = this.channelProvider.getChannel("Kafka Producer Log");
         const { topic, key, value } = this.parseDocumentRange(document, range);
         const messages = [...Array(times).keys()].map(() => value);
@@ -51,7 +51,7 @@ export class ProduceRecordCommandHandler {
         });
     }
 
-    private parseDocumentRange(document: vscode.TextDocument, range: vscode.Range) {
+    private parseDocumentRange(document: vscode.TextDocument, range: vscode.Range): { topic?: string; key?: string; value: string } {
         let topic;
         let key;
         let value = "";

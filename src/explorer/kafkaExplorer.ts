@@ -22,7 +22,7 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
         this.settings = settings;
     }
 
-    get client() {
+    get client(): Client {
         return this._client;
     }
 
@@ -30,8 +30,8 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
         this._client = client;
     }
 
-    public refresh() {
-        this.onDidChangeTreeDataEvent.fire();
+    public refresh(): void {
+        this.onDidChangeTreeDataEvent.fire(undefined);
     }
 
     public getTreeItem(element: NodeBase): vscode.TreeItem | Thenable<vscode.TreeItem> {
@@ -57,7 +57,8 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
         return element.getChildren(element);
     }
 
-    public dispose() {
+    public dispose(): void {
+        // noop
     }
 
     private getGroupChildren(): NodeBase[] {
