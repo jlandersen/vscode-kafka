@@ -23,6 +23,9 @@
         "kafka"
     ],
     "activationEvents": [
+        "onCommand:vscode-kafka.explorer.addcluster",
+        "onCommand:vscode-kafka.explorer.selectcluster",
+        "onCommand:vscode-kafka.explorer.deletecluster",
         "onCommand:vscode-kafka.explorer.createtopic",
         "onCommand:vscode-kafka.explorer.refresh",
         "onCommand:vscode-kafka.explorer.dumptopicmetadata",
