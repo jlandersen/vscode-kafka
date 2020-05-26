@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { dump } from "js-yaml";
-import { Broker, ClientAccessor } from "../client";
+import { Broker, ClientAccessor, SaslOption } from "../client";
 import { BrokerItem } from "../explorer/models/brokers";
 import { OutputChannelProvider } from "../providers";
 import { pickBroker, pickCluster } from "./common";
@@ -11,13 +11,15 @@ import { KafkaExplorer } from "../explorer";
  * Adds a new cluster to the collection.
  */
 export class AddClusterCommandHandler {
+    private readonly AuthOptions = ["None", "SASL/PLAIN"];
+
     constructor(private clusterSettings: ClusterSettings, private explorer: KafkaExplorer) {
     }
 
     async execute(): Promise<void> {
-        const bootstrapServers = await vscode.window.showInputBox({ placeHolder: "Broker(s) (localhost:9092,localhost:9093...)" });
+        const bootstrap = await vscode.window.showInputBox({ placeHolder: "Broker(s) (localhost:9092,localhost:9093...)" });
 
-        if (!bootstrapServers) {
+        if (!bootstrap) {
             return;
         }
 
@@ -27,13 +29,30 @@ export class AddClusterCommandHandler {
             return;
         }
 
+        const pickedAuthOption = await vscode.window.showQuickPick(this.AuthOptions, { placeHolder: "Authentication" });
+        let saslOption: SaslOption | undefined;
+
+        if (pickedAuthOption && pickedAuthOption === this.AuthOptions[1]) {
+            const username = await vscode.window.showInputBox({ placeHolder: "Username" });
+            const password = await vscode.window.showInputBox({ placeHolder: "Password", password: true });
+
+            if (username && password) {
+                saslOption = {
+                    mechanism: "plain",
+                    username,
+                    password,
+                };
+            }
+        }
+
         const sanitizedName = name.replace(/[^a-zA-Z0-9]/g, "");
-        const suffix = Buffer.from(bootstrapServers).toString("base64").replace(/=/g, "").substr(0,10);
+        const suffix = Buffer.from(bootstrap).toString("base64").replace(/=/g, "").substr(0,10);
 
         this.clusterSettings.upsert({
             id: `${sanitizedName}-${suffix}`,
-            bootstrap: bootstrapServers,
-            name: name,
+            bootstrap,
+            name,
+            saslOption,
         });
 
         this.explorer.refresh();

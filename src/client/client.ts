@@ -198,7 +198,7 @@ class KafkaNodeClient implements Client {
         };
 
         this.host = cluster.bootstrap;
-        this.sasl = undefined;
+        this.sasl = cluster.saslOption;
     }
 
     canConnect(): boolean {
