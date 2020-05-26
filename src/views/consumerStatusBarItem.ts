@@ -3,18 +3,18 @@ import { ConsumerCollection } from "../client";
 
 export class ConsumerStatusBarItem implements vscode.Disposable {
     private statusBarItem: vscode.StatusBarItem;
-    private consumerCollection = ConsumerCollection.getInstance();
 
-    constructor() {
+    constructor(private consumerCollection: ConsumerCollection) {
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
         this.statusBarItem.tooltip = "Current Consumers";
         this.statusBarItem.command = "vscode-kafka.consumer.list";
+
         this.consumerCollection.onDidChangeCollection(() => {
             this.render();
         });
     }
 
-    render(): void {
+    public render(): void {
         if (this.consumerCollection.length() === 0) {
             this.statusBarItem.hide();
             return;
@@ -24,7 +24,7 @@ export class ConsumerStatusBarItem implements vscode.Disposable {
         this.statusBarItem.text = `Consumers: ${this.consumerCollection.length().toString()}`;
     }
 
-    dispose(): void {
+    public dispose(): void {
         this.statusBarItem.dispose();
     }
 }

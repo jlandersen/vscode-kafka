@@ -2,19 +2,17 @@ import { Message } from "kafka-node";
 import * as vscode from "vscode";
 
 import { ConsumerCollection } from "../client";
+import { CommonMessages } from "../constants";
 
-export const ConsumerVirtualTextDocumentProvider = new class
-        implements vscode.TextDocumentContentProvider, vscode.Disposable {
-    public SCHEME = "kafka";
+export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentContentProvider, vscode.Disposable {
+    public static SCHEME = "kafka";
     private buffer: { [id: string]: string } = {};
     private disposables: vscode.Disposable[] = [];
-
-    private consumerCollection = ConsumerCollection.getInstance();
 
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     public onDidChange = this.onDidChangeEmitter.event;
 
-    constructor() {
+    constructor(private consumerCollection: ConsumerCollection) {
         this.disposables.push(vscode.workspace.onDidCloseTextDocument((e: any) => {
             this.onDidCloseTextDocument(e);
         }));
@@ -99,7 +97,7 @@ export const ConsumerVirtualTextDocumentProvider = new class
     }
 
     public onDidReceiveError(error: any): void {
-        // TODO: handle error
+        CommonMessages.showUnhandledError(error);
     }
 
     public onDidCloseTextDocument(document: vscode.TextDocument): void {
@@ -123,4 +121,4 @@ export const ConsumerVirtualTextDocumentProvider = new class
     public dispose(): void {
         this.consumerCollection.dispose();
     }
-}();
+}

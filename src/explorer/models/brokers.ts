@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 
 import { Broker, Client } from "../../client";
 import { Icons } from "../../constants";
-import { ConfigsItem } from "./common";
+import { ConfigsItem, ExplorerContext } from "./common";
 import { NodeBase } from "./nodeBase";
 
 export class BrokerGroupItem extends NodeBase {
@@ -10,14 +10,15 @@ export class BrokerGroupItem extends NodeBase {
     public label = "Brokers";
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 
-    constructor(private client: Client) {
+    constructor(private client: Client, public clusterContext: ExplorerContext) {
         super();
     }
 
-    public getChildren(element: NodeBase): Promise<NodeBase[]> {
-        return Promise.resolve(this.client.getBrokers().map((broker) => {
+    public async getChildren(element: NodeBase): Promise<NodeBase[]> {
+        const brokers = await this.client.getBrokers();
+        return brokers.map((broker) => {
             return new BrokerItem(this.client, broker);
-        }));
+        });
     }
 }
 
@@ -33,7 +34,7 @@ export class BrokerItem extends NodeBase {
             this.description = "Controller";
         }
 
-        this.iconPath = this.broker.isConnected ? Icons.Server : Icons.ServerConnected;
+        this.iconPath = Icons.Server;
     }
 
     getChildren(element: NodeBase): Promise<NodeBase[]> {

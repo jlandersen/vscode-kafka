@@ -2,9 +2,11 @@ import { ConsumerGroup, Message } from "kafka-node";
 
 import * as vscode from "vscode";
 
-import { getSettings, InitialConsumerOffset, SaslOption } from "../settings";
+import { getWorkspaceSettings, InitialConsumerOffset, ClusterSettings } from "../settings";
+import { SaslOption } from "./client";
 
 interface ConsumerOptions {
+    clusterId: string;
     kafkaHost: string;
     fromOffset: InitialConsumerOffset;
     topic: string;
@@ -38,15 +40,21 @@ class Consumer implements vscode.Disposable {
 
     public options: ConsumerOptions;
 
-    constructor(public uri: vscode.Uri) {
+    constructor(public uri: vscode.Uri, clusterSettings: ClusterSettings) {
         const parsedUri = this.parseUri(uri);
+        const cluster = clusterSettings.get(parsedUri.clusterId);
 
-        const settings = getSettings();
+        if (!cluster) {
+            throw new Error(`Cannot create consumer, unknown cluster ${parsedUri.clusterId}`);
+        }
+
+        const settings = getWorkspaceSettings();
         this.options = {
+            clusterId: cluster.id,
             fromOffset: settings.consumerOffset,
-            kafkaHost: settings.host,
+            kafkaHost: cluster.bootstrap,
             topic: parsedUri.topic,
-            sasl: settings.sasl,
+            sasl: cluster.saslOption,
         };
     }
 
@@ -60,7 +68,7 @@ class Consumer implements vscode.Disposable {
             fromOffset: this.options.fromOffset,
             sasl: this.options.sasl,
             sslOptions: this.options.sasl ? {} : undefined,
-            groupId: "vscode-kafka-" + this.options.topic,
+            groupId: `vscode-kafka-${this.options.clusterId}-${this.options.topic}`,
         }, [this.options.topic]);
 
         this.client.on("message", (message) => {
@@ -89,10 +97,11 @@ class Consumer implements vscode.Disposable {
         });
     }
 
-    private parseUri(uri: vscode.Uri): { topic: string; partition?: string} {
-        const [topic, partition] = uri.path.split("/");
+    private parseUri(uri: vscode.Uri): { clusterId: string; topic: string; partition?: string} {
+        const [clusterId, topic, partition] = uri.path.split("/");
 
         return {
+            clusterId,
             topic,
             partition,
         };
@@ -101,7 +110,6 @@ class Consumer implements vscode.Disposable {
     dispose(): void {
         if (this.client) {
             this.client.close(true, (error) => {
-                // TODO: Handle error
                 console.error(error);
             });
         }
@@ -115,25 +123,20 @@ class Consumer implements vscode.Disposable {
  * A collection of consumers.
  */
 export class ConsumerCollection implements vscode.Disposable {
-    private static instance: ConsumerCollection;
     private consumers: { [id: string]: Consumer } = {};
     private disposables: vscode.Disposable[] = [];
 
     private onDidChangeCollectionEmitter = new vscode.EventEmitter<ConsumerCollectionChangedEvent>();
     public onDidChangeCollection = this.onDidChangeCollectionEmitter.event;
 
-    constructor() {
-        const settings = getSettings();
-        this.disposables.push(settings.onDidChangeSettings(() => {
-            this.disposeConsumers();
-        }));
+    constructor(private clusterSettings: ClusterSettings) {
     }
 
     /**
      * Creates a new consumer for a provided uri.
      */
     create(uri: vscode.Uri): Consumer {
-        const consumer = new Consumer(uri);
+        const consumer = new Consumer(uri, this.clusterSettings);
         this.consumers[uri.toString()] = consumer;
         consumer.start();
 
@@ -205,13 +208,5 @@ export class ConsumerCollection implements vscode.Disposable {
         });
 
         this.consumers = {};
-    }
-
-    static getInstance(): ConsumerCollection {
-        if (!ConsumerCollection.instance) {
-            ConsumerCollection.instance = new ConsumerCollection();
-        }
-
-        return ConsumerCollection.instance;
     }
 }

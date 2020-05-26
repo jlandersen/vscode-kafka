@@ -9,41 +9,28 @@ export enum TopicSortOption {
 }
 
 /**
- * The supported SASL mechanisms for authentication.
- */
-export type SaslMechanism = "plain";
-
-/**
  * The initial consumer offset for new consumer groups.
  * Applies when a consumer group has no committed offsets.
  */
 export type InitialConsumerOffset = "latest" | "earliest";
 
-export interface SaslOption {
-    mechanism: SaslMechanism;
-    username?: string;
-    password?: string;
-}
 
-export interface Settings extends vscode.Disposable {
-    host: string;
+
+export interface WorkspaceSettings extends vscode.Disposable {
     consumerOffset: InitialConsumerOffset;
     topicSortOption: TopicSortOption;
-    sasl?: SaslOption;
 }
 
-class KafkaWorkspaceSettings implements Settings {
-    private static instance: KafkaWorkspaceSettings;
+class VsCodeWorkspaceSettings implements WorkspaceSettings {
+    private static instance: VsCodeWorkspaceSettings;
 
     private configurationChangeHandlerDisposable: vscode.Disposable;
 
     private _onDidChangeSettings = new vscode.EventEmitter<undefined>();
     public onDidChangeSettings: vscode.Event<undefined> = this._onDidChangeSettings.event;
 
-    public host = "";
     public consumerOffset: InitialConsumerOffset = "latest";
     public topicSortOption: TopicSortOption = TopicSortOption.Name;
-    public sasl?: SaslOption;
 
     private constructor() {
         this.configurationChangeHandlerDisposable = vscode.workspace.onDidChangeConfiguration(
@@ -61,23 +48,8 @@ class KafkaWorkspaceSettings implements Settings {
 
     private reload(): void {
         const configuration = vscode.workspace.getConfiguration("kafka");
-        this.host = configuration.get<string>("hosts", "");
         this.consumerOffset = configuration.get<InitialConsumerOffset>("consumers.offset", "latest");
         this.topicSortOption = configuration.get<TopicSortOption>("explorer.topics.sort", TopicSortOption.Name);
-
-        const saslMechanism = configuration.get<"plain" | "none">("sasl.mechanism", "none");
-        const username = configuration.get<string | undefined>("sasl.username");
-        const password = configuration.get<string | undefined>("sasl.password");
-
-        if (saslMechanism !== "none") {
-            this.sasl = {
-                mechanism: saslMechanism,
-                username,
-                password,
-            };
-        } else {
-            this.sasl = undefined;
-        }
     }
 
     dispose(): void {
@@ -85,14 +57,13 @@ class KafkaWorkspaceSettings implements Settings {
         this.configurationChangeHandlerDisposable.dispose();
     }
 
-    static getInstance(): KafkaWorkspaceSettings {
-        if (!KafkaWorkspaceSettings.instance) {
-            KafkaWorkspaceSettings.instance = new KafkaWorkspaceSettings();
+    static getInstance(): VsCodeWorkspaceSettings {
+        if (!VsCodeWorkspaceSettings.instance) {
+            VsCodeWorkspaceSettings.instance = new VsCodeWorkspaceSettings();
         }
 
-        return KafkaWorkspaceSettings.instance;
+        return VsCodeWorkspaceSettings.instance;
     }
 }
 
-export const getSettings = (): KafkaWorkspaceSettings => KafkaWorkspaceSettings.getInstance();
-export const createSettings = (): KafkaWorkspaceSettings => KafkaWorkspaceSettings.getInstance();
+export const getWorkspaceSettings = (): VsCodeWorkspaceSettings => VsCodeWorkspaceSettings.getInstance();

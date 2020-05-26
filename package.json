@@ -41,30 +41,6 @@
             "type": "object",
             "title": "Kafka",
             "properties": {
-                "kafka.hosts": {
-                    "type": "string",
-                    "default": "",
-                    "description": "Initial set of brokers (host:ip) to connect to. Separate by comma for multiple hosts."
-                },
-                "kafka.sasl.mechanism": {
-                    "type": "string",
-                    "enum": [
-                        "none",
-                        "plain"
-                    ],
-                    "default": "none",
-                    "description": "SASL Authentication"
-                },
-                "kafka.sasl.username": {
-                    "type": "string",
-                    "default": null,
-                    "description": "username (applies to SASL/PLAIN mechanism)"
-                },
-                "kafka.sasl.password": {
-                    "type": "string",
-                    "default": null,
-                    "description": "password (applies to SASL/PLAIN mechanism)"
-                },
                 "kafka.consumers.offset": {
                     "type": "string",
                     "enum": [
@@ -106,6 +82,24 @@
         ],
         "commands": [
             {
+                "command": "vscode-kafka.explorer.addcluster",
+                "title": "Add Cluster",
+                "category": "Kafka",
+                "icon": {
+                    "light": "images/light/add.svg",
+                    "dark": "images/dark/add.svg"
+                }
+            },            
+            {
+                "command": "vscode-kafka.explorer.deletecluster",
+                "title": "Delete Cluster",
+                "category": "Kafka",
+                "icon": {
+                    "light": "images/light/trashcan.svg",
+                    "dark": "images/dark/trashcan.svg"
+                }
+            },
+            {
                 "command": "vscode-kafka.explorer.refresh",
                 "title": "Refresh",
                 "category": "Kafka",
@@ -119,8 +113,8 @@
                 "title": "Create Topic",
                 "category": "Kafka",
                 "icon": {
-                    "light": "images/light/createtopic.svg",
-                    "dark": "images/dark/createtopic.svg"
+                    "light": "images/light/add.svg",
+                    "dark": "images/dark/add.svg"
                 }
             },
             {
@@ -138,6 +132,11 @@
                 "title": "Dump Cluster Metadata",
                 "category": "Kafka"
             },
+            {
+                "command": "vscode-kafka.explorer.selectcluster",
+                "title": "Select cluster",
+                "category": "Kafka"
+            },            
             {
                 "command": "vscode-kafka.consumer.consume",
                 "title": "Start Consumer (UTF-8 record values)",
@@ -160,18 +159,28 @@
         ],
         "menus": {
             "view/title": [
-                {
+                { 
                     "command": "vscode-kafka.explorer.refresh",
                     "when": "view == kafkaExplorer",
                     "group": "navigation"
                 },
                 {
-                    "command": "vscode-kafka.explorer.createtopic",
+                    "command": "vscode-kafka.explorer.addcluster",
                     "when": "view == kafkaExplorer",
                     "group": "navigation"
                 }
             ],
             "view/item/context": [
+                {
+                    "command": "vscode-kafka.explorer.createtopic",
+                    "when": "view == kafkaExplorer && viewItem == topics",
+                    "group": "inline"
+                },
+                {
+                    "command": "vscode-kafka.explorer.deletecluster",
+                    "when": "view == kafkaExplorer && viewItem == cluster",
+                    "group": "inline"
+                },                
                 {
                     "command": "vscode-kafka.consumer.consume",
                     "when": "view == kafkaExplorer && viewItem == topic"
@@ -187,6 +196,14 @@
                 {
                     "command": "vscode-kafka.explorer.dumpbrokermetadata",
                     "when": "view == kafkaExplorer && viewItem == broker"
+                },
+                {
+                    "command": "vscode-kafka.explorer.deletecluster",
+                    "when": "view == kafkaExplorer && viewItem == cluster"
+                },
+                {
+                    "command": "vscode-kafka.explorer.selectcluster",
+                    "when": "view == kafkaExplorer && viewItem == cluster"
                 }
             ],
             "editor/title": [

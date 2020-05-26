@@ -1,1 +1,2 @@
-export { getSettings, createSettings, InitialConsumerOffset, Settings, SaslOption } from "./settings";
+export { getWorkspaceSettings, InitialConsumerOffset, WorkspaceSettings } from "./workspace";
+export { getClusterSettings, ClusterSettings } from "./clusters";

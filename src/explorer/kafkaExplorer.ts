@@ -1,12 +1,10 @@
 import * as vscode from "vscode";
 
-import { Client } from "../client";
-import { Settings } from "../settings";
-import { BrokerGroupItem } from "./models/brokers";
-import { ErrorItem, InformationItem } from "./models/common";
-import { ConsumerGroupsItem } from "./models/consumerGroups";
+import { Cluster, ClientAccessor } from "../client";
+import { WorkspaceSettings, ClusterSettings } from "../settings";
+import { InformationItem } from "./models/common";
 import { NodeBase } from "./models/nodeBase";
-import { TopicGroupItem } from "./models/topics";
+import { ClusterItem } from "./models/cluster";
 
 export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider<NodeBase> {
     private onDidChangeTreeDataEvent: vscode.EventEmitter<NodeBase | undefined>
@@ -14,20 +12,15 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
     public onDidChangeTreeData?: vscode.Event<NodeBase | null | undefined> | undefined
         = this.onDidChangeTreeDataEvent.event;
 
-    private settings: Settings;
-    private _client: Client;
+    private readonly clusterSettings: ClusterSettings;
+    private readonly clientAccessor: ClientAccessor;
 
-    constructor(client: Client, settings: Settings) {
-        this._client = client;
-        this.settings = settings;
-    }
-
-    get client(): Client {
-        return this._client;
-    }
-
-    set client(client: Client) {
-        this._client = client;
+    constructor(
+        settings: WorkspaceSettings, 
+        clusterSettings: ClusterSettings,
+        clientAccessor: ClientAccessor) {
+        this.clusterSettings = clusterSettings;
+        this.clientAccessor = clientAccessor;
     }
 
     public refresh(): void {
@@ -39,19 +32,14 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
     }
 
     public getChildren(element?: NodeBase): vscode.ProviderResult<NodeBase[]> {
-        if (!this.settings.host) {
-            return [new InformationItem("Set kafka.hosts setting to connect")];
+        const clusters = this.clusterSettings.getAll();
+
+        if (clusters.length === 0) {
+            return [new InformationItem("No clusters added")];
         }
 
         if (!element) {
-            return this.client.connect()
-                .then(() => {
-                    return Promise.resolve(this.getGroupChildren());
-                })
-                .catch((error) => {
-                    vscode.window.showErrorMessage(error.toString());
-                    return Promise.resolve([new ErrorItem("Failed connecting to cluster")]);
-                });
+            return this.getGroupChildren(clusters);
         }
 
         return element.getChildren(element);
@@ -61,11 +49,9 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
         // noop
     }
 
-    private getGroupChildren(): NodeBase[] {
-        return [
-            new BrokerGroupItem(this.client),
-            new TopicGroupItem(this.client),
-            new ConsumerGroupsItem(this.client),
-        ];
+    private getGroupChildren(clusters: Cluster[]): NodeBase[] {
+        return clusters.map((c) => {
+            return new ClusterItem(this.clientAccessor.get(c.id), c);
+        });
     }
 }

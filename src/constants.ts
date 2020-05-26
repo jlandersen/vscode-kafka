@@ -1,3 +1,4 @@
+import * as vscode from "vscode";
 import * as path from "path";
 import { Context } from "./context";
 
@@ -17,6 +18,10 @@ const getIconPath = (fileName: string): string => {
 };
 
 export class Icons {
+    public static get Kafka(): DarkLightPath {
+        return getDarkLightPath("kafka.svg");
+    }
+
     public static get Server(): DarkLightPath {
         return getDarkLightPath("server.svg");
     }
@@ -33,11 +38,25 @@ export class Icons {
         return getDarkLightPath("group.svg");
     }
 
+    public static get Trash(): DarkLightPath {
+        return getDarkLightPath("trashcan.svg");
+    }    
+
     public static get Warning(): string {
         return getIconPath("warning.svg");
     }
 
     public static get Information(): DarkLightPath {
         return getDarkLightPath("information.svg");
+    }
+}
+
+export class CommonMessages {
+    public static showNoSelectedCluster(): void {
+        vscode.window.showInformationMessage("No cluster selected");
+    }
+
+    public static showUnhandledError(...items: string[]): void {
+        vscode.window.showErrorMessage("Unexpected error happened", ...items);
     }
 }

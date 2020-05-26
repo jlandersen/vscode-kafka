@@ -1,9 +1,37 @@
 import * as vscode from "vscode";
 
-import { Broker, Client, Topic } from "../client";
+import { Broker, Topic, ClientAccessor, Cluster, Client } from "../client";
+import { CommonMessages } from "../constants";
+import { ClusterSettings } from "../settings";
+
+export async function pickCluster(clusterSettings: ClusterSettings): Promise<Cluster | undefined> {
+    const clusters = clusterSettings.getAll();
+
+    const clusterQuickPickItems = clusters.map((cluster) => {
+        return {
+            label: cluster.name,
+            describe: cluster.bootstrap,
+            cluster,
+        };
+    });
+
+    const pickedCluster = await vscode.window.showQuickPick(clusterQuickPickItems, { placeHolder: "Select cluster" });
+    return pickedCluster?.cluster;
+}
+
+export async function pickTopicFromSelectedCluster(clientAccessor: ClientAccessor): Promise<Topic | undefined> {
+    const client = clientAccessor.getSelectedClusterClient();
+
+    if (!client) {
+        CommonMessages.showNoSelectedCluster();
+        return;
+    }
+
+    return pickTopic(client);
+}
 
 export async function pickTopic(client: Client): Promise<Topic | undefined> {
-    const topics = client.getTopics();
+    const topics = await client.getTopics();
     const topicQuickPickItems = topics.map((topic) => {
         return {
             label: topic.id,
@@ -14,15 +42,18 @@ export async function pickTopic(client: Client): Promise<Topic | undefined> {
 
     const pickedTopic = await vscode.window.showQuickPick(topicQuickPickItems);
 
-    if (!pickedTopic) {
+    return pickedTopic?.topic;
+}
+
+export async function pickBroker(clientAccessor: ClientAccessor): Promise<Broker | undefined> {
+    const client = clientAccessor.getSelectedClusterClient();
+
+    if (!client) {
+        CommonMessages.showNoSelectedCluster();
         return;
     }
 
-    return pickedTopic.topic;
-}
-
-export async function pickBroker(client: Client): Promise<Broker | undefined> {
-    const brokers = client.getBrokers();
+    const brokers = await client.getBrokers();
     const brokerQuickPickItems = brokers.map((broker) => {
         return {
             label: `${broker.host}:${broker.port}`,
@@ -33,9 +64,5 @@ export async function pickBroker(client: Client): Promise<Broker | undefined> {
 
     const pickedBroker = await vscode.window.showQuickPick(brokerQuickPickItems);
 
-    if (!pickedBroker) {
-        return;
-    }
-
-    return pickedBroker.broker;
+    return pickedBroker?.broker;
 }

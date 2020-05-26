@@ -1,15 +1,16 @@
 import * as vscode from "vscode";
 
-import { Client, ConsumerGroupMember } from "../../client";
+import { ConsumerGroupMember, Client } from "../../client";
 import { Icons } from "../../constants";
 import { NodeBase } from "./nodeBase";
+import { ExplorerContext } from "./common";
 
 export class ConsumerGroupsItem extends NodeBase {
     public label = "Consumer Groups";
     public contextValue = "consumergroups";
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 
-    constructor(private client: Client) {
+    constructor(private client: Client, public context: ExplorerContext) {
         super();
     }
 
@@ -32,10 +33,10 @@ class ConsumerGroupItem extends NodeBase {
 
     async getChildren(element: NodeBase): Promise<NodeBase[]> {
         const groupDetails = await this.client.getConsumerGroupDetails(this.consumerGroupId);
-        return Promise.resolve([
+        return [
             new ConsumerGroupDetailsItem("State", groupDetails.state),
             new ConsumerGroupMembersItem(groupDetails.members),
-        ]);
+        ];
     }
 }
 

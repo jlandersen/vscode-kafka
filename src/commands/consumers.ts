@@ -1,21 +1,32 @@
 import * as vscode from "vscode";
 
-import { Client, ConsumerCollection, Topic } from "../client";
+import { ConsumerCollection, Topic, ClientAccessor } from "../client";
 import { pickTopic } from "./common";
+import { ClusterSettings } from "../settings";
+import { CommonMessages } from "../constants";
 
 export interface StartConsumerCommand {
+    clusterId: string;
     topic: Topic;
 }
 
 export class StartConsumerCommandHandler {
-    private consumerCollection = ConsumerCollection.getInstance();
-
-    constructor(private client: Client) {
+    constructor(
+        private clientAccessor: ClientAccessor, 
+        private clusterSettings: ClusterSettings,
+        private consumerCollection: ConsumerCollection) {
     }
 
     async execute(startConsumerCommand?: StartConsumerCommand): Promise<void> {
         if (!startConsumerCommand) {
-            const topic = await pickTopic(this.client);
+            const selectedCluster = this.clusterSettings.selected;
+
+            if (!selectedCluster) {
+                CommonMessages.showNoSelectedCluster();
+                return;
+            }
+
+            const topic = await pickTopic(this.clientAccessor.get(selectedCluster.id));
 
             if (topic === undefined) {
                 return;
@@ -23,13 +34,14 @@ export class StartConsumerCommandHandler {
 
             startConsumerCommand = {
                 topic,
+                clusterId: selectedCluster.id,
             };
         }
 
-        const consumeUri = vscode.Uri.parse(`kafka:${startConsumerCommand.topic.id}`);
+        const consumeUri = vscode.Uri.parse(`kafka:${startConsumerCommand.clusterId}/${startConsumerCommand.topic.id}`);
 
         if (this.consumerCollection.has(consumeUri)) {
-            vscode.window.showErrorMessage("Consumer already exists.");
+            vscode.window.showErrorMessage("Consumer already exists");
             return;
         }
 
@@ -47,7 +59,8 @@ export class StartConsumerCommandHandler {
 }
 
 export class ToggleConsumerCommandHandler {
-    private consumerCollection = ConsumerCollection.getInstance();
+    constructor(private consumerCollection: ConsumerCollection) {
+    }
 
     async execute(): Promise<void> {
         if (!vscode.window.activeTextEditor) {
@@ -73,8 +86,6 @@ enum ConsumerOption {
 }
 
 export class ListConsumersCommandHandler {
-    private consumerCollection = ConsumerCollection.getInstance();
-
     private static optionQuickPickItems = [
         {
             label: "Open existing",
@@ -85,6 +96,9 @@ export class ListConsumersCommandHandler {
             option: ConsumerOption.Close,
         },
     ];
+
+    constructor(private consumerCollection: ConsumerCollection) {
+    }
 
     async execute(): Promise<void> {
         const consumers = this.consumerCollection.getAll();

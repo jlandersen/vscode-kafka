@@ -1,10 +1,10 @@
 import * as vscode from "vscode";
 
-import { Client, Topic, TopicPartition } from "../../client";
+import { Topic, TopicPartition, Client } from "../../client";
 import { Icons } from "../../constants";
-import { getSettings } from "../../settings";
-import { TopicSortOption } from "../../settings/settings";
-import { ConfigsItem } from "./common";
+import { getWorkspaceSettings } from "../../settings";
+import { TopicSortOption } from "../../settings/workspace";
+import { ConfigsItem, ExplorerContext } from "./common";
 import { NodeBase } from "./nodeBase";
 
 export class TopicGroupItem extends NodeBase {
@@ -12,13 +12,13 @@ export class TopicGroupItem extends NodeBase {
     public contextValue = "topics";
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 
-    constructor(private client: Client) {
+    constructor(private client: Client, public context: ExplorerContext) {
         super();
     }
 
-    getChildren(element: NodeBase): Promise<NodeBase[]> {
-        const settings = getSettings();
-        let topics = this.client.getTopics();
+    public async getChildren(element: NodeBase): Promise<NodeBase[]> {
+        const settings = getWorkspaceSettings();
+        let topics = await this.client.getTopics();
 
         switch (settings.topicSortOption) {
             case TopicSortOption.Name:
@@ -29,9 +29,9 @@ export class TopicGroupItem extends NodeBase {
                 break;
         }
 
-        return Promise.resolve(topics.map((topic) => {
-            return new TopicItem(this.client, topic);
-        }));
+        return topics.map((topic) => {
+            return new TopicItem(this.client, this.context.clusterId, topic);
+        });
     }
 
     private sortByNameAscending(a: Topic, b: Topic): -1 | 0 | 1 {
@@ -52,7 +52,7 @@ export class TopicItem extends NodeBase {
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
     public iconPath = Icons.Topic;
 
-    constructor(private client: Client, public topic: Topic) {
+    constructor(private client: Client, public clusterId: string, public topic: Topic) {
         super();
         this.label = topic.id;
         this.description = `Partitions: ${topic.partitionCount}, Replicas: ${topic.replicationFactor}`;

@@ -1,11 +1,13 @@
 import * as vscode from "vscode";
 
 import { performance } from "perf_hooks";
-import { Client } from "../client";
+import { ClientAccessor } from "../client";
 import { OutputChannelProvider } from "../providers/outputChannelProvider";
 
 export class ProduceRecordCommandHandler {
-    constructor(private client: Client, private channelProvider: OutputChannelProvider) {
+    constructor(
+        private clientAccessor: ClientAccessor, 
+        private channelProvider: OutputChannelProvider) {
     }
 
     async execute(document: vscode.TextDocument, range: vscode.Range, times: number): Promise<void> {
@@ -18,11 +20,17 @@ export class ProduceRecordCommandHandler {
             return;
         }
 
+        const client = this.clientAccessor.getSelectedClusterClient();
+
+        if (!client) {
+            vscode.window.showWarningMessage("No cluster selected");
+            return;
+        }
+
         const producer = key !== undefined ?
-            this.client.kafkaKeyedProducerClient : this.client.kafkaCyclicProducerClient;
+            client.kafkaKeyedProducerClient : client.kafkaCyclicProducerClient;
 
         channel.show(false);
-
         channel.appendLine(`Producing record(s)`);
         const startOperation = performance.now();
 

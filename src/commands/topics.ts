@@ -1,13 +1,13 @@
 import { dump } from "js-yaml";
 import * as vscode from "vscode";
 
-import { Client, Topic } from "../client";
+import { Topic, ClientAccessor, Client } from "../client";
 import { KafkaExplorer, TopicItem } from "../explorer";
 import { OutputChannelProvider } from "../providers";
-import { pickTopic } from "./common";
+import { pickTopicFromSelectedCluster } from "./common";
 
 export class CreateTopicCommandHandler {
-    constructor(private client: Client, private explorer: KafkaExplorer) {
+    constructor(private clientAccessor: ClientAccessor, private explorer: KafkaExplorer) {
     }
 
     private validatePositiveNumber(value?: string): string | undefined {
@@ -22,7 +22,11 @@ export class CreateTopicCommandHandler {
         }
     }
 
-    async execute(): Promise<void> {
+    async execute(clusterId?: string): Promise<void> {
+        if (!clusterId) {
+            return;
+        }
+
         const topic = await vscode.window.showInputBox({ placeHolder: "Topic name" });
 
         if (!topic) {
@@ -47,8 +51,10 @@ export class CreateTopicCommandHandler {
             return;
         }
 
+        
         try {
-            const result = await this.client.createTopic({
+            const client = this.clientAccessor.get(clusterId);
+            const result = await client.createTopic({
                 topic,
                 partitions: parseInt(partitions, 10),
                 replicationFactor: parseInt(replicationFactor, 10),
@@ -71,17 +77,30 @@ export class CreateTopicCommandHandler {
 }
 
 export class DumpTopicMetadataCommandHandler {
-    constructor(private client: Client, private outputChannelProvider: OutputChannelProvider) {
+    constructor(private clientAccessor: ClientAccessor, private outputChannelProvider: OutputChannelProvider) {
     }
 
     async execute(topic?: TopicItem): Promise<void> {
-        const topicToDump: Topic | undefined = topic ? topic.topic : await pickTopic(this.client);
+        let client: Client | undefined;
+
+        if (topic) {
+            client = this.clientAccessor.get(topic.clusterId);
+        } else {
+            client = this.clientAccessor.getSelectedClusterClient();
+        }
+
+        if (!client) {
+            vscode.window.showInformationMessage("No cluster selected");
+            return;
+        }
+
+        const topicToDump: Topic | undefined = topic ? topic.topic : await pickTopicFromSelectedCluster(this.clientAccessor);
 
         if (!topicToDump) {
             return;
         }
 
-        const configs = await this.client.getTopicConfigs(topicToDump.id);
+        const configs = await client.getTopicConfigs(topicToDump.id);
         const data = {
             ...topicToDump,
             configs,

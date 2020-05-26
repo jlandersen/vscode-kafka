@@ -4,6 +4,16 @@ import { ConfigEntry } from "../../client";
 import { Icons } from "../../constants";
 import { NodeBase } from "./nodeBase";
 
+
+/**
+ * The context for propagating information down the hierarchy.
+ */
+export class ExplorerContext {
+    constructor(public clusterId: string) {
+        this.clusterId = clusterId;
+    }
+}
+
 /**
  * A node used to display an error message
  */

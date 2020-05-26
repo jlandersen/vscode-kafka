@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import { Client } from "./client";
+import { getClientAccessor, ConsumerCollection } from "./client";
 import {
     CreateTopicCommandHandler,
     DumpBrokerMetadataCommandHandler,
@@ -10,75 +10,95 @@ import {
     ProduceRecordCommandHandler,
     StartConsumerCommandHandler,
     ToggleConsumerCommandHandler,
-    waitUntilConnected,
+    AddClusterCommandHandler,
+    DeleteClusterCommandHandler,
+    SelectClusterCommandHandler,
+    handleErrors,
 } from "./commands";
 import { Context } from "./context";
 import { BrokerItem, KafkaExplorer, TopicItem } from "./explorer";
 import { ConsumerVirtualTextDocumentProvider, OutputChannelProvider, ProducerCodeLensProvider } from "./providers";
-import { createSettings } from "./settings";
+import { getClusterSettings, getWorkspaceSettings } from "./settings";
+import { ClusterItem } from "./explorer/models/cluster";
+import { TopicGroupItem } from "./explorer/models/topics";
 import { ConsumerStatusBarItem } from "./views/consumerStatusBarItem";
+import { SelectedClusterStatusBarItem } from "./views/selectedClusterStatusBarItem";
 
 export function activate(context: vscode.ExtensionContext): void {
     Context.register(context);
 
-    const settings = createSettings();
-    const client = new Client(settings);
-    const explorer = new KafkaExplorer(client, settings);
-    const outputChannelProvider = new OutputChannelProvider();
-    const createTopicCommandHandler = new CreateTopicCommandHandler(client, explorer);
-    const produceRecordCommandHandler = new ProduceRecordCommandHandler(client, outputChannelProvider);
-    const startConsumerCommandHandler = new StartConsumerCommandHandler(client);
-    const listConsumersCommandHandler = new ListConsumersCommandHandler();
-    const toggleConsumerCommandHandler = new ToggleConsumerCommandHandler();
-    const dumpTopicMetadataCommandHandler = new DumpTopicMetadataCommandHandler(client, outputChannelProvider);
-    const dumpClusterMetadataCommandHandler = new DumpClusterMetadataCommandHandler(client, outputChannelProvider);
-    const dumpBrokerMetadataCommandHandler = new DumpBrokerMetadataCommandHandler(client, outputChannelProvider);
-
-    context.subscriptions.push(settings.onDidChangeSettings(() => {
-        client.refresh(settings);
+    // Settings, data etc.
+    const workspaceSettings = getWorkspaceSettings();
+    context.subscriptions.push(workspaceSettings.onDidChangeSettings(() => {
         explorer.refresh();
     }));
+    const clusterSettings = getClusterSettings();
+    const clientAccessor = getClientAccessor();
+    const consumerCollection = new ConsumerCollection(clusterSettings);
+    context.subscriptions.push(clientAccessor);
+    context.subscriptions.push(consumerCollection);
+
+
+    // Views (sidebar, status bar items etc.)
+    const outputChannelProvider = new OutputChannelProvider();
     context.subscriptions.push(outputChannelProvider);
-    context.subscriptions.push(client);
+    const explorer = new KafkaExplorer(workspaceSettings, clusterSettings, clientAccessor);
     context.subscriptions.push(explorer);
-    context.subscriptions.push(new ConsumerStatusBarItem());
     context.subscriptions.push(vscode.window.registerTreeDataProvider("kafkaExplorer", explorer));
+    context.subscriptions.push(new ConsumerStatusBarItem(consumerCollection));
+    context.subscriptions.push(new SelectedClusterStatusBarItem(clusterSettings));
+
+    // Commands
+    const createTopicCommandHandler = new CreateTopicCommandHandler(clientAccessor, explorer);
+    const produceRecordCommandHandler = new ProduceRecordCommandHandler(clientAccessor, outputChannelProvider);
+    const startConsumerCommandHandler = new StartConsumerCommandHandler(clientAccessor, clusterSettings, consumerCollection);
+    const listConsumersCommandHandler = new ListConsumersCommandHandler(consumerCollection);
+    const toggleConsumerCommandHandler = new ToggleConsumerCommandHandler(consumerCollection);
+    const addClusterCommandHandler = new AddClusterCommandHandler(clusterSettings, explorer);
+    const deleteClusterCommandHandler = new DeleteClusterCommandHandler(clusterSettings, explorer);
+    const selectClusterCommandHandler = new SelectClusterCommandHandler(clusterSettings);
+    const dumpTopicMetadataCommandHandler = new DumpTopicMetadataCommandHandler(clientAccessor, outputChannelProvider);
+    const dumpClusterMetadataCommandHandler = new DumpClusterMetadataCommandHandler(clientAccessor, outputChannelProvider);
+    const dumpBrokerMetadataCommandHandler = new DumpBrokerMetadataCommandHandler(clientAccessor, outputChannelProvider);
+
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.refresh",
-        () => explorer.refresh()));
+        handleErrors(() => Promise.resolve(explorer.refresh()))));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.createtopic",
-        () => waitUntilConnected(client, () => createTopicCommandHandler.execute())));
+        handleErrors((topicGroupItem?: TopicGroupItem) => createTopicCommandHandler.execute(topicGroupItem?.context.clusterId))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        "vscode-kafka.explorer.addcluster",
+        handleErrors(() => addClusterCommandHandler.execute())));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        "vscode-kafka.explorer.selectcluster",
+        handleErrors((clusterItem?: ClusterItem) => selectClusterCommandHandler.execute(clusterItem?.cluster.id))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        "vscode-kafka.explorer.deletecluster",
+        handleErrors((clusterItem?: ClusterItem) => deleteClusterCommandHandler.execute(clusterItem?.cluster.id))));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.produce",
-        (document: vscode.TextDocument, range: vscode.Range, times: number) =>
-            waitUntilConnected(client, () => produceRecordCommandHandler.execute(document, range, times))));
+        handleErrors((document: vscode.TextDocument, range: vscode.Range, times: number) => produceRecordCommandHandler.execute(document, range, times))));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.dumptopicmetadata",
-        (topic?: TopicItem) => {
-            waitUntilConnected(client, () => dumpTopicMetadataCommandHandler.execute(topic));
-        }));
+        (topic?: TopicItem) => dumpTopicMetadataCommandHandler.execute(topic)));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.dumpclustermetadata",
-        () => {
-            waitUntilConnected(client, () => dumpClusterMetadataCommandHandler.execute());
-        }));
+        handleErrors(() => dumpClusterMetadataCommandHandler.execute())));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.dumpbrokermetadata",
-        (broker?: BrokerItem) => {
-            waitUntilConnected(client, () => dumpBrokerMetadataCommandHandler.execute(broker));
-        }));
+        handleErrors((broker?: BrokerItem) => dumpBrokerMetadataCommandHandler.execute(broker))));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.consumer.consume",
-        (topic?: TopicItem) =>
-            waitUntilConnected(client, () => startConsumerCommandHandler.execute(topic))));
+        handleErrors((topic?: TopicItem) => startConsumerCommandHandler.execute(topic))));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.consumer.list",
-        () => listConsumersCommandHandler.execute()));
+        handleErrors(() => listConsumersCommandHandler.execute())));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.consumer.toggle",
-        () => toggleConsumerCommandHandler.execute()));
+        handleErrors(() => toggleConsumerCommandHandler.execute())));
 
+    // .kafka file related
     const documentSelector = [
         { language: "kafka", scheme: "file" },
         { language: "kafka", scheme: "untitled" },
@@ -87,9 +107,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
     context.subscriptions.push(
         vscode.languages.registerCodeLensProvider(documentSelector, new ProducerCodeLensProvider()));
+
     context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider(
         ConsumerVirtualTextDocumentProvider.SCHEME,
-        ConsumerVirtualTextDocumentProvider));
+        new ConsumerVirtualTextDocumentProvider(consumerCollection)));
 }
 
 export function deactivate(): void {
