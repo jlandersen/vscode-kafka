@@ -46,7 +46,7 @@ export class AddClusterCommandHandler {
         }
 
         const sanitizedName = name.replace(/[^a-zA-Z0-9]/g, "");
-        const suffix = Buffer.from(bootstrap).toString("base64").replace(/=/g, "").substr(0,10);
+        const suffix = Buffer.from(bootstrap).toString("base64").replace(/=/g, "");
 
         this.clusterSettings.upsert({
             id: `${sanitizedName}-${suffix}`,
