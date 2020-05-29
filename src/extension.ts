@@ -55,7 +55,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const listConsumersCommandHandler = new ListConsumersCommandHandler(consumerCollection);
     const toggleConsumerCommandHandler = new ToggleConsumerCommandHandler(consumerCollection);
     const addClusterCommandHandler = new AddClusterCommandHandler(clusterSettings, explorer);
-    const deleteClusterCommandHandler = new DeleteClusterCommandHandler(clusterSettings, explorer);
+    const deleteClusterCommandHandler = new DeleteClusterCommandHandler(clusterSettings, clientAccessor, explorer);
     const selectClusterCommandHandler = new SelectClusterCommandHandler(clusterSettings);
     const dumpTopicMetadataCommandHandler = new DumpTopicMetadataCommandHandler(clientAccessor, outputChannelProvider);
     const dumpClusterMetadataCommandHandler = new DumpClusterMetadataCommandHandler(clientAccessor, outputChannelProvider);

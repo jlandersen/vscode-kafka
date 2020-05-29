@@ -63,7 +63,7 @@ export class AddClusterCommandHandler {
  * Deletes an existing cluster from the collection.
  */
 export class DeleteClusterCommandHandler {
-    constructor(private clusterSettings: ClusterSettings, private explorer: KafkaExplorer) {
+    constructor(private clusterSettings: ClusterSettings, private clientAccessor: ClientAccessor, private explorer: KafkaExplorer) {
     }
 
     async execute(clusterId?: string): Promise<void> {
@@ -72,6 +72,7 @@ export class DeleteClusterCommandHandler {
         }
 
         this.clusterSettings.remove(clusterId);
+        this.clientAccessor.remove(clusterId);
         this.explorer.refresh();
     }
 }
