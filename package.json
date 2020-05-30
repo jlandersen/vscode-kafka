@@ -92,7 +92,7 @@
                     "light": "images/light/add.svg",
                     "dark": "images/dark/add.svg"
                 }
-            },            
+            },
             {
                 "command": "vscode-kafka.explorer.deletecluster",
                 "title": "Delete Cluster",
@@ -139,7 +139,7 @@
                 "command": "vscode-kafka.explorer.selectcluster",
                 "title": "Select cluster",
                 "category": "Kafka"
-            },            
+            },
             {
                 "command": "vscode-kafka.consumer.consume",
                 "title": "Start Consumer (UTF-8 record values)",
@@ -162,7 +162,7 @@
         ],
         "menus": {
             "view/title": [
-                { 
+                {
                     "command": "vscode-kafka.explorer.refresh",
                     "when": "view == kafkaExplorer",
                     "group": "navigation"
@@ -183,7 +183,7 @@
                     "command": "vscode-kafka.explorer.deletecluster",
                     "when": "view == kafkaExplorer && viewItem == cluster",
                     "group": "inline"
-                },                
+                },
                 {
                     "command": "vscode-kafka.consumer.consume",
                     "when": "view == kafkaExplorer && viewItem == topic"
@@ -239,7 +239,7 @@
         "vscode:prepublish": "webpack --mode production",
         "lint": "eslint -c .eslintrc.js --ext .ts src",
         "webpack": "webpack --mode development",
-        "webpack:production": "webpack --mode production",        
+        "webpack:production": "webpack --mode production",
         "webpack:dev": "webpack --mode development --watch",
         "pretest": "npm run test:compile",
         "test": "node ./out/test/runTest.js",
@@ -255,7 +255,7 @@
         "@types/js-yaml": "^3.12.4",
         "@types/mocha": "^5.2.7",
         "@types/node": "^10.17.21",
-        "@types/vscode": "^1.45.1",
+        "@types/vscode": "^1.37.0",
         "@typescript-eslint/eslint-plugin": "^2.33.0",
         "@typescript-eslint/eslint-plugin-tslint": "^2.33.0",
         "@typescript-eslint/parser": "^2.33.0",
