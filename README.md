@@ -1,6 +1,6 @@
 # Kafka extension for Visual Studio Code
 
-![CI](https://github.com/jlandersen/vscode-kafka/workflows/CI/badge.svg)
+![CI](https://img.shields.io/github/workflow/status/jlandersen/vscode-kafka/CI)
 
 Work with Kafka directly in Visual Studio Code. Kafka clusters running version 0.11 or higher are supported.
 
