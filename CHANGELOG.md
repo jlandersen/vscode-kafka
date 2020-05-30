@@ -1,6 +1,14 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
 
+## [0.9.0] - 2020-05-30
+### Added
+ - Support for registering multiple clusters is here! As a result, some of the the VS Code settings are now gone (kafka host, username and password) and any cluster should be added from the explorer.
+ For some actions (such as producing records) a specific cluster must be selected either via the explorer or the command palette.
+
+### Changed
+ - No longer shows connection status on specific brokers (the extension will move to Kafka.js in the future, which doesen't expose this status + it didn't serve any useful need).
+
 ## [0.8.3] - 2020-05-01
 ### Changed
  - Use webpack bundling for extension distribution.

@@ -5,6 +5,7 @@
 Work with Kafka directly in Visual Studio Code. Kafka clusters running version 0.11 or higher are supported.
 
 Features:
+- Connect to multiple clusters
 - View brokers in cluster
 - View topics
 - View configs
@@ -16,7 +17,6 @@ Features:
 Planned features in no particular order:
 - More administration features (delete topics)
 - Update configs
-- Connect to multiple clusters
 
 ## Screenshots
 ![Screenshot-1](assets/screen-1.png)
@@ -24,21 +24,6 @@ Planned features in no particular order:
 ![Screenshot-2](assets/screen-2.png)
 
 ![Screenshot-3](assets/screen-3.png)
-
-## Configuration
-The extension connects to a Kafka cluster by providing one or more brokers in the `kafka.hosts` settings (user or workspace).
-Example:
-
-```json
-{
-    "kafka.hosts": "127.0.0.1:9092,127.0.0.1:9093",
-
-    // Support for SASL/PLAIN
-    "kafka.sasl.mechanism": "plain",
-    "kafka.sasl.username": "username",
-    "kafka.sasl.password": "password"
-}
-```
 
 ## Producing
 Producing can be done by creating a `.kafka` file. Write simple producers using the following format:
