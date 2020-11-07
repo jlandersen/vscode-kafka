@@ -1,6 +1,7 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const kafka = require("kafka-node");
 
+import { Admin, Kafka } from "kafkajs";
 import { Disposable } from "vscode";
 import { WorkspaceSettings } from "../settings";
 
@@ -176,6 +177,88 @@ class EnsureConnectedDecorator implements Client {
             }
         }
     }
+}
+
+class KafkaJsClient implements Client {
+    kafkaClient: Kafka;
+    kafkaCyclicProducerClient: any;
+    kafkaKeyedProducerClient: any;
+
+    private kafkaAdminClient: Admin;
+    private host: string;
+    private sasl?: SaslOption;
+
+    private metadata: {
+        topics: Topic[];
+        brokers: Broker[];
+    };
+
+    constructor(cluster: Cluster, workspaceSettings: WorkspaceSettings) {
+        this.metadata = {
+            brokers: [],
+            topics: [],
+        };
+
+        this.host = cluster.bootstrap;
+        this.sasl = cluster.saslOption;
+
+        this.kafkaClient = new Kafka({
+            clientId: 'vscode-kafka',
+            brokers: cluster.bootstrap.split(","),
+        });
+
+        this.kafkaAdminClient = this.kafkaClient.admin();
+    }
+    
+    canConnect(): boolean {
+        return this.host !== "";
+    }
+    
+    async connect(): Promise<void> {
+        await this.kafkaAdminClient.connect();
+    }
+    
+    async getTopics(): Promise<Topic[]> {
+        const meta = await this.kafkaAdminClient.fetchTopicMetadata();
+        this.metadata.topics = meta.topics.map((t) => {
+            return { id: t.name, partitionCount: 0, replicationFactor: 0, partitions: {} };
+        });
+
+        return [];
+    }
+    
+    getBrokers(): Promise<Broker[]> {
+        throw new Error("Method not implemented.");
+    }
+    
+    getBrokerConfigs(brokerId: string): Promise<ConfigEntry[]> {
+        throw new Error("Method not implemented.");
+    }
+    
+    getTopicConfigs(topicId: string): Promise<ConfigEntry[]> {
+        throw new Error("Method not implemented.");
+    }
+    
+    getConsumerGroupIds(): Promise<string[]> {
+        throw new Error("Method not implemented.");
+    }
+    
+    getConsumerGroupDetails(groupId: string): Promise<ConsumerGroup> {
+        throw new Error("Method not implemented.");
+    }
+    
+    createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]> {
+        throw new Error("Method not implemented.");
+    }
+    
+    refreshMetadata(): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+    
+    dispose(): any {
+        throw new Error("Method not implemented.");
+    }
+
 }
 
 class KafkaNodeClient implements Client {

@@ -248,7 +248,8 @@
     "dependencies": {
         "glob": "^7.1.6",
         "js-yaml": "^3.13.1",
-        "kafka-node": "^5.0.0"
+        "kafka-node": "^5.0.0",
+        "kafkajs": "^1.14.0"
     },
     "devDependencies": {
         "@types/glob": "^7.1.1",
