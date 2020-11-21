@@ -27,7 +27,7 @@ export class CreateTopicCommandHandler {
             return;
         }
 
-        const topic = await vscode.window.showInputBox({ placeHolder: "Topic name" });
+        const topic = await vscode.window.showInputBox({ placeHolder: "Topic name", ignoreFocusOut: true });
 
         if (!topic) {
             return;
@@ -36,6 +36,7 @@ export class CreateTopicCommandHandler {
         const partitions = await vscode.window.showInputBox({
             placeHolder: "Number of partitions",
             validateInput: this.validatePositiveNumber,
+            ignoreFocusOut: true
         });
 
         if (!partitions) {
@@ -45,13 +46,13 @@ export class CreateTopicCommandHandler {
         const replicationFactor = await vscode.window.showInputBox({
             placeHolder: "Replication Factor",
             validateInput: this.validatePositiveNumber,
+            ignoreFocusOut: true
         });
 
         if (!replicationFactor) {
             return;
         }
 
-        
         try {
             const client = this.clientAccessor.get(clusterId);
             const result = await client.createTopic({

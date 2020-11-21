@@ -27,7 +27,7 @@ export interface Broker {
     host: string;
     port: number;
     isController: boolean;
-    isConnected: boolean;
+    isConnected?: boolean;
 }
 
 export interface Topic {
@@ -134,7 +134,7 @@ class EnsureConnectedDecorator implements Client {
 
     public async getTopicConfigs(topicId: string): Promise<ConfigEntry[]> {
         await this.waitUntilConnected();
-        return this.client.getTopicConfigs(topicId);       
+        return this.client.getTopicConfigs(topicId);
     }
 
     public async getConsumerGroupIds(): Promise<string[]> {

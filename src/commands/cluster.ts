@@ -17,24 +17,24 @@ export class AddClusterCommandHandler {
     }
 
     async execute(): Promise<void> {
-        const bootstrap = await vscode.window.showInputBox({ placeHolder: "Broker(s) (localhost:9092,localhost:9093...)" });
+        const bootstrap = await vscode.window.showInputBox({ placeHolder: "Broker(s) (localhost:9092,localhost:9093...)", ignoreFocusOut: true });
 
         if (!bootstrap) {
             return;
         }
 
-        const name = await vscode.window.showInputBox({ placeHolder: "Friendly name" });
+        const name = await vscode.window.showInputBox({ placeHolder: "Friendly name", ignoreFocusOut: true });
 
         if (!name) {
-            return;
+          return;
         }
 
-        const pickedAuthOption = await vscode.window.showQuickPick(this.AuthOptions, { placeHolder: "Authentication" });
+        const pickedAuthOption = await vscode.window.showQuickPick(this.AuthOptions, { placeHolder: "Authentication", ignoreFocusOut: true });
         let saslOption: SaslOption | undefined;
 
         if (pickedAuthOption && pickedAuthOption === this.AuthOptions[1]) {
-            const username = await vscode.window.showInputBox({ placeHolder: "Username" });
-            const password = await vscode.window.showInputBox({ placeHolder: "Password", password: true });
+            const username = await vscode.window.showInputBox({ placeHolder: "Username", ignoreFocusOut: true });
+            const password = await vscode.window.showInputBox({ placeHolder: "Password", password: true, ignoreFocusOut: true });
 
             if (username && password) {
                 saslOption = {
@@ -88,7 +88,6 @@ export class SelectClusterCommandHandler {
     async execute(clusterId?: string): Promise<void> {
         if (!clusterId) {
             const pickedCluster = await pickCluster(this.clusterSettings);
-            
             if (!pickedCluster) {
                 return;
             }
