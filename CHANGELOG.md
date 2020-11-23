@@ -1,5 +1,8 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
+## [0.10.0] - TBD
+### Changed
+- Fixed Kafka cluster wizard, no longer disappears when losing focus
 
 ## [0.9.0] - 2020-05-30
 ### Added
