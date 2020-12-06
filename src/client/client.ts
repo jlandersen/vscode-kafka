@@ -76,7 +76,6 @@ export interface ConsumerGroupMember {
 
 export interface Client extends Disposable {
     producer: Producer;
-    canConnect(): boolean;
     connect(): Promise<void>;
     getTopics(): Promise<Topic[]>;
     getBrokers(): Promise<Broker[]>;
@@ -85,7 +84,6 @@ export interface Client extends Disposable {
     getConsumerGroupIds(): Promise<string[]>;
     getConsumerGroupDetails(groupId: string): Promise<ConsumerGroup>;
     createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]>;
-    refreshMetadata(): Promise<void>;
 }
 
 class EnsureConnectedDecorator implements Client {
@@ -94,10 +92,6 @@ class EnsureConnectedDecorator implements Client {
 
     get producer(): any {
         return this.client.producer;
-    }
-
-    public canConnect(): boolean {
-        return this.client.canConnect();
     }
 
     public connect(): Promise<void> {
@@ -139,20 +133,11 @@ class EnsureConnectedDecorator implements Client {
         return await this.client.createTopic(createTopicRequest);
     }
 
-    public async refreshMetadata(): Promise<void> {
-        await this.waitUntilConnected();
-        await this.client.refreshMetadata();
-    }
-
     public dispose(): void {
         return this.client.dispose();
     }
 
     private async waitUntilConnected(): Promise<void> {
-        if (!this.client.canConnect()) {
-            throw new Error("Unable to connect");
-        }
-
         try {
             await this.client.connect();
         } catch (error) {
@@ -319,10 +304,6 @@ class KafkaJsClient implements Client {
             }],
         });
         return Promise.resolve([]);
-    }
-
-    refreshMetadata(): Promise<void> {
-        return Promise.resolve();
     }
 
     dispose() {
