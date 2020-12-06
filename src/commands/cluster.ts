@@ -117,10 +117,6 @@ export class DumpBrokerMetadataCommandHandler {
             return;
         }
 
-        // Delete extension specific property
-        brokerToDump = Object.assign({}, brokerToDump);
-        delete brokerToDump.isConnected;
-
         const channel = this.outputChannelProvider.getChannel("Broker Metadata");
         channel.clear();
         channel.append(dump(brokerToDump));

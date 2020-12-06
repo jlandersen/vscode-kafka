@@ -105,7 +105,7 @@ export class ListConsumersCommandHandler {
         const consumerQuickPickItems = consumers.map((c) => {
             return {
                 label: c.options.topic,
-                description: c.options.kafkaHost,
+                description: c.options.bootstrap,
                 uri: c.uri,
             };
         });

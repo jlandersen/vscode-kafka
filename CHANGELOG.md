@@ -2,7 +2,8 @@
 All notable changes to Kafka extension will be documented in this file.
 ## [0.10.0] - TBD
 ### Changed
-- Fixed Kafka cluster wizard, no longer disappears when losing focus
+- Fixed Kafka cluster wizard, no longer disappears when losing focus.
+- Moved the underlying Kafka library to KafkaJS (https://kafka.js.org/) (brings a heap of benefits such as larger API surface, less dependencies and is generally more maintained).
 
 ## [0.9.0] - 2020-05-30
 ### Added

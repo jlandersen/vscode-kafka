@@ -1,4 +1,4 @@
-import { ConsumerGroup, Message } from "kafka-node";
+import { Kafka, Consumer as KafkaJsConsumer } from "kafkajs";
 
 import * as vscode from "vscode";
 
@@ -7,15 +7,23 @@ import { SaslOption } from "./client";
 
 interface ConsumerOptions {
     clusterId: string;
-    kafkaHost: string;
+    bootstrap: string;
     fromOffset: InitialConsumerOffset;
     topic: string;
-    sasl?: SaslOption;
+    saslOption?: SaslOption;
 }
 
-interface RecordReceivedEvent {
+export interface RecordReceivedEvent {
     uri: vscode.Uri;
-    record: Message;
+    record: ConsumedRecord;
+}
+
+export interface ConsumedRecord {
+    topic: string;
+    value: string | Buffer | null;
+    offset?: string;
+    partition?: number;
+    key?: string | Buffer;
 }
 
 interface ConsumerChangedStatusEvent {
@@ -29,7 +37,8 @@ interface ConsumerCollectionChangedEvent {
 }
 
 class Consumer implements vscode.Disposable {
-    private client?: ConsumerGroup;
+    private kafkaClient?: Kafka;
+    private consumer?: KafkaJsConsumer;
     private onDidReceiveMessageEmitter = new vscode.EventEmitter<RecordReceivedEvent>();
     private onDidReceiveErrorEmitter = new vscode.EventEmitter<any>();
     private onDidChangeStatusEmitter = new vscode.EventEmitter<ConsumerChangedStatusEvent>();
@@ -52,9 +61,9 @@ class Consumer implements vscode.Disposable {
         this.options = {
             clusterId: cluster.id,
             fromOffset: settings.consumerOffset,
-            kafkaHost: cluster.bootstrap,
+            bootstrap: cluster.bootstrap,
             topic: parsedUri.topic,
-            sasl: cluster.saslOption,
+            saslOption: cluster.saslOption,
         };
     }
 
@@ -62,38 +71,32 @@ class Consumer implements vscode.Disposable {
      * Starts a new consumer group that subscribes to the provided topic.
      * Received messages and/or errors are emitted via events.
      */
-    start(): void {
-        this.client = new ConsumerGroup({
-            kafkaHost: this.options.kafkaHost,
-            fromOffset: this.options.fromOffset,
-            sasl: this.options.sasl,
-            sslOptions: this.options.sasl ? {} : undefined,
-            groupId: `vscode-kafka-${this.options.clusterId}-${this.options.topic}`,
-        }, [this.options.topic]);
+    async start(): Promise<void> {
+        if (this.options.saslOption && this.options.saslOption.username && this.options.saslOption.password) {
+            this.kafkaClient = new Kafka({
+                clientId: "vscode-kafka",
+                brokers: this.options.bootstrap.split(","),
+                ssl: true,
+                sasl: { mechanism: "plain", username: this.options.saslOption.username, password: this.options.saslOption.password },
+             });
+        } else {
+            this.kafkaClient = new Kafka({
+                clientId: "vscode-kafka",
+                brokers: this.options.bootstrap.split(","),
+             });
+        }
 
-        this.client.on("message", (message) => {
-            this.onDidReceiveMessageEmitter.fire({
-                uri: this.uri,
-                record: message,
-            });
-        });
+        this.consumer = this.kafkaClient.consumer({ groupId: `vscode-kafka-${this.options.clusterId}-${this.options.topic}`, retry: { retries: 3 }});
+        await this.consumer.connect();
+        await this.consumer.subscribe({ topic: this.options.topic, fromBeginning: this.options.fromOffset ===  "earliest" })
 
-        this.client.on("rebalancing", () => {
-            this.onDidChangeStatusEmitter.fire({
-                uri: this.uri,
-                status: "rebalancing",
-            });
-        });
-
-        this.client.on("rebalanced", () => {
-            this.onDidChangeStatusEmitter.fire({
-                uri: this.uri,
-                status: "rebalanced",
-            });
-        });
-
-        this.client.on("error", (error) => {
-            this.onDidReceiveErrorEmitter.fire(error);
+        await this.consumer.run({
+            eachMessage: async ({ topic , partition, message }) => {
+                this.onDidReceiveMessageEmitter.fire({
+                    uri: this.uri,
+                    record: { topic: topic, partition: partition, ...message },
+                });
+            },
         });
     }
 
@@ -108,10 +111,8 @@ class Consumer implements vscode.Disposable {
     }
 
     dispose(): void {
-        if (this.client) {
-            this.client.close(true, (error) => {
-                console.error(error);
-            });
+        if (this.consumer) {
+            this.consumer.disconnect();
         }
 
         this.onDidReceiveErrorEmitter.dispose();

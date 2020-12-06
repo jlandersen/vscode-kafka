@@ -1,5 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const kafka = require("kafka-node");
+import { Admin, ConfigResourceTypes, Kafka, Producer } from "kafkajs";
 
 import { Disposable } from "vscode";
 import { WorkspaceSettings } from "../settings";
@@ -27,7 +26,6 @@ export interface Broker {
     host: string;
     port: number;
     isController: boolean;
-    isConnected?: boolean;
 }
 
 export interface Topic {
@@ -64,8 +62,7 @@ export interface Options {
 
 export interface ConsumerGroup {
     groupId: string;
-    state: "Dead" | "Stable" | "CompletingRebalance" | "PreparingRebalance" | "Empty";
-    error: any;
+    state: "Unknown" | "PreparingRebalance" | "CompletingRebalance" | "Stable" | "Dead" | "Empty";
     protocol: string;
     protocolType: string;
     members: ConsumerGroupMember[];
@@ -78,9 +75,7 @@ export interface ConsumerGroupMember {
 }
 
 export interface Client extends Disposable {
-    kafkaClient: any;
-    kafkaCyclicProducerClient: any;
-    kafkaKeyedProducerClient: any;
+    producer: Producer;
     canConnect(): boolean;
     connect(): Promise<void>;
     getTopics(): Promise<Topic[]>;
@@ -97,16 +92,8 @@ class EnsureConnectedDecorator implements Client {
     constructor(private client: Client) {
     }
 
-    get kafkaClient(): any {
-        return this.client.kafkaClient;
-    }
-
-    get kafkaCyclicProducerClient(): any {
-        return this.client.kafkaCyclicProducerClient;
-    }
-
-    get kafkaKeyedProducerClient(): any {
-        return this.client.kafkaKeyedProducerClient;
+    get producer(): any {
+        return this.client.producer;
     }
 
     public canConnect(): boolean {
@@ -178,13 +165,14 @@ class EnsureConnectedDecorator implements Client {
     }
 }
 
-class KafkaNodeClient implements Client {
+class KafkaJsClient implements Client {
     public kafkaClient: any;
     public kafkaCyclicProducerClient: any;
     public kafkaKeyedProducerClient: any;
-    private kafkaAdminClient: any;
-    private host: string;
-    private sasl?: SaslOption;
+    public producer: Producer;
+
+    private kafkaJsClient: Kafka;
+    private kafkaAdminClient: Admin;
 
     private metadata: {
         topics: Topic[];
@@ -197,219 +185,150 @@ class KafkaNodeClient implements Client {
             topics: [],
         };
 
-        this.host = cluster.bootstrap;
-        this.sasl = cluster.saslOption;
+        if (cluster.saslOption && cluster.saslOption.username && cluster.saslOption.password) {
+            this.kafkaJsClient = new Kafka({
+                clientId: "vscode-kafka",
+                brokers: cluster.bootstrap.split(","),
+                ssl: true,
+                sasl: { mechanism: "plain", username: cluster.saslOption.username, password: cluster.saslOption.password },
+             });
+        } else {
+            this.kafkaJsClient = new Kafka({
+                clientId: "vscode-kafka",
+                brokers: cluster.bootstrap.split(","),
+             });
+        }
+
+         this.kafkaClient = this.kafkaJsClient;
+         this.kafkaAdminClient = this.kafkaJsClient.admin();
+         this.producer = this.kafkaJsClient.producer();
     }
 
     canConnect(): boolean {
-        return this.host !== "";
+        return this.kafkaAdminClient != null;
     }
 
     connect(): Promise<void> {
-        if (this.kafkaClient && this.kafkaClient.ready) {
-            return this.refreshMetadata();
-        }
-
-        this.kafkaClient = new kafka.KafkaClient({
-            autoConnect: false,
-            connectRetryOptions: {
-                retries: 1,
-            },
-            sasl: this.sasl,
-            connectTimeout: 3000,
-            kafkaHost: this.host,
-            sslOptions: this.sasl ? {} : undefined
-        });
-
-        this.kafkaAdminClient = new kafka.Admin(this.kafkaClient);
-        this.kafkaAdminClient.on("error", (error: any) => {
-            // Ignore this, connection error is handled using kafkaClient error event
-            console.error(error);
-        });
-
-        return new Promise((resolve, reject) => {
-            this.kafkaClient.connect();
-            this.kafkaClient.on("ready", () => {
-                this.kafkaCyclicProducerClient = new kafka.HighLevelProducer(this.kafkaClient, {
-                    partitionerType: 2,
-                });
-                this.kafkaKeyedProducerClient = new kafka.HighLevelProducer(this.kafkaClient, {
-                    partitionerType: 3,
-                });
-
-                this.kafkaClient.loadMetadataForTopics([], (error: any, result: any) => {
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-
-                    this.metadata = this.parseMetadataResponse(result);
-                    resolve();
-                });
-            });
-
-            this.kafkaClient.on("error", (error: any) => {
-                reject(error);
-            });
-        });
+         return this.kafkaAdminClient.connect();
     }
 
-    getTopics(): Promise<Topic[]> {
-        return Promise.resolve(this.metadata.topics);
+    async getTopics(): Promise<Topic[]> {
+        const listTopicsResponse = await this.kafkaAdminClient.fetchTopicMetadata();
+
+        this.metadata = {
+            ...this.metadata,
+            topics: listTopicsResponse.topics.map((t) => {
+                const partitions = t.partitions.reduce((prev, p) => ({...prev, [p.partitionId.toString()]: {
+                    partition: p.partitionId.toString(),
+                    leader: p.leader.toString(),
+                    replicas: p.replicas.map((r) => (r.toString())),
+                    isr: p.isr.map((r) => (r.toString())),
+                }}), {});
+
+                return {
+                    id: t.name,
+                    partitionCount: t.partitions.length,
+                    partitions: partitions,
+                    replicationFactor: t.partitions[0].replicas.length,
+                };
+            }),
+        };
+
+        return this.metadata.topics;
     }
 
-    getBrokers(): Promise<Broker[]> {
+    async getBrokers(): Promise<Broker[]> {
+        const describeClusterResponse = await this.kafkaAdminClient?.describeCluster();
+
+        this.metadata = {
+            ...this.metadata,
+            brokers: describeClusterResponse.brokers.map((b) => {
+                return {
+                    id: b.nodeId.toString(),
+                    host: b.host,
+                    port: b.port,
+                    isController: b.nodeId == describeClusterResponse.controller,
+                };
+            }),
+        };
+
         return Promise.resolve(this.metadata.brokers);
     }
 
-    getBrokerConfigs(brokerId: string): Promise<ConfigEntry[]> {
-        return this.getResourceConfigs(this.kafkaAdminClient.RESOURCE_TYPES.broker, brokerId);
-    }
-
-    getTopicConfigs(topicId: string): Promise<ConfigEntry[]> {
-        return this.getResourceConfigs(this.kafkaAdminClient.RESOURCE_TYPES.topic, topicId);
-    }
-
-    getConsumerGroupIds(): Promise<string[]> {
-        return new Promise((resolve, reject) => {
-            this.kafkaAdminClient.listGroups((error: any, result: any) => {
-                if (error) {
-                    return reject(error);
-                }
-
-                resolve(Object.keys(result));
-            });
+    async getBrokerConfigs(brokerId: string): Promise<ConfigEntry[]> {
+        const describeConfigsResponse = await this.kafkaAdminClient.describeConfigs({
+            includeSynonyms: false,
+            resources: [
+                {
+                    type: ConfigResourceTypes.BROKER,
+                    name: brokerId,
+                },
+            ],
         });
+
+        return describeConfigsResponse.resources[0].configEntries;
     }
 
-    getConsumerGroupDetails(groupId: string): Promise<ConsumerGroup> {
-        return new Promise((resolve, reject) => {
-            this.kafkaAdminClient.describeGroups([groupId], (error: any, result: any) => {
-                if (error) {
-                    return reject(error);
-                }
-
-                resolve(result[groupId]);
-            });
+    async getTopicConfigs(topicId: string): Promise<ConfigEntry[]> {
+        const describeConfigsResponse = await this.kafkaAdminClient.describeConfigs({
+            includeSynonyms: false,
+            resources: [
+                {
+                    type: ConfigResourceTypes.TOPIC,
+                    name: topicId,
+                },
+            ],
         });
+
+        return describeConfigsResponse.resources[0].configEntries;
     }
 
-    createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]> {
-        return new Promise((resolve, reject) => {
-            this.kafkaClient.createTopics([createTopicRequest], (error: any, result: any) => {
-                if (error) {
-                    return reject(error);
-                }
+    async getConsumerGroupIds(): Promise<string[]> {
+        const listGroupsResponse = await this.kafkaAdminClient.listGroups();
+        return Promise.resolve(listGroupsResponse.groups.map((g) => (g.groupId)));
+    }
 
-                resolve(result);
-            });
+    async getConsumerGroupDetails(groupId: string): Promise<ConsumerGroup> {
+        const describeGroupResponse = await this.kafkaAdminClient.describeGroups([groupId]);
+
+        const consumerGroup: ConsumerGroup = {
+            groupId: groupId,
+            state: describeGroupResponse.groups[0].state,
+            protocolType: describeGroupResponse.groups[0].protocolType,
+            protocol: describeGroupResponse.groups[0].protocol,
+            members: describeGroupResponse.groups[0].members.map((m) => {
+                return {
+                    memberId: m.memberId,
+                    clientId: m.clientId,
+                    clientHost: m.clientHost,
+                };
+            }),
+        };
+
+        return consumerGroup;
+    }
+
+    async createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]> {
+        await this.kafkaAdminClient.createTopics({
+            validateOnly: false,
+            waitForLeaders: true,
+            topics: [{
+                topic: createTopicRequest.topic,
+                numPartitions: createTopicRequest.partitions,
+                replicationFactor: createTopicRequest.replicationFactor,
+            }],
         });
+        return Promise.resolve([]);
     }
 
     refreshMetadata(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            this.kafkaClient.loadMetadataForTopics([], (error: any, result: any) => {
-                if (error) {
-                    reject(error);
-                    return;
-                }
-
-                this.metadata = this.parseMetadataResponse(result);
-                resolve();
-            });
-        });
+        return Promise.resolve();
     }
 
-    dispose(): void {
-        if (this.kafkaClient) {
-            this.kafkaClient.close();
-        }
-
-        this.kafkaClient = null;
-        this.kafkaAdminClient = null;
-        this.kafkaCyclicProducerClient = null;
-        this.kafkaKeyedProducerClient = null;
-    }
-
-    private parseMetadataResponse(response: any[]): { topics: Topic[]; brokers: Broker[] } {
-        return {
-            brokers: this.parseBrokers(response[0], response[1].clusterMetadata),
-            topics: this.parseTopics(response[1].metadata),
-        };
-    }
-
-    private parseTopics(topicMetadata: any): Topic[] {
-        return Object.keys(topicMetadata).map((topicId) => {
-            const partitions = Object.keys(topicMetadata[topicId]);
-            let replicationFactor = 0;
-
-            if (partitions.length > 0) {
-                replicationFactor = topicMetadata[topicId][partitions[0]].replicas.length;
-            }
-
-            return {
-                id: topicId,
-                partitionCount: partitions.length,
-                replicationFactor,
-                partitions: topicMetadata[topicId],
-            };
-        });
-    }
-
-    private parseBrokers(brokerMetadata: any, clusterMetadata: any): Broker[] {
-        const brokerIds = Object.keys(brokerMetadata);
-
-        const brokers: Broker[] = brokerIds.map((brokerId) => {
-            const brokerData = brokerMetadata[brokerId];
-
-            const brokerWrapper = this.kafkaClient.getBrokers()[brokerData.host + ":" + brokerData.port];
-            let isConnected = false;
-
-            if (brokerWrapper) {
-                isConnected = brokerWrapper.isReady();
-            }
-
-            return {
-                id: brokerId,
-                host: brokerData.host,
-                port: brokerData.port,
-                isController: brokerId === clusterMetadata.controllerId.toString(),
-                isConnected,
-            };
-        });
-
-        return brokers;
-    }
-
-    private getResourceConfigs(resourceType: string, resourceName: string): Promise<ConfigEntry[]> {
-        const resource = {
-            resourceType,
-            resourceName,
-            configNames: [],
-        };
-
-        const payload = {
-            resources: [resource],
-            includeSynonyms: false,
-        };
-
-        return new Promise((resolve, reject) => {
-            this.kafkaAdminClient.describeConfigs(payload,
-                (err: any, res: Array<{ configEntries: ConfigEntry[] }>) => {
-                    if (err) {
-                        reject(err);
-                        return;
-                    }
-
-                    if (res.length === 0) {
-                        return [];
-                    }
-
-                    resolve(res[0].configEntries);
-                });
-        });
-    }
+    dispose() {
+        this.kafkaAdminClient.disconnect();
+    }   
 }
 
 export const createClient = (cluster: Cluster, workspaceSettings: WorkspaceSettings): Client => new EnsureConnectedDecorator(
-    new KafkaNodeClient(cluster, workspaceSettings));
+    new KafkaJsClient(cluster, workspaceSettings));

@@ -27,36 +27,35 @@ export class ProduceRecordCommandHandler {
             return;
         }
 
-        const producer = key !== undefined ?
-            client.kafkaKeyedProducerClient : client.kafkaCyclicProducerClient;
+        const producer = client.producer;
+        await producer.connect();
 
         channel.show(false);
         channel.appendLine(`Producing record(s)`);
         const startOperation = performance.now();
+        
+        try {
+            await producer.send({
+                topic: topic,
+                messages: messages.map((m) => ({ key: key, value: m })),
+            });
 
-        producer.send([{
-            topic,
-            attributes: 0,
-            key,
-            messages,
-        }], (error: any, result: any) => {
+
             const finishedOperation = performance.now();
             const elapsed = (finishedOperation - startOperation).toFixed(2);
 
-            if (error) {
-                channel.appendLine(`Failed to produce record(s) (${elapsed}ms)`);
-
-                if (error.message) {
-                    channel.appendLine(`Error: ${error.message}`);
-                } else {
-                    channel.appendLine(`Error: ${error}`);
-                }
-
-                return;
-            }
-
             channel.appendLine(`Produced ${times} record(s) (${elapsed}ms)`);
-        });
+        } catch(error) {
+            const finishedOperation = performance.now();
+            const elapsed = (finishedOperation - startOperation).toFixed(2);
+            channel.appendLine(`Failed to produce record(s) (${elapsed}ms)`);
+
+            if (error.message) {
+                channel.appendLine(`Error: ${error.message}`);
+            } else {
+                channel.appendLine(`Error: ${error}`);
+            }
+        }
     }
 
     private parseDocumentRange(document: vscode.TextDocument, range: vscode.Range): { topic?: string; key?: string; value: string } {

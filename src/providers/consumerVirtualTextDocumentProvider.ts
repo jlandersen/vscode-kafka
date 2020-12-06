@@ -1,7 +1,6 @@
-import { Message } from "kafka-node";
 import * as vscode from "vscode";
 
-import { ConsumerCollection } from "../client";
+import { ConsumedRecord, ConsumerCollection } from "../client";
 import { CommonMessages } from "../constants";
 
 export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentContentProvider, vscode.Disposable {
@@ -67,7 +66,7 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
         this.onDidChangeEmitter.fire(uri);
     }
 
-    public onDidReceiveRecord(uri: vscode.Uri, message: Message): void {
+    public onDidReceiveRecord(uri: vscode.Uri, message: ConsumedRecord): void {
         let uriBuffer = this.buffer[uri.toString()];
 
         if (!uriBuffer) {
