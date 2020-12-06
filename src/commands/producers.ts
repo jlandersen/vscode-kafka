@@ -3,11 +3,13 @@ import * as vscode from "vscode";
 import { performance } from "perf_hooks";
 import { ClientAccessor } from "../client";
 import { OutputChannelProvider } from "../providers/outputChannelProvider";
+import { KafkaExplorer } from "../explorer";
 
 export class ProduceRecordCommandHandler {
     constructor(
         private clientAccessor: ClientAccessor, 
-        private channelProvider: OutputChannelProvider) {
+        private channelProvider: OutputChannelProvider,
+        private explorer: KafkaExplorer) {
     }
 
     async execute(document: vscode.TextDocument, range: vscode.Range, times: number): Promise<void> {
@@ -45,6 +47,8 @@ export class ProduceRecordCommandHandler {
             const elapsed = (finishedOperation - startOperation).toFixed(2);
 
             channel.appendLine(`Produced ${times} record(s) (${elapsed}ms)`);
+
+            this.explorer.refresh();
         } catch(error) {
             const finishedOperation = performance.now();
             const elapsed = (finishedOperation - startOperation).toFixed(2);

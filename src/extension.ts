@@ -50,7 +50,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
     // Commands
     const createTopicCommandHandler = new CreateTopicCommandHandler(clientAccessor, explorer);
-    const produceRecordCommandHandler = new ProduceRecordCommandHandler(clientAccessor, outputChannelProvider);
+    const produceRecordCommandHandler = new ProduceRecordCommandHandler(clientAccessor, outputChannelProvider, explorer);
     const startConsumerCommandHandler = new StartConsumerCommandHandler(clientAccessor, clusterSettings, consumerCollection);
     const listConsumersCommandHandler = new ListConsumersCommandHandler(consumerCollection);
     const toggleConsumerCommandHandler = new ToggleConsumerCommandHandler(consumerCollection);
