@@ -29,6 +29,7 @@
         "onCommand:vscode-kafka.explorer.createtopic",
         "onCommand:vscode-kafka.explorer.refresh",
         "onCommand:vscode-kafka.explorer.dumptopicmetadata",
+        "onCommand:vscode-kafka.explorer.deletetopic",
         "onCommand:vscode-kafka.explorer.dumpbrokermetadata",
         "onCommand:vscode-kafka.explorer.dumpclustermetadata",
         "onCommand:vscode-kafka.consumer.consume",
@@ -126,6 +127,11 @@
                 "category": "Kafka"
             },
             {
+                "command": "vscode-kafka.explorer.deletetopic",
+                "title": "Delete Topic",
+                "category": "Kafka"
+            },
+            {
                 "command": "vscode-kafka.explorer.dumpbrokermetadata",
                 "title": "Dump Broker Metadata",
                 "category": "Kafka"
@@ -190,6 +196,10 @@
                 },
                 {
                     "command": "vscode-kafka.explorer.dumptopicmetadata",
+                    "when": "view == kafkaExplorer && viewItem == topic"
+                },
+                {
+                    "command": "vscode-kafka.explorer.deletetopic",
                     "when": "view == kafkaExplorer && viewItem == topic"
                 },
                 {
