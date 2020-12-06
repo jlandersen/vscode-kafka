@@ -26,10 +26,6 @@ export class Icons {
         return getDarkLightPath("server.svg");
     }
 
-    public static get ServerConnected(): DarkLightPath {
-        return getDarkLightPath("server-connected.svg");
-    }
-
     public static get Topic(): DarkLightPath {
         return getDarkLightPath("topic.svg");
     }
