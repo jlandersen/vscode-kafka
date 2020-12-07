@@ -70,6 +70,15 @@ export class DeleteClusterCommandHandler {
         if (!clusterId) {
             return;
         }
+        const cluster = this.clusterSettings.get(clusterId);
+        if (!cluster) {
+            return;
+        }
+
+        const deleteConfirmation = await vscode.window.showWarningMessage(`Are you sure you want to delete cluster '${cluster.name}'?`, 'Cancel', 'Delete');
+        if (deleteConfirmation !== 'Delete') {
+            return;
+        }
 
         this.clusterSettings.remove(clusterId);
         this.clientAccessor.remove(clusterId);
