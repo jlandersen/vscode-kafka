@@ -4,6 +4,7 @@ import { ConsumerCollection, Topic, ClientAccessor } from "../client";
 import { pickTopic } from "./common";
 import { ClusterSettings } from "../settings";
 import { CommonMessages } from "../constants";
+import { KafkaExplorer } from "../explorer";
 
 export interface StartConsumerCommand {
     clusterId: string;
@@ -14,7 +15,9 @@ export class StartConsumerCommandHandler {
     constructor(
         private clientAccessor: ClientAccessor, 
         private clusterSettings: ClusterSettings,
-        private consumerCollection: ConsumerCollection) {
+        private consumerCollection: ConsumerCollection,
+        private explorer: KafkaExplorer
+        ) {
     }
 
     async execute(startConsumerCommand?: StartConsumerCommand): Promise<void> {
@@ -46,7 +49,7 @@ export class StartConsumerCommandHandler {
         }
 
         this.consumerCollection.create(consumeUri);
-
+        this.explorer.refresh();
         const doc = await vscode.workspace.openTextDocument(consumeUri);
         await vscode.window.showTextDocument(
             doc,
