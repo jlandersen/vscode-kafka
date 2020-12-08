@@ -41,7 +41,7 @@ export class StartConsumerCommandHandler {
         const consumeUri = vscode.Uri.parse(`kafka:${startConsumerCommand.clusterId}/${startConsumerCommand.topic.id}`);
 
         if (this.consumerCollection.has(consumeUri)) {
-            vscode.window.showErrorMessage("Consumer already exists");
+            vscode.window.showInformationMessage(`Consumer already started on '${startConsumerCommand.topic.id}'`);
             return;
         }
 
