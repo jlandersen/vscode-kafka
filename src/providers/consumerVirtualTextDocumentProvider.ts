@@ -19,11 +19,9 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
         this.disposables.push(this.consumerCollection.onDidChangeCollection((arg: any) => {
             for (const startedUri of arg.created) {
                 if (!this.buffer[startedUri.toString()]) {
-                    this.buffer[startedUri.toString()] = "Consumer: started\n\n";
-                } else {
-                    this.buffer[startedUri.toString()] += "Consumer started\n\n";
+                    this.buffer[startedUri.toString()] = '';
                 }
-
+                this.onDidChangeStatus(startedUri, 'started');
                 this.attachToConsumer(startedUri);
             }
 
@@ -82,17 +80,7 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
     }
 
     public onDidCloseConsumer(uri: vscode.Uri): void {
-        let uriBuffer = this.buffer[uri.toString()];
-
-        if (!uriBuffer) {
-            return;
-        }
-
-        const line = `Consumer closed\n`;
-        uriBuffer = uriBuffer + line;
-
-        this.buffer[uri.toString()] = uriBuffer;
-        this.onDidChangeEmitter.fire(uri);
+        this.onDidChangeStatus(uri, 'closed');
     }
 
     public onDidReceiveError(error: any): void {

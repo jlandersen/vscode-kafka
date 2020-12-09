@@ -44,21 +44,13 @@ export class StartConsumerCommandHandler {
         const consumeUri = vscode.Uri.parse(`kafka:${startConsumerCommand.clusterId}/${startConsumerCommand.topic.id}`);
 
         if (this.consumerCollection.has(consumeUri)) {
-            vscode.window.showErrorMessage("Consumer already exists");
-            return;
+            vscode.window.showInformationMessage(`Consumer already started on '${startConsumerCommand.topic.id}'`);
+        } else {
+            this.consumerCollection.create(consumeUri);
+            this.explorer.refresh();
         }
 
-        this.consumerCollection.create(consumeUri);
-        this.explorer.refresh();
-        const doc = await vscode.workspace.openTextDocument(consumeUri);
-        await vscode.window.showTextDocument(
-            doc,
-            {
-                preview: false,
-                preserveFocus: true,
-                viewColumn: vscode.ViewColumn.Beside,
-            });
-        await vscode.languages.setTextDocumentLanguage(doc, "kafka-consumer");
+        return openDocument(consumeUri);
     }
 }
 
@@ -128,7 +120,7 @@ export class ListConsumersCommandHandler {
 
         switch (pickedOption.option) {
             case ConsumerOption.Open:
-                this.openDocument(pickedConsumer.uri);
+                openDocument(pickedConsumer.uri);
                 break;
             case ConsumerOption.Close:
                 this.consumerCollection.close(pickedConsumer.uri);
@@ -136,29 +128,47 @@ export class ListConsumersCommandHandler {
         }
     }
 
-    private async openDocument(uri: vscode.Uri): Promise<void> {
-        let document: vscode.TextDocument | undefined;
+}
 
-        // First we check if the document is already open, in which case we just show it
-        const docs = vscode.workspace.textDocuments;
-        for (const doc of docs) {
-            if (doc.uri.toString() === uri.toString()) {
-                document = doc;
-                break;
-            }
-        }
+async function openDocument(uri: vscode.Uri): Promise<void> {
 
-        // Else we just reopen it - vscode closes it after a few minutes if not open
-        if (typeof document === "undefined") {
-            document = await vscode.workspace.openTextDocument(uri);
-        }
+    const visibleConsumerEditor = vscode.window.visibleTextEditors.find(te => te.document.uri.toString() === uri.toString());
+    if (visibleConsumerEditor) {
+        //Document already exists and is active, nothing to do
+        return;
+    }
 
-        await vscode.window.showTextDocument(
+    // Then we check if the document is already open
+    const docs = vscode.workspace.textDocuments;
+    let document: vscode.TextDocument | undefined = docs.find(doc => doc.uri.toString() === uri.toString());
+
+    // If there's no document we open it
+    if (!document) {
+       document = await vscode.workspace.openTextDocument(uri);
+    }
+
+    // Check if there's an active editor, to later decide in which column the consumer
+    // view will be opened
+    const hasActiveEditor = !!vscode.window.activeTextEditor;
+
+    // Finally reveal the document
+    //
+    // Caveat #1: For documents opened programatically, then closed from the UI,
+    // VS Code doesn't instantly trigger onDidCloseTextDocument, so there's a
+    // chance the document instance we just retrieved doesn't correspond to an
+    // actual TextEditor.
+    // See https://github.com/microsoft/vscode/issues/15178
+    //
+    // Caveat #2: if a document is opened in a different panel, it's not revealed.
+    // Instead, a new TextEditor instance is added to the active panel. This is the
+    // default vscode behavior
+    await vscode.window.showTextDocument(
             document,
             {
                 preview: false,
                 preserveFocus: true,
-                viewColumn: vscode.ViewColumn.Beside,
-            });
-    }
+                viewColumn: hasActiveEditor?vscode.ViewColumn.Beside:vscode.ViewColumn.Active,
+            }
+        );
+
 }
