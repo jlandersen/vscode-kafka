@@ -1,81 +1,22 @@
+import { ClusterSettings } from "../settings";
 import { dump } from "js-yaml";
 import * as vscode from "vscode";
 
 import { Topic, ClientAccessor, Client } from "../client";
 import { KafkaExplorer, TopicItem } from "../explorer";
 import { OutputChannelProvider } from "../providers";
+import { addTopicWizard } from "../wizards/topics";
 import { pickTopicFromSelectedCluster } from "./common";
 
 const AUTO_CREATE_TOPIC_KEY = 'auto.create.topics.enable';
 
 export class CreateTopicCommandHandler {
-    constructor(private clientAccessor: ClientAccessor, private explorer: KafkaExplorer) {
-    }
 
-    private validatePositiveNumber(value?: string): string | undefined {
-        if (!value) {
-            return "Must be a positive number";
-        }
-
-        const valueAsNumber = parseInt(value, 10);
-
-        if (isNaN(valueAsNumber) || valueAsNumber < 1) {
-            return "Must be a positive number";
-        }
+    constructor(private clientAccessor: ClientAccessor, private clusterSettings : ClusterSettings, private explorer: KafkaExplorer) {
     }
 
     async execute(clusterId?: string): Promise<void> {
-        if (!clusterId) {
-            return;
-        }
-
-        const topic = await vscode.window.showInputBox({ placeHolder: "Topic name", ignoreFocusOut: true });
-
-        if (!topic) {
-            return;
-        }
-
-        const partitions = await vscode.window.showInputBox({
-            placeHolder: "Number of partitions",
-            validateInput: this.validatePositiveNumber,
-            ignoreFocusOut: true
-        });
-
-        if (!partitions) {
-            return;
-        }
-
-        const replicationFactor = await vscode.window.showInputBox({
-            placeHolder: "Replication Factor",
-            validateInput: this.validatePositiveNumber,
-            ignoreFocusOut: true
-        });
-
-        if (!replicationFactor) {
-            return;
-        }
-
-        try {
-            const client = this.clientAccessor.get(clusterId);
-            const result = await client.createTopic({
-                topic,
-                partitions: parseInt(partitions, 10),
-                replicationFactor: parseInt(replicationFactor, 10),
-            });
-
-            if (result.length > 0) {
-                vscode.window.showErrorMessage(result[0].error);
-            } else {
-                this.explorer.refresh();
-                vscode.window.showInformationMessage(`Topic '${topic}' created successfully`);
-            }
-        } catch (error) {
-            if (error.message) {
-                vscode.window.showErrorMessage(error.message);
-            } else {
-                vscode.window.showErrorMessage(error);
-            }
-        }
+        addTopicWizard(this.clientAccessor, this.clusterSettings,  this.explorer, clusterId);
     }
 }
 
@@ -164,7 +105,7 @@ export class DeleteTopicCommandHandler {
                 return;
             }
 
-            await client.deleteTopic({topics:[ topicToDelete.id ]});
+            await client.deleteTopic({ topics: [topicToDelete.id] });
             this.explorer.refresh();
             vscode.window.showInformationMessage(`Topic '${topicToDelete.id}' deleted successfully`);
         } catch (error) {

@@ -3,6 +3,7 @@ import * as path from "path";
 import { Context } from "./context";
 
 export const imagesPath = "images";
+export const INPUT_TITLE = 'Kafka Tools';
 
 type DarkLightPath = { light: string; dark: string}
 
@@ -36,7 +37,7 @@ export class Icons {
 
     public static get Trash(): DarkLightPath {
         return getDarkLightPath("trashcan.svg");
-    }    
+    }
 
     public static get Warning(): string {
         return getIconPath("warning.svg");

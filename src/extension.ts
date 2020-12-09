@@ -50,7 +50,7 @@ export function activate(context: vscode.ExtensionContext): void {
     context.subscriptions.push(new SelectedClusterStatusBarItem(clusterSettings));
 
     // Commands
-    const createTopicCommandHandler = new CreateTopicCommandHandler(clientAccessor, explorer);
+    const createTopicCommandHandler = new CreateTopicCommandHandler(clientAccessor, clusterSettings, explorer);
     const deleteTopicCommandHandler = new DeleteTopicCommandHandler(clientAccessor, explorer);
     const produceRecordCommandHandler = new ProduceRecordCommandHandler(clientAccessor, outputChannelProvider, explorer, workspaceSettings);
     const startConsumerCommandHandler = new StartConsumerCommandHandler(clientAccessor, clusterSettings, consumerCollection, explorer);
