@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as faker from "faker";
 
 import { performance } from "perf_hooks";
 import { ClientAccessor } from "../client";
@@ -15,7 +16,7 @@ export class ProduceRecordCommandHandler {
     async execute(document: vscode.TextDocument, range: vscode.Range, times: number): Promise<void> {
         const channel = this.channelProvider.getChannel("Kafka Producer Log");
         const { topic, key, value } = this.parseDocumentRange(document, range);
-        const messages = [...Array(times).keys()].map(() => value);
+        const messages = [...Array(times).keys()].map(() => faker.fake(value));
 
         if (topic === undefined) {
             channel.appendLine("No topic");

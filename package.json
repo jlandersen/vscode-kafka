@@ -248,9 +248,11 @@
     "dependencies": {
         "glob": "^7.1.6",
         "js-yaml": "^3.14.0",
+        "faker": "^5.1.0",
         "kafkajs": "^1.15.0"
     },
     "devDependencies": {
+        "@types/faker": "^5.1.5",
         "@types/glob": "^7.1.1",
         "@types/js-yaml": "^3.12.4",
         "@types/mocha": "^8.0.4",
