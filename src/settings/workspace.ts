@@ -14,11 +14,13 @@ export enum TopicSortOption {
  */
 export type InitialConsumerOffset = "latest" | "earliest";
 
-
+const DEFAULT_PRODUCER_LOCALE = 'en';
 
 export interface WorkspaceSettings extends vscode.Disposable {
     consumerOffset: InitialConsumerOffset;
     topicSortOption: TopicSortOption;
+    producerFakerJSEnabled: boolean;
+    producerFakerJSLocale: string;
 }
 
 class VsCodeWorkspaceSettings implements WorkspaceSettings {
@@ -31,6 +33,8 @@ class VsCodeWorkspaceSettings implements WorkspaceSettings {
 
     public consumerOffset: InitialConsumerOffset = "latest";
     public topicSortOption: TopicSortOption = TopicSortOption.Name;
+    public producerFakerJSEnabled = true;
+    public producerFakerJSLocale = DEFAULT_PRODUCER_LOCALE;
 
     private constructor() {
         this.configurationChangeHandlerDisposable = vscode.workspace.onDidChangeConfiguration(
@@ -50,6 +54,8 @@ class VsCodeWorkspaceSettings implements WorkspaceSettings {
         const configuration = vscode.workspace.getConfiguration("kafka");
         this.consumerOffset = configuration.get<InitialConsumerOffset>("consumers.offset", "latest");
         this.topicSortOption = configuration.get<TopicSortOption>("explorer.topics.sort", TopicSortOption.Name);
+        this.producerFakerJSEnabled = configuration.get<boolean>("producers.fakerjs.enabled", true);
+        this.producerFakerJSLocale = configuration.get<string>("producers.fakerjs.locale", DEFAULT_PRODUCER_LOCALE);
     }
 
     dispose(): void {

@@ -7,7 +7,12 @@ export const handleErrors = (handler: Handler): ((...args: any[]) => Promise<any
         try {
             await handler(...args);
         } catch (error) {
-            vscode.window.showErrorMessage(error);
+            if (error.message) {
+                vscode.window.showErrorMessage(error.message);
+            } else {
+                console.log(error);
+                vscode.window.showErrorMessage('An unexpected error occured');
+            }
         }
     }
 };
