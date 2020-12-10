@@ -140,6 +140,12 @@
                 "path": "./syntaxes/kafka.tmLanguage.json"
             }
         ],
+        "snippets": [
+            {
+                "language": "kafka",
+                "path": "./snippets/producers.json"
+            }
+        ],
         "commands": [
             {
                 "command": "vscode-kafka.explorer.addcluster",

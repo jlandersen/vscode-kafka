@@ -1,0 +1,47 @@
+{
+	"producer": {
+		"prefix": [
+			"producer"
+		],
+		"body": [
+			"PRODUCER ${1:keyed-message}",
+            "topic: ${2:topic_name}",
+            "key: ${3:mykeyq}",
+            "${4:{{random.words}}}"
+		],
+		"description": "A producer generating keyed records"
+    },
+    "json-producer": {
+		"prefix": [
+			"json-producer"
+		],
+		"body": [
+			"PRODUCER ${1:json-output}",
+            "topic: ${2:topic_name}",
+            "key: ${3:mykeyq}",
+            "{",
+            "\t\"${4:key}\": \"${5:{{random.number}}}\"",
+            "}"
+		],
+		"description": "A producer generating keyed JSON records"
+    },
+    "comment": {
+		"prefix": [
+            "comment"
+		],
+		"body": [
+			"--- ${0}"
+		],
+		"description": "Adds a comment"
+    },
+    "separator": {
+		"prefix": [
+            "separator"
+		],
+		"body": [
+            "###",
+            ""
+		],
+		"description": "Adds a producer separator"
+    }
+}
