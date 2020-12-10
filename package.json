@@ -253,7 +253,8 @@
         "webpack:dev": "webpack --mode development --watch",
         "pretest": "npm run test:compile",
         "test": "node ./out/test/runTest.js",
-        "test:compile": "tsc -p ./"
+        "test:compile": "tsc -p ./",
+        "package": "vsce package"
     },
     "dependencies": {
         "glob": "^7.1.6",
@@ -274,6 +275,7 @@
         "typescript": "^4.1.2",
         "vscode-test": "^1.4.1",
         "webpack": "^5.6.0",
-        "webpack-cli": "^4.2.0"
+        "webpack-cli": "^4.2.0",
+        "vsce": "^1.81.1"
     }
 }

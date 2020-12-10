@@ -4,6 +4,7 @@ All notable changes to Kafka extension will be documented in this file.
 ### Added
 - Added confirmation before deleting a cluster.
 - Added support for topic deletion. Right-click on a topic and select `Delete Topic`. Be aware that, depending on the cluster configuration (`auto.create.topics.enable:true`), deleted topics *might* be recreated automatically after a few moments.
+- Added [instructions](https://github.com/jlandersen/vscode-kafka#ci-builds) to manually install CI builds.
 
 ### Changed
 - Fixed Kafka cluster wizard, no longer disappears when losing focus.
