@@ -13,7 +13,7 @@ export interface StartConsumerCommand {
 
 export class StartConsumerCommandHandler {
     constructor(
-        private clientAccessor: ClientAccessor, 
+        private clientAccessor: ClientAccessor,
         private clusterSettings: ClusterSettings,
         private consumerCollection: ConsumerCollection,
         private explorer: KafkaExplorer
@@ -58,6 +58,7 @@ export class StartConsumerCommandHandler {
                 preserveFocus: true,
                 viewColumn: vscode.ViewColumn.Beside,
             });
+        await vscode.languages.setTextDocumentLanguage(doc, "kafka-consumer");
     }
 }
 
