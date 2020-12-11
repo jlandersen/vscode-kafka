@@ -4,6 +4,7 @@ All notable changes to Kafka extension will be documented in this file.
 ### Added
 - Added confirmation before deleting a cluster.
 - Added support for topic deletion. Right-click on a topic and select `Delete Topic`. Be aware that, depending on the cluster configuration (`auto.create.topics.enable:true`), deleted topics *might* be recreated automatically after a few moments.
+- Added support for randomized record templates, in *.kafka producer files. Simply inject mustache-like placeholders of [kafka.js properties](https://github.com/Marak/faker.js#api-methods), like ``{{name.lastName}}`` or ``{{random.number}}``. Some randomized properties can be localized via the `kafka.producers.fakerjs.locale` setting.
 
 ### Changed
 - Fixed Kafka cluster wizard, no longer disappears when losing focus.
