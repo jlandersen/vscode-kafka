@@ -6,6 +6,8 @@ import { KafkaExplorer, TopicItem } from "../explorer";
 import { OutputChannelProvider } from "../providers";
 import { pickTopicFromSelectedCluster } from "./common";
 
+const AUTO_CREATE_TOPIC_KEY = 'auto.create.topics.enable';
+
 export class CreateTopicCommandHandler {
     constructor(private clientAccessor: ClientAccessor, private explorer: KafkaExplorer) {
     }
@@ -65,7 +67,7 @@ export class CreateTopicCommandHandler {
                 vscode.window.showErrorMessage(result[0].error);
             } else {
                 this.explorer.refresh();
-                vscode.window.showInformationMessage(`Topic ${topic} created successfully`);
+                vscode.window.showInformationMessage(`Topic '${topic}' created successfully`);
             }
         } catch (error) {
             if (error.message) {
@@ -111,5 +113,66 @@ export class DumpTopicMetadataCommandHandler {
         channel.clear();
         channel.append(dump(data));
         channel.show();
+    }
+}
+
+export class DeleteTopicCommandHandler {
+    constructor(private clientAccessor: ClientAccessor, private explorer: KafkaExplorer) {
+    }
+
+    async execute(topic?: TopicItem): Promise<void> {
+        let client: Client | undefined;
+
+        if (topic) {
+            client = this.clientAccessor.get(topic.clusterId);
+        } else {
+            client = this.clientAccessor.getSelectedClusterClient();
+        }
+
+        if (!client) {
+            vscode.window.showInformationMessage("No cluster selected");
+            return;
+        }
+
+        //TODO implement multiple topic deletion
+        const topicToDelete: Topic | undefined = topic ? topic.topic : await pickTopicFromSelectedCluster(this.clientAccessor);
+
+        if (!topicToDelete) {
+            return;
+        }
+
+        try {
+            const brokers = await client?.getBrokers();
+            let autoCreateTopicsEnabled = false;
+
+            if (brokers) {
+                for (let i = 0; i < brokers.length && !autoCreateTopicsEnabled; i++) {
+                    const configs = await client?.getBrokerConfigs(brokers[i].id);
+                    const config = configs?.find(ce => ce.configName === AUTO_CREATE_TOPIC_KEY);
+                    if (config) {
+                        autoCreateTopicsEnabled = config.configValue == 'true'
+                    }
+                }
+            }
+
+            let warning = `Are you sure you want to delete topic '${topicToDelete.id}'?`;
+            if (autoCreateTopicsEnabled) {
+                warning += ` The cluster is configured with '${AUTO_CREATE_TOPIC_KEY}=true', so the topic might be recreated automatically.`;
+            }
+            const deleteConfirmation = await vscode.window.showWarningMessage(warning, 'Cancel', 'Delete');
+            if (deleteConfirmation !== 'Delete') {
+                return;
+            }
+
+            await client.deleteTopic({topics:[ topicToDelete.id ]});
+            this.explorer.refresh();
+            vscode.window.showInformationMessage(`Topic '${topicToDelete.id}' deleted successfully`);
+        } catch (error) {
+            if (error.message) {
+                vscode.window.showErrorMessage(error.message);
+            } else {
+                vscode.window.showErrorMessage(error);
+            }
+        }
     }
 }

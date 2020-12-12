@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import { getClientAccessor, ConsumerCollection } from "./client";
 import {
     CreateTopicCommandHandler,
+    DeleteTopicCommandHandler,
     DumpBrokerMetadataCommandHandler,
     DumpClusterMetadataCommandHandler,
     DumpTopicMetadataCommandHandler,
@@ -50,6 +51,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
     // Commands
     const createTopicCommandHandler = new CreateTopicCommandHandler(clientAccessor, explorer);
+    const deleteTopicCommandHandler = new DeleteTopicCommandHandler(clientAccessor, explorer);
     const produceRecordCommandHandler = new ProduceRecordCommandHandler(clientAccessor, outputChannelProvider, explorer);
     const startConsumerCommandHandler = new StartConsumerCommandHandler(clientAccessor, clusterSettings, consumerCollection);
     const listConsumersCommandHandler = new ListConsumersCommandHandler(consumerCollection);
@@ -82,6 +84,9 @@ export function activate(context: vscode.ExtensionContext): void {
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.dumptopicmetadata",
         (topic?: TopicItem) => dumpTopicMetadataCommandHandler.execute(topic)));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        "vscode-kafka.explorer.deletetopic",
+        (topic?: TopicItem) => deleteTopicCommandHandler.execute(topic)));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.dumpclustermetadata",
         handleErrors(() => dumpClusterMetadataCommandHandler.execute())));

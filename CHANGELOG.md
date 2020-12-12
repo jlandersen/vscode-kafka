@@ -3,11 +3,12 @@ All notable changes to Kafka extension will be documented in this file.
 ## [0.10.0] - TBD
 ### Added
 - Added confirmation before deleting a cluster.
+- Added support for topic deletion. Right-click on a topic and select `Delete Topic`. Be aware that, depending on the cluster configuration (`auto.create.topics.enable:true`), deleted topics *might* be recreated automatically after a few moments.
 
 ### Changed
 - Fixed Kafka cluster wizard, no longer disappears when losing focus.
 - Moved the underlying Kafka library to KafkaJS (https://kafka.js.org/) (brings a heap of benefits such as larger API surface, less dependencies and is generally more maintained).
-
+- Refresh Kafka Explorer when producing messages, so new topics can be discovered automatically.
 
 ## [0.9.0] - 2020-05-30
 ### Added

@@ -55,6 +55,11 @@ export interface CreateTopicRequest {
     replicationFactor: number;
 }
 
+export interface DeleteTopicRequest {
+    topics: string[];
+    timeout?: number | undefined;
+}
+
 export interface Options {
     host: string;
     sasl: "none" | "SASL/PLAIN";
@@ -84,6 +89,7 @@ export interface Client extends Disposable {
     getConsumerGroupIds(): Promise<string[]>;
     getConsumerGroupDetails(groupId: string): Promise<ConsumerGroup>;
     createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]>;
+    deleteTopic(deleteTopicRequest: DeleteTopicRequest): Promise<void>;
 }
 
 class EnsureConnectedDecorator implements Client {
@@ -131,6 +137,11 @@ class EnsureConnectedDecorator implements Client {
     public async createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]> {
         await this.waitUntilConnected();
         return await this.client.createTopic(createTopicRequest);
+    }
+
+    public async deleteTopic(deleteTopicRequest: DeleteTopicRequest): Promise<void> {
+        await this.waitUntilConnected();
+        return await this.client.deleteTopic(deleteTopicRequest);
     }
 
     public dispose(): void {
@@ -304,6 +315,13 @@ class KafkaJsClient implements Client {
             }],
         });
         return Promise.resolve([]);
+    }
+
+    async deleteTopic(deleteTopicRequest: DeleteTopicRequest): Promise<void> {
+        return await this.kafkaAdminClient.deleteTopics({
+            topics: deleteTopicRequest.topics,
+            timeout: deleteTopicRequest.timeout
+        });
     }
 
     dispose() {
