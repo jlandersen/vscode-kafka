@@ -10,6 +10,7 @@ All notable changes to Kafka extension will be documented in this file.
 - Moved the underlying Kafka library to KafkaJS (https://kafka.js.org/) (brings a heap of benefits such as larger API surface, less dependencies and is generally more maintained).
 - Refresh Kafka Explorer when producing messages, so new topics can be discovered automatically.
 - Refresh Kafka Explorer when starting a consumer.
+- Automatically select cluster when there's only one available.
 
 ## [0.9.0] - 2020-05-30
 ### Added

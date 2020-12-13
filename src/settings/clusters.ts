@@ -58,6 +58,7 @@ class MementoClusterSettings implements ClusterSettings {
 
     public constructor(storage: vscode.Memento) {
         this.storage = storage;
+        this.setSelectedClusterIfNeeded();
     }
 
     get selected(): Cluster | undefined {
@@ -88,6 +89,7 @@ class MementoClusterSettings implements ClusterSettings {
         const state = this.storage.get<ClusterStoreType>(this.clusterCollectionStorageKey, {});
         state[cluster.id] = cluster;
         this.storage.update(this.clusterCollectionStorageKey, state);
+        this.setSelectedClusterIfNeeded();
     }
 
     remove(id: string): void {
@@ -98,6 +100,7 @@ class MementoClusterSettings implements ClusterSettings {
         const state = this.storage.get<ClusterStoreType>(this.clusterCollectionStorageKey, {});
         delete state[id];
         this.storage.update(this.clusterCollectionStorageKey, state);
+        this.setSelectedClusterIfNeeded();
     }
 
     static getInstance(): MementoClusterSettings {
@@ -106,6 +109,16 @@ class MementoClusterSettings implements ClusterSettings {
         }
 
         return MementoClusterSettings.instance;
+    }
+
+    private setSelectedClusterIfNeeded(): void {
+        if (this.selected !== undefined){
+            return;
+        }
+        const all = this.getAll();
+        if (all && all.length === 1) {
+            this.selected = all[0];
+        }
     }
 }
 
