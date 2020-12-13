@@ -1,21 +1,29 @@
 import * as vscode from "vscode";
+import * as faker from "faker";
 
 import { performance } from "perf_hooks";
 import { ClientAccessor } from "../client";
 import { OutputChannelProvider } from "../providers/outputChannelProvider";
 import { KafkaExplorer } from "../explorer";
+import { WorkspaceSettings } from "../settings";
 
 export class ProduceRecordCommandHandler {
     constructor(
         private clientAccessor: ClientAccessor, 
         private channelProvider: OutputChannelProvider,
-        private explorer: KafkaExplorer) {
+        private explorer: KafkaExplorer,
+        private settings: WorkspaceSettings
+        ) {
     }
 
     async execute(document: vscode.TextDocument, range: vscode.Range, times: number): Promise<void> {
         const channel = this.channelProvider.getChannel("Kafka Producer Log");
         const { topic, key, value } = this.parseDocumentRange(document, range);
-        const messages = [...Array(times).keys()].map(() => value);
+        if(this.settings.producerFakerJSEnabled) {
+            faker.setLocale(this.settings.producerFakerJSLocale);
+        }
+        const messages = [...Array(times).keys()].map(() => this.settings.producerFakerJSEnabled?
+                                                            faker.fake(value):value);
 
         if (topic === undefined) {
             channel.appendLine("No topic");

@@ -5,6 +5,16 @@
         ".kafka"
     ],
     "scopeName": "source.kafka",
+    "injections": {
+        "L:support.type.property-name.json, L:string.quoted.double.json": {
+            "comment": "Mustache patterns to inject the support.type.property-name.json and string.quoted.double.json scopes",
+            "patterns": [
+                {
+                    "include": "source.kafka#kafka.value.mustache.variables"
+                }
+            ]
+        }
+    },
     "patterns": [
         {
             "include": "#kafka.producerdefinitionline"
@@ -19,6 +29,9 @@
             "include": "#kafka.commentline"
         },
         {
+            "include": "#kafka.value.mustache.variables"
+        },
+        {
             "include": "#kafka.value.json"
         }
     ],
@@ -29,8 +42,12 @@
                     "name": "kafka.producerdefinition",
                     "match": "(?i)^(?:(producer)\\s*)([a-zA-Z\\-]+)?$",
                     "captures": {
-                        "1": { "name": "keyword.control.kafka.producer" },
-                        "2": { "name": "kafka.producer.definition.identifier" }
+                        "1": {
+                            "name": "keyword.control.kafka.producer"
+                        },
+                        "2": {
+                            "name": "kafka.producer.definition.identifier"
+                        }
                     }
                 }
             ]
@@ -41,9 +58,33 @@
                     "name": "kafka.headerdefinition",
                     "match": "(?i)^(?:(topic|key):\\s*)([a-zA-Z0-9\\-\\.\\_]+)?$",
                     "captures": {
-                        "1": { "name": "support.variable.kafka" },
-                        "2": { "name": "kafka.header.identifier" }
+                        "1": {
+                            "name": "support.variable.kafka"
+                        },
+                        "2": {
+                            "name": "kafka.header.identifier"
+                        }
                     }
+                }
+            ]
+        },
+        "kafka.value.mustache.variables": {
+            "comment": "Syntax coloration for Mustache tag variables used by fakerjs (ex : {{random.uuid}} )",
+            "patterns": [
+                {
+                    "begin": "\\s*(?:(\\{\\{))",
+                    "end": "\\s*(?=(\\}\\}))",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "punctuation.definition.tag.variables.begin.mustache"
+                        }
+                    },
+                    "endCaptures": {
+                        "1": {
+                            "name": "punctuation.definition.tag.variables.end.mustache"
+                        }
+                    },
+                    "name": "entity.name.tag.variables.mustache"
                 }
             ]
         },
