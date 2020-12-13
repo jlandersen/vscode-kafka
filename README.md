@@ -54,3 +54,12 @@ Consuming topics can be done by right clicking a topic in the explorer or from t
 Consumers are based on virtual documents, available in the VS Code extension API. A consumer will keep running even if you close the document in the editor. You should make sure to close the consumer explicitly, either via the command palette, the status bar element or the start/stop action button as well. The VS Code API does not support detecting if a virtual document is closed immediately. Instead, the underlying virtual document is automatically closed after two minutes if the document is closed in the editor.
 
 You can configure start offset for new consumers in settings (earliest, latest).
+
+## CI Builds
+
+vscode-kafka is built using Github Actions. Here's how to download and install the latest successful build:
+- Go to the [CI Workflow page](https://github.com/jlandersen/vscode-kafka/actions?query=workflow%3ACI+is%3Asuccess+branch%3Amaster)
+- Click on the most recent run,
+- Locate the vscode-kafka artifact down the page and download it,
+- Unzip the archive,
+- Install the vscode-kafka-*.vsix extension by following these [instructions](https://code.visualstudio.com/docs/editor/extension-gallery#_install-from-a-vsix).
