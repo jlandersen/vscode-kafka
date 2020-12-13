@@ -11,13 +11,13 @@ Features:
 - View brokers in cluster
 - View topics
 - View configs
-- Create topic
+- Create/Delete topic
 - Producing
 - Consuming
 - SASL/PLAIN Authentication (Kafka 0.10+)
 
 Planned features in no particular order:
-- More administration features (delete topics)
+- More administration features
 - Update configs
 
 ## Screenshots
