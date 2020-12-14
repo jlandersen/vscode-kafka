@@ -131,6 +131,12 @@
                     "kafka"
                 ],
                 "configuration": "./language-configuration.json"
+            },
+            {
+                "id": "kafka-consumer",
+                "aliases": [
+                    "Kafka Consumer"
+                ]
             }
         ],
         "grammars": [
@@ -138,6 +144,11 @@
                 "language": "kafka",
                 "scopeName": "source.kafka",
                 "path": "./syntaxes/kafka.tmLanguage.json"
+            },
+            {
+                "language": "kafka-consumer",
+                "scopeName": "source.kafka.consumer",
+                "path": "./syntaxes/kafka-consumer.tmLanguage.json"
             }
         ],
         "snippets": [

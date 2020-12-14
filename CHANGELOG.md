@@ -7,6 +7,7 @@ All notable changes to Kafka extension will be documented in this file.
 - Added support for randomized record templates, in *.kafka producer files. Simply inject mustache-like placeholders of [kafka.js properties](https://github.com/Marak/faker.js#api-methods), like ``{{name.lastName}}`` or ``{{random.number}}``. Some randomized properties can be localized via the `kafka.producers.fakerjs.locale` setting.
 - Added *.kafka producer snippets
 - Added [instructions](https://github.com/jlandersen/vscode-kafka#ci-builds) to manually install CI builds.
+- Syntax coloration for Kafka consumer view.
 
 ### Changed
 - Fixed Kafka cluster wizard, no longer disappears when losing focus.
