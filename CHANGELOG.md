@@ -15,6 +15,9 @@ All notable changes to Kafka extension will be documented in this file.
 - Refresh Kafka Explorer when producing messages, so new topics can be discovered automatically.
 - Refresh Kafka Explorer when starting a consumer.
 - Automatically select cluster when there's only one available.
+- Starting an already started consumer no longer displays an error, opens corresponding view instead
+- Fixed restarting a stopped consumer would not display the `Consumer started` message until the next message was consumed.
+- Minimize the chances of opening duplicate consumer views.
 
 ## [0.9.0] - 2020-05-30
 ### Added
