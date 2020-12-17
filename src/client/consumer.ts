@@ -26,12 +26,12 @@ export interface ConsumedRecord {
     key?: string | Buffer;
 }
 
-interface ConsumerChangedStatusEvent {
+export interface ConsumerChangedStatusEvent {
     uri: vscode.Uri;
     status: "created" | "rebalancing" | "rebalanced";
 }
 
-interface ConsumerCollectionChangedEvent {
+export interface ConsumerCollectionChangedEvent {
     created: vscode.Uri[];
     closed: vscode.Uri[];
 }
