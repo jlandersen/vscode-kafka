@@ -170,5 +170,5 @@ async function openDocument(uri: vscode.Uri): Promise<void> {
                 viewColumn: hasActiveEditor?vscode.ViewColumn.Beside:vscode.ViewColumn.Active,
             }
         );
-
+    await vscode.languages.setTextDocumentLanguage(document, "kafka-consumer");
 }
