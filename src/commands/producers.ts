@@ -9,7 +9,7 @@ import { WorkspaceSettings } from "../settings";
 
 export class ProduceRecordCommandHandler {
     constructor(
-        private clientAccessor: ClientAccessor, 
+        private clientAccessor: ClientAccessor,
         private channelProvider: OutputChannelProvider,
         private explorer: KafkaExplorer,
         private settings: WorkspaceSettings
@@ -40,10 +40,11 @@ export class ProduceRecordCommandHandler {
         const producer = client.producer;
         await producer.connect();
 
-        channel.show(false);
+        // FIXME : show the channel only if there are none consumer output which are opened
+        // channel.show(false);
         channel.appendLine(`Producing record(s)`);
         const startOperation = performance.now();
-        
+
         try {
             await producer.send({
                 topic: topic,

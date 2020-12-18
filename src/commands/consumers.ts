@@ -49,8 +49,6 @@ export class StartConsumerCommandHandler {
             this.consumerCollection.create(consumeUri);
             this.explorer.refresh();
         }
-
-        return openDocument(consumeUri);
     }
 }
 
