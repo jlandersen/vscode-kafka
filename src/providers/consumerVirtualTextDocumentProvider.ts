@@ -92,7 +92,8 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
     }
 
     private onDidCloseTextDocument(document: vscode.TextDocument): void {
-        if (document.uri.scheme !== "kafka") {
+        // When language is plaintext we assume the event was triggered as a result of switching language mode
+        if (document.uri.scheme !== "kafka" || document.languageId === "plaintext") {
             return;
         }
 
