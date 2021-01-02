@@ -1,6 +1,6 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
-## [0.10.0] - TBD
+## [0.10.0] - 2021-01-02
 ### Added
 - Added confirmation before deleting a cluster.
 - Added support for topic deletion. Right-click on a topic and select `Delete Topic`. Be aware that, depending on the cluster configuration (`auto.create.topics.enable:true`), deleted topics *might* be recreated automatically after a few moments.
