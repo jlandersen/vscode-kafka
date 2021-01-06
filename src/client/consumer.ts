@@ -3,14 +3,12 @@ import { Kafka, Consumer as KafkaJsConsumer } from "kafkajs";
 import * as vscode from "vscode";
 
 import { getWorkspaceSettings, InitialConsumerOffset, ClusterSettings } from "../settings";
-import { SaslOption } from "./client";
+import { ConnectionOptions, createKafka } from "./client";
 
-interface ConsumerOptions {
+interface ConsumerOptions extends ConnectionOptions {
     clusterId: string;
-    bootstrap: string;
     fromOffset: InitialConsumerOffset;
     topic: string;
-    saslOption?: SaslOption;
 }
 
 export interface RecordReceivedEvent {
@@ -72,20 +70,7 @@ class Consumer implements vscode.Disposable {
      * Received messages and/or errors are emitted via events.
      */
     async start(): Promise<void> {
-        if (this.options.saslOption && this.options.saslOption.username && this.options.saslOption.password) {
-            this.kafkaClient = new Kafka({
-                clientId: "vscode-kafka",
-                brokers: this.options.bootstrap.split(","),
-                ssl: true,
-                sasl: { mechanism: "plain", username: this.options.saslOption.username, password: this.options.saslOption.password },
-             });
-        } else {
-            this.kafkaClient = new Kafka({
-                clientId: "vscode-kafka",
-                brokers: this.options.bootstrap.split(","),
-             });
-        }
-
+        this.kafkaClient = createKafka(this.options);
         this.consumer = this.kafkaClient.consumer({ groupId: `vscode-kafka-${this.options.clusterId}-${this.options.topic}`, retry: { retries: 3 }});
         await this.consumer.connect();
         await this.consumer.subscribe({ topic: this.options.topic, fromBeginning: this.options.fromOffset ===  "earliest" })

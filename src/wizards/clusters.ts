@@ -1,5 +1,5 @@
 import { QuickPickItem, window } from "vscode";
-import { SaslOption } from "../client";
+import { SaslMechanism, SaslOption } from "../client";
 import { INPUT_TITLE } from "../constants";
 import { KafkaExplorer } from "../explorer/kafkaExplorer";
 import { ClusterSettings } from "../settings/clusters";
@@ -52,7 +52,16 @@ export async function addClusterWizard(clusterSettings: ClusterSettings, explore
     }
 
     async function inputAuthentification(input: MultiStepInput, state: Partial<AddClusterState>) {
-        const authOptions: QuickPickItem[] = [{ "label": "None" }, { "label": "SASL/PLAIN" }];
+        const authMechanisms = new Map<string,string>([
+            ["SASL/PLAIN", "plain"],
+            ["SASL/SCRAM-256", "scram-sha-256"],
+            ["SASL/SCRAM-512", "scram-sha-512"]
+        ]);
+        const authOptions: QuickPickItem[] = [{ "label": "None" }]
+        for (const label of authMechanisms.keys()) {
+            authOptions.push({"label":label});
+        }
+
         const authentification = (await input.showQuickPick({
             title: INPUT_TITLE,
             step: input.getStepNumber(),
@@ -61,8 +70,8 @@ export async function addClusterWizard(clusterSettings: ClusterSettings, explore
             items: authOptions,
             activeItem: authOptions[0]
         })).label;
-        if (authentification && authentification == authOptions[1].label) {
-            state.saslOption = { mechanism: 'plain' };
+        if (authentification && authentification != authOptions[0].label) {
+            state.saslOption = { mechanism:  authMechanisms.get(authentification) as SaslMechanism};
             return (input: MultiStepInput) => inputAuthentificationUserName(input, state);
         }
         return undefined;
