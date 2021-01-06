@@ -3,17 +3,20 @@ import { Admin, ConfigResourceTypes, Kafka, Producer } from "kafkajs";
 import { Disposable } from "vscode";
 import { WorkspaceSettings } from "../settings";
 
-export interface Cluster {
-    id: string;
-    name: string;
+export interface ConnectionOptions {
     bootstrap: string;
     saslOption?: SaslOption;
+}
+
+export interface Cluster extends ConnectionOptions {
+    id: string;
+    name: string;
 }
 
 /**
  * The supported SASL mechanisms for authentication.
  */
-export type SaslMechanism = "plain";
+export type SaslMechanism = "plain" | "scram-sha-256" | "scram-sha-512";
 
 export interface SaslOption {
     mechanism: SaslMechanism;
@@ -58,11 +61,6 @@ export interface CreateTopicRequest {
 export interface DeleteTopicRequest {
     topics: string[];
     timeout?: number | undefined;
-}
-
-export interface Options {
-    host: string;
-    sasl: "none" | "SASL/PLAIN";
 }
 
 export interface ConsumerGroup {
@@ -175,29 +173,15 @@ class KafkaJsClient implements Client {
         brokers: Broker[];
     };
 
-    constructor(cluster: Cluster, workspaceSettings: WorkspaceSettings) {
+    constructor(connectionOptions : ConnectionOptions, workspaceSettings: WorkspaceSettings) {
         this.metadata = {
             brokers: [],
             topics: [],
         };
-
-        if (cluster.saslOption && cluster.saslOption.username && cluster.saslOption.password) {
-            this.kafkaJsClient = new Kafka({
-                clientId: "vscode-kafka",
-                brokers: cluster.bootstrap.split(","),
-                ssl: true,
-                sasl: { mechanism: "plain", username: cluster.saslOption.username, password: cluster.saslOption.password },
-             });
-        } else {
-            this.kafkaJsClient = new Kafka({
-                clientId: "vscode-kafka",
-                brokers: cluster.bootstrap.split(","),
-             });
-        }
-
-         this.kafkaClient = this.kafkaJsClient;
-         this.kafkaAdminClient = this.kafkaJsClient.admin();
-         this.producer = this.kafkaJsClient.producer();
+        this.kafkaJsClient = createKafka(connectionOptions);
+        this.kafkaClient = this.kafkaJsClient;
+        this.kafkaAdminClient = this.kafkaJsClient.admin();
+        this.producer = this.kafkaJsClient.producer();
     }
 
     canConnect(): boolean {
@@ -326,8 +310,26 @@ class KafkaJsClient implements Client {
 
     dispose() {
         this.kafkaAdminClient.disconnect();
-    }   
+    }
 }
 
 export const createClient = (cluster: Cluster, workspaceSettings: WorkspaceSettings): Client => new EnsureConnectedDecorator(
     new KafkaJsClient(cluster, workspaceSettings));
+
+export const createKafka = (connectionOptions: ConnectionOptions): Kafka => {
+    let kafkaJsClient: Kafka;
+    if (connectionOptions.saslOption && connectionOptions.saslOption.username && connectionOptions.saslOption.password) {
+        kafkaJsClient = new Kafka({
+            clientId: "vscode-kafka",
+            brokers: connectionOptions.bootstrap.split(","),
+            ssl: true,
+            sasl: { mechanism: connectionOptions.saslOption.mechanism, username: connectionOptions.saslOption.username, password: connectionOptions.saslOption.password },
+         });
+    } else {
+        kafkaJsClient = new Kafka({
+            clientId: "vscode-kafka",
+            brokers: connectionOptions.bootstrap.split(","),
+         });
+    }
+    return kafkaJsClient;
+}
