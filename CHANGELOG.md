@@ -1,5 +1,11 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
+## [0.11.0] - TBD
+### Added
+
+### Changed
+- Improved the "New cluster" and "New topic" wizards: now include validation and a back button.
+
 ## [0.10.0] - 2021-01-02
 ### Added
 - Added confirmation before deleting a cluster.
