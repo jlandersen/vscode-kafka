@@ -6,6 +6,11 @@ export abstract class NodeBase {
     public abstract collapsibleState: vscode.TreeItemCollapsibleState;
     public iconPath?: string | { light: string | vscode.Uri; dark: string | vscode.Uri };
     public description?: string;
+    protected children: NodeBase[] | null = null;
+
+    constructor(private parent: NodeBase | undefined) {
+
+    }
 
     getTreeItem(): vscode.TreeItem {
         return {
@@ -17,7 +22,18 @@ export abstract class NodeBase {
         };
     }
 
-    getChildren(element: NodeBase): Promise<NodeBase[]> {
+    computeChildren(): Promise<NodeBase[]> {
         return Promise.resolve([]);
+    }
+
+    async getChildren(): Promise<NodeBase[]> {
+        if (!this.children) {
+            this.children = await this.computeChildren();
+        }
+        return this.children;
+    }
+
+    getParent(): NodeBase | undefined {
+        return this.parent;
     }
 }

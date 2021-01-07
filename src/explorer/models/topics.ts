@@ -1,10 +1,11 @@
 import * as vscode from "vscode";
 
-import { Topic, TopicPartition, Client } from "../../client";
+import { Topic, TopicPartition } from "../../client";
 import { Icons } from "../../constants";
 import { getWorkspaceSettings } from "../../settings";
 import { TopicSortOption } from "../../settings/workspace";
-import { ConfigsItem, ExplorerContext } from "./common";
+import { ClusterItem } from "./cluster";
+import { ConfigsItem } from "./common";
 import { NodeBase } from "./nodeBase";
 
 export class TopicGroupItem extends NodeBase {
@@ -12,13 +13,14 @@ export class TopicGroupItem extends NodeBase {
     public contextValue = "topics";
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 
-    constructor(private client: Client, public context: ExplorerContext) {
-        super();
+    constructor(parent: ClusterItem) {
+        super(parent);
     }
 
-    public async getChildren(element: NodeBase): Promise<NodeBase[]> {
+    public async computeChildren(): Promise<NodeBase[]> {
+        const client = this.getParent().client;
         const settings = getWorkspaceSettings();
-        let topics = await this.client.getTopics();
+        let topics = await client.getTopics();
 
         switch (settings.topicSortOption) {
             case TopicSortOption.Name:
@@ -30,8 +32,11 @@ export class TopicGroupItem extends NodeBase {
         }
 
         return topics.map((topic) => {
-            return new TopicItem(this.client, this.context.clusterId, topic);
+            return new TopicItem(topic, this);
         });
+    }
+    getParent(): ClusterItem {
+        return <ClusterItem>super.getParent();
     }
 
     private sortByNameAscending(a: Topic, b: Topic): -1 | 0 | 1 {
@@ -51,19 +56,26 @@ export class TopicItem extends NodeBase {
     public contextValue = "topic";
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
     public iconPath = Icons.Topic;
+    public clusterId: string;
 
-    constructor(private client: Client, public clusterId: string, public topic: Topic) {
-        super();
+    constructor(public topic: Topic, parent: TopicGroupItem) {
+        super(parent);
+        this.clusterId = parent.getParent().cluster.id;
         this.label = topic.id;
         this.description = `Partitions: ${topic.partitionCount}, Replicas: ${topic.replicationFactor}`;
     }
 
-    async getChildren(element: NodeBase): Promise<NodeBase[]> {
-        const configNode = new ConfigsItem(() => this.client.getTopicConfigs(this.topic.id));
+    async computeChildren(): Promise<NodeBase[]> {
+        const client = this.getParent().getParent().client;
+        const configNode = new ConfigsItem(() => client.getTopicConfigs(this.topic.id), this);
         const partitionNodes = Object.keys(this.topic.partitions).map((partition) => {
-            return new TopicPartitionItem(this.topic.partitions[partition]);
+            return new TopicPartitionItem(this.topic.partitions[partition], this);
         });
         return Promise.resolve([configNode, ...partitionNodes]);
+    }
+
+    getParent(): TopicGroupItem {
+        return <TopicGroupItem>super.getParent();
     }
 }
 
@@ -72,8 +84,8 @@ export class TopicPartitionItem extends NodeBase {
     public collapsibleState = vscode.TreeItemCollapsibleState.None;
     public isrStatus: "in-sync" | "not-in-sync";
 
-    constructor(partition: TopicPartition) {
-        super();
+    constructor(partition: TopicPartition, parent: TopicItem) {
+        super(parent);
         this.label = `Partition: ${partition.partition}`;
 
         if (partition.isr.length === partition.replicas.length) {

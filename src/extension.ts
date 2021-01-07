@@ -68,7 +68,7 @@ export function activate(context: vscode.ExtensionContext): void {
         handleErrors(() => Promise.resolve(explorer.refresh()))));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.createtopic",
-        handleErrors((topicGroupItem?: TopicGroupItem) => createTopicCommandHandler.execute(topicGroupItem?.context.clusterId))));
+        handleErrors((topicGroupItem?: TopicGroupItem) => createTopicCommandHandler.execute(topicGroupItem?.getParent().cluster.id))));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.addcluster",
         handleErrors(() => addClusterCommandHandler.execute())));

@@ -1,8 +1,9 @@
 import * as vscode from "vscode";
 
-import { Broker, Client } from "../../client";
+import { Broker } from "../../client";
 import { Icons } from "../../constants";
-import { ConfigsItem, ExplorerContext } from "./common";
+import { ClusterItem } from "./cluster";
+import { ConfigsItem } from "./common";
 import { NodeBase } from "./nodeBase";
 
 export class BrokerGroupItem extends NodeBase {
@@ -10,15 +11,19 @@ export class BrokerGroupItem extends NodeBase {
     public label = "Brokers";
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 
-    constructor(private client: Client, public clusterContext: ExplorerContext) {
-        super();
+    constructor(parent: ClusterItem) {
+        super(parent);
     }
 
-    public async getChildren(element: NodeBase): Promise<NodeBase[]> {
-        const brokers = await this.client.getBrokers();
+    public async computeChildren(): Promise<NodeBase[]> {
+        const client = this.getParent().client;
+        const brokers = await client.getBrokers();
         return brokers.map((broker) => {
-            return new BrokerItem(this.client, broker);
+            return new BrokerItem(broker, this);
         });
+    }
+    getParent(): ClusterItem {
+        return <ClusterItem>super.getParent();
     }
 }
 
@@ -26,8 +31,8 @@ export class BrokerItem extends NodeBase {
     public contextValue = "broker";
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 
-    constructor(private client: Client, public broker: Broker) {
-        super();
+    constructor(public broker: Broker, public brokerItem: BrokerGroupItem) {
+        super(brokerItem);
         this.label = `${broker.id} (${broker.host}:${broker.port})`;
 
         if (broker.isController) {
@@ -37,8 +42,13 @@ export class BrokerItem extends NodeBase {
         this.iconPath = Icons.Server;
     }
 
-    getChildren(element: NodeBase): Promise<NodeBase[]> {
-        const configNode = new ConfigsItem(() => this.client.getBrokerConfigs(this.broker.id));
+    computeChildren(): Promise<NodeBase[]> {
+        const client = this.getParent().getParent().client;
+        const configNode = new ConfigsItem(() => client.getBrokerConfigs(this.broker.id), this);
         return Promise.resolve([configNode]);
+    }
+
+    getParent(): BrokerGroupItem {
+        return <BrokerGroupItem>super.getParent();
     }
 }

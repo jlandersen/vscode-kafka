@@ -3,27 +3,48 @@ import * as vscode from "vscode";
 import { Cluster, Client } from "../../client";
 import { NodeBase } from "./nodeBase";
 import { BrokerGroupItem } from "./brokers";
-import { TopicGroupItem } from "./topics";
+import { TopicGroupItem, TopicItem } from "./topics";
 
 import { ConsumerGroupsItem } from "./consumerGroups";
-import { ExplorerContext } from "./common";
+import { KafkaModel } from "./kafka";
+import { Disposable } from "vscode";
 
-export class ClusterItem extends NodeBase {
+const TOPIC_INDEX = 1;
+
+export class ClusterItem extends NodeBase implements Disposable {
     public contextValue = "cluster";
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
-    public context: ExplorerContext
 
-    constructor(private client: Client, public cluster: Cluster) {
-        super();
+    constructor(public client: Client, public cluster: Cluster, parent: KafkaModel) {
+        super(parent);
         this.label = cluster.name;
         this.description = cluster.bootstrap;
-        this.context = new ExplorerContext(cluster.id);
     }
 
-    async getChildren(element: NodeBase): Promise<NodeBase[]> {
+    async computeChildren(): Promise<NodeBase[]> {
         return [
-            new BrokerGroupItem(this.client, this.context),
-            new TopicGroupItem(this.client, this.context),
-            new ConsumerGroupsItem(this.client, this.context)];
+            new BrokerGroupItem(this),
+            new TopicGroupItem(this),
+            new ConsumerGroupsItem(this)];
     }
+
+    getParent(): KafkaModel {
+        return <KafkaModel>super.getParent();
+    }
+
+    public dispose(): void {
+        this.client.dispose();
+    }
+
+    async findTopictemByName(topicName: string): Promise<NodeBase | TopicItem | undefined> {
+        const topics = (await this.getTopicGroupItem()).getChildren();
+        return topics
+            .then(t =>
+                t.find(child => (<TopicItem>child).topic.id === topicName));
+    }
+
+    private async getTopicGroupItem(): Promise<NodeBase> {
+        return (await this.getChildren())[TOPIC_INDEX];
+    }
+
 }

@@ -4,7 +4,8 @@ All notable changes to Kafka extension will be documented in this file.
 ### Added
 
 ### Changed
-- Improved the "New cluster" and "New topic" wizards: now include validation and a back button.
+- Improved the "New cluster" and "New topic" wizards: now include validation and a back button. See [#21](https://github.com/jlandersen/vscode-kafka/issues/21).
+- Newly created topic or cluster is automatically selected in the Kafka Explorer. See [#61](https://github.com/jlandersen/vscode-kafka/issues/61).
 
 ## [0.10.0] - 2021-01-02
 ### Added

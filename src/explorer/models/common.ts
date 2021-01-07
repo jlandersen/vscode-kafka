@@ -4,16 +4,6 @@ import { ConfigEntry } from "../../client";
 import { Icons } from "../../constants";
 import { NodeBase } from "./nodeBase";
 
-
-/**
- * The context for propagating information down the hierarchy.
- */
-export class ExplorerContext {
-    constructor(public clusterId: string) {
-        this.clusterId = clusterId;
-    }
-}
-
 /**
  * A node used to display an error message
  */
@@ -22,8 +12,8 @@ export class ErrorItem extends NodeBase {
     public collapsibleState = vscode.TreeItemCollapsibleState.None;
     public iconPath = Icons.Warning;
 
-    constructor(message: string) {
-        super();
+    constructor(message: string, parent: NodeBase) {
+        super(parent);
         this.label = message;
     }
 }
@@ -36,8 +26,8 @@ export class InformationItem extends NodeBase {
     public collapsibleState = vscode.TreeItemCollapsibleState.None;
     public iconPath = Icons.Information;
 
-    constructor(message: string) {
-        super();
+    constructor(message: string, parent: NodeBase) {
+        super(parent);
         this.label = message;
     }
 }
@@ -50,15 +40,15 @@ export class ConfigsItem extends NodeBase {
     public contextValue = "configs";
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 
-    constructor(private provider: () => Promise<ConfigEntry[]>) {
-        super();
+    constructor(private provider: () => Promise<ConfigEntry[]>,  parent: NodeBase) {
+        super(parent);
     }
 
-    async getChildren(element: NodeBase): Promise<NodeBase[]> {
+    async computeChildren(): Promise<NodeBase[]> {
         const configEntries = await this.provider();
         return configEntries
             .sort((a, b) => (a.configName < b.configName ? -1 : (a.configName > b.configName) ? 1 : 0))
-            .map((configEntry) => (new ConfigEntryItem(configEntry)));
+            .map((configEntry) => (new ConfigEntryItem(configEntry, this)));
     }
 }
 
@@ -69,8 +59,8 @@ class ConfigEntryItem extends NodeBase {
     public contextValue = "configitem";
     public collapsibleState = vscode.TreeItemCollapsibleState.None;
 
-    constructor(configEntry: ConfigEntry) {
-        super();
+    constructor(configEntry: ConfigEntry, parent: NodeBase) {
+        super(parent);
         this.label = configEntry.configName;
         this.description = configEntry.configValue;
     }
