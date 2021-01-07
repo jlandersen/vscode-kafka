@@ -42,7 +42,7 @@ export async function addClusterWizard(clusterSettings: ClusterSettings, explore
             title: INPUT_TITLE,
             step: input.getStepNumber(),
             totalSteps: state.totalSteps,
-            value: state.name ||  '',
+            value: state.name || '',
             prompt: 'Friendly name',
             validationContext: existingClusterNames,
             validate: validateClusterName
@@ -127,6 +127,14 @@ export async function addClusterWizard(clusterSettings: ClusterSettings, explore
         });
         explorer.refresh();
         window.showInformationMessage(`Cluster '${name}' created successfully`);
+        // Selecting the created cluster is done with TreeView#reveal
+        // 1. Show the treeview of the explorer (otherwise reveal will not work)
+        explorer.show();
+        // 2. the reveal() call must occur within a timeout(),
+        // while waiting for a fix in https://github.com/microsoft/vscode/issues/114149
+        setTimeout(() => {
+            explorer.selectClusterByName(name);
+        }, 1000);
     }
     catch (error) {
         showErrorMessage(`Error while creating cluster`, error);

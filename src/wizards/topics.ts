@@ -66,6 +66,14 @@ export async function addTopicWizard(clientAccessor: ClientAccessor, clusterSett
         } else {
             explorer.refresh();
             window.showInformationMessage(`Topic '${topic}' in cluster '${clusterName}' created successfully`);
+            // Selecting the created topic is done with TreeView#reveal
+            // 1. Show the treeview of the explorer (otherwise reveal will not work)
+            explorer.show();
+            // 2. the reveal() call must occur within a timeout(),
+            // while waiting for a fix in https://github.com/microsoft/vscode/issues/114149
+            setTimeout(() => {
+                explorer.selectTopic(clusterName, topic);
+            }, 1000);
         }
     } catch (error) {
         showErrorMessage(`Error while creating topic for cluster '${clusterName}'`, error);
