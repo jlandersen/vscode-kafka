@@ -36,4 +36,8 @@ export abstract class NodeBase {
     getParent(): NodeBase | undefined {
         return this.parent;
     }
+
+    public toString(): string {
+        return this?.label || this.contextValue;
+    }
 }

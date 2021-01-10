@@ -35,6 +35,7 @@
         "onCommand:vscode-kafka.consumer.consume",
         "onCommand:vscode-kafka.consumer.list",
         "onCommand:vscode-kafka.consumer.toggle",
+        "onCommand:vscode-kafka.explorer.copy",
         "onView:kafkaExplorer",
         "onLanguage:kafka",
         "onDebug"
@@ -178,6 +179,11 @@
                 }
             },
             {
+                "command": "vscode-kafka.explorer.copylabel",
+                "title": "Copy Label",
+                "category": "Kafka"
+            },
+            {
                 "command": "vscode-kafka.explorer.deletecluster",
                 "title": "Delete Cluster",
                 "category": "Kafka",
@@ -226,7 +232,7 @@
             },
             {
                 "command": "vscode-kafka.explorer.selectcluster",
-                "title": "Select cluster",
+                "title": "Select Cluster",
                 "category": "Kafka"
             },
             {
@@ -265,41 +271,53 @@
             "view/item/context": [
                 {
                     "command": "vscode-kafka.explorer.createtopic",
-                    "when": "view == kafkaExplorer && viewItem == topics",
+                    "when": "view == kafkaExplorer && viewItem == topics && !listMultiSelection",
                     "group": "inline"
                 },
                 {
                     "command": "vscode-kafka.explorer.deletecluster",
-                    "when": "view == kafkaExplorer && viewItem == cluster",
+                    "when": "view == kafkaExplorer && viewItem == cluster && !listMultiSelection",
                     "group": "inline"
                 },
                 {
                     "command": "vscode-kafka.consumer.consume",
-                    "when": "view == kafkaExplorer && viewItem == topic"
+                    "when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
+                    "group":"1_kafka"
                 },
                 {
                     "command": "vscode-kafka.explorer.dumptopicmetadata",
-                    "when": "view == kafkaExplorer && viewItem == topic"
+                    "when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
+                    "group":"1_kafka"
                 },
                 {
                     "command": "vscode-kafka.explorer.deletetopic",
-                    "when": "view == kafkaExplorer && viewItem == topic"
+                    "when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
+                    "group":"1_kafka"
                 },
                 {
                     "command": "vscode-kafka.explorer.dumpclustermetadata",
-                    "when": "view == kafkaExplorer && viewItem == broker"
+                    "when": "view == kafkaExplorer && viewItem == broker && !listMultiSelection",
+                    "group":"1_kafka"
                 },
                 {
                     "command": "vscode-kafka.explorer.dumpbrokermetadata",
-                    "when": "view == kafkaExplorer && viewItem == broker"
+                    "when": "view == kafkaExplorer && viewItem == broker && !listMultiSelection",
+                    "group":"1_kafka"
                 },
                 {
                     "command": "vscode-kafka.explorer.deletecluster",
-                    "when": "view == kafkaExplorer && viewItem == cluster"
+                    "when": "view == kafkaExplorer && viewItem == cluster && !listMultiSelection",
+                    "group":"1_kafka"
                 },
                 {
                     "command": "vscode-kafka.explorer.selectcluster",
-                    "when": "view == kafkaExplorer && viewItem == cluster"
+                    "when": "view == kafkaExplorer && viewItem == cluster && !listMultiSelection",
+                    "group":"1_kafka"
+                },
+                {
+                    "command": "vscode-kafka.explorer.copylabel",
+                    "when": "view == kafkaExplorer",
+                    "group": "2_cutcopypaste"
                 }
             ],
             "editor/title": [
@@ -326,7 +344,15 @@
                     "name": "Explorer"
                 }
             ]
-        }
+        },
+        "keybindings":[
+            {
+                "command": "vscode-kafka.explorer.copylabel",
+                "key": "Ctrl+C",
+                "mac": "Cmd+C",
+                "when": "focusedView == kafkaExplorer"
+            }
+        ]
     },
     "scripts": {
         "vscode:prepublish": "webpack --mode production",
