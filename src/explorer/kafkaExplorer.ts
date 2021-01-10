@@ -6,6 +6,7 @@ import { NodeBase } from "./models/nodeBase";
 import { TreeView } from "vscode";
 import { KafkaModel } from "./models/kafka";
 import { ClusterItem } from "./models/cluster";
+import { EOL } from 'os';
 
 const TREEVIEW_ID = 'kafkaExplorer';
 
@@ -34,7 +35,8 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
         this.clientAccessor = clientAccessor;
         this.root = null;
         this.tree = vscode.window.createTreeView(TREEVIEW_ID, {
-            treeDataProvider: this
+            treeDataProvider: this,
+            canSelectMany:true
         });
     }
 
@@ -89,7 +91,7 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
         this.selectItem(clusterItem);
     }
 
-        /**
+    /**
      * Select the given topic name which belongs to the given cluster in the tree.
      *
      * @param clusterName the owner cluster name
@@ -114,4 +116,22 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
             focus: true
         });
     }
+
+    public async copyLabelsToClipboard(nodes: NodeBase[] | undefined): Promise<void> {
+        if (!nodes) {
+            //get selected tree items (command was executed via keyboard shortcut)
+            nodes = this.tree?.selection;
+        }
+        if (nodes && nodes.length > 0) {
+            let output = '';
+            for (let i = 0; i < nodes.length; i++) {
+                if (i> 0) {
+                    output+=EOL;
+                }
+                output+=nodes[i];
+            }
+            vscode.env.clipboard.writeText(output);
+        }
+    }
+
 }

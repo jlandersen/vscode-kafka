@@ -24,6 +24,7 @@ import { ClusterItem } from "./explorer/models/cluster";
 import { TopicGroupItem } from "./explorer/models/topics";
 import { ConsumerStatusBarItem } from "./views/consumerStatusBarItem";
 import { SelectedClusterStatusBarItem } from "./views/selectedClusterStatusBarItem";
+import { NodeBase } from "./explorer/models/nodeBase";
 
 export function activate(context: vscode.ExtensionContext): void {
     Context.register(context);
@@ -45,7 +46,6 @@ export function activate(context: vscode.ExtensionContext): void {
     context.subscriptions.push(outputChannelProvider);
     const explorer = new KafkaExplorer(workspaceSettings, clusterSettings, clientAccessor);
     context.subscriptions.push(explorer);
-    context.subscriptions.push(vscode.window.registerTreeDataProvider("kafkaExplorer", explorer));
     context.subscriptions.push(new ConsumerStatusBarItem(consumerCollection));
     context.subscriptions.push(new SelectedClusterStatusBarItem(clusterSettings));
 
@@ -93,6 +93,9 @@ export function activate(context: vscode.ExtensionContext): void {
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.dumpbrokermetadata",
         handleErrors((broker?: BrokerItem) => dumpBrokerMetadataCommandHandler.execute(broker))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+            "vscode-kafka.explorer.copylabel",
+            handleErrors((_item?:any, selection?: NodeBase[]) => explorer.copyLabelsToClipboard(selection))));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.consumer.consume",
         handleErrors((topic?: TopicItem) => startConsumerCommandHandler.execute(topic))));

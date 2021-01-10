@@ -64,4 +64,9 @@ class ConfigEntryItem extends NodeBase {
         this.label = configEntry.configName;
         this.description = configEntry.configValue;
     }
+
+    public toString(): string {
+        return `${this.label}=${this.description||''}`;
+    }
+
 }
