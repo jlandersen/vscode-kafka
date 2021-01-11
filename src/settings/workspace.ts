@@ -15,6 +15,8 @@ export enum TopicSortOption {
 export type InitialConsumerOffset = "latest" | "earliest";
 
 const DEFAULT_PRODUCER_LOCALE = 'en';
+const DEFAULT_TOPIC_FILTER = ['__consumer_offsets', '__transaction_state', '_schemas'];
+const DEFAULT_CONSUMER_FILTER:string[] = [];
 
 export interface WorkspaceSettings extends vscode.Disposable {
     consumerOffset: InitialConsumerOffset;
@@ -35,6 +37,8 @@ class VsCodeWorkspaceSettings implements WorkspaceSettings {
     public topicSortOption: TopicSortOption = TopicSortOption.Name;
     public producerFakerJSEnabled = true;
     public producerFakerJSLocale = DEFAULT_PRODUCER_LOCALE;
+    public topicFilters = DEFAULT_TOPIC_FILTER;
+    public consumerFilters = DEFAULT_CONSUMER_FILTER;
 
     private constructor() {
         this.configurationChangeHandlerDisposable = vscode.workspace.onDidChangeConfiguration(
@@ -56,6 +60,8 @@ class VsCodeWorkspaceSettings implements WorkspaceSettings {
         this.topicSortOption = configuration.get<TopicSortOption>("explorer.topics.sort", TopicSortOption.Name);
         this.producerFakerJSEnabled = configuration.get<boolean>("producers.fakerjs.enabled", true);
         this.producerFakerJSLocale = configuration.get<string>("producers.fakerjs.locale", DEFAULT_PRODUCER_LOCALE);
+        this.topicFilters = configuration.get<string[]>("explorer.topics.filter", DEFAULT_TOPIC_FILTER);
+        this.consumerFilters = configuration.get<string[]>("explorer.consumers.filter", DEFAULT_CONSUMER_FILTER);
     }
 
     dispose(): void {

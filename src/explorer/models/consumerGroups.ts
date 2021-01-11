@@ -2,8 +2,10 @@ import * as vscode from "vscode";
 
 import { ConsumerGroupMember } from "../../client";
 import { Icons } from "../../constants";
+import { getWorkspaceSettings } from "../../settings";
 import { NodeBase } from "./nodeBase";
 import { ClusterItem } from "./cluster";
+import * as minimatch from "minimatch";
 
 export class ConsumerGroupsItem extends NodeBase {
     public label = "Consumer Groups";
@@ -16,12 +18,23 @@ export class ConsumerGroupsItem extends NodeBase {
 
     async computeChildren() : Promise<NodeBase[]> {
         const client = this.getParent().client;
-        const consumerGroupIds = await client.getConsumerGroupIds();
+        let consumerGroupIds = await client.getConsumerGroupIds();
+        const settings = getWorkspaceSettings();
+        consumerGroupIds = consumerGroupIds.filter(cg => this.isDisplayed(cg, settings.consumerFilters));
+
         return Promise.resolve(
             consumerGroupIds.map((consumerGroupId) => (new ConsumerGroupItem(consumerGroupId, this))));
     }
     getParent(): ClusterItem {
         return <ClusterItem>super.getParent();
+    }
+
+    private isDisplayed(consumerGroup: string, filters: string[]): boolean {
+        if (!filters) {
+            return true;
+        }
+        const id = consumerGroup.toLowerCase();
+        return !filters.find( f => minimatch(id, f));
     }
 }
 

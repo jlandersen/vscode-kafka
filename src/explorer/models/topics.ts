@@ -7,6 +7,7 @@ import { TopicSortOption } from "../../settings/workspace";
 import { ClusterItem } from "./cluster";
 import { ConfigsItem } from "./common";
 import { NodeBase } from "./nodeBase";
+import * as minimatch from "minimatch";
 
 export class TopicGroupItem extends NodeBase {
     public label = "Topics";
@@ -21,6 +22,8 @@ export class TopicGroupItem extends NodeBase {
         const client = this.getParent().client;
         const settings = getWorkspaceSettings();
         let topics = await client.getTopics();
+        //Filter topics before sorting them
+        topics = topics.filter(t => this.isDisplayed(t, settings.topicFilters));
 
         switch (settings.topicSortOption) {
             case TopicSortOption.Name:
@@ -30,7 +33,6 @@ export class TopicGroupItem extends NodeBase {
                 topics = topics.sort(this.sortByPartitionsAscending);
                 break;
         }
-
         return topics.map((topic) => {
             return new TopicItem(topic, this);
         });
@@ -49,6 +51,14 @@ export class TopicGroupItem extends NodeBase {
         if (a.partitionCount < b.partitionCount) { return -1; }
         if (a.partitionCount > b.partitionCount) { return 1; }
         return 0;
+    }
+
+    private isDisplayed(t: Topic, filters: string[]): boolean {
+        if (!filters) {
+            return true;
+        }
+        const id = t.id.toLowerCase();
+        return !filters.find( f => minimatch(id, f));
     }
 }
 
