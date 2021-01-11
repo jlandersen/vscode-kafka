@@ -1,8 +1,7 @@
 import { Disposable, TreeItemCollapsibleState } from "vscode";
 import { ClientAccessor } from "../../client";
 import { ClusterSettings } from "../../settings";
-import { ClusterItem } from "./cluster";
-import { InformationItem } from "./common";
+import { ClusterItem, NoClusterItem } from "./cluster";
 import { NodeBase } from "./nodeBase";
 
 export class KafkaModel extends NodeBase implements Disposable {
@@ -19,7 +18,7 @@ export class KafkaModel extends NodeBase implements Disposable {
     public async computeChildren(): Promise<NodeBase[]> {
         const clusters = this.clusterSettings.getAll();
         if (clusters.length === 0) {
-            return [new InformationItem("No clusters added", this)];
+            return [new NoClusterItem(this)];
         }
         return clusters.map((c) => {
             return new ClusterItem(this.clientAccessor.get(c.id), c, this);
