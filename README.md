@@ -45,6 +45,9 @@ topic: json-events
 }
 ```
 
+For actually producing a single record, click on the "Produce record" link above the PRODUCER line; for producing 10 records, click on "Produce record x 10".
+The log about produced messages is printed in the "Kafka Producer Log" Output view.
+
 Record content can be randomized by injecting mustache-like placeholders of [faker.js properties](https://github.com/Marak/faker.js#api-methods), like ``{{name.lastName}}`` or ``{{random.number}}``. Some randomized properties can be localized via the `kafka.producers.fakerjs.locale` setting.
 
 ![Screenshot-4](assets/screen-4.png)
