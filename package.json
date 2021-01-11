@@ -23,6 +23,8 @@
         "kafka"
     ],
     "activationEvents": [
+        "onCommand:vscode-kafka.open.docs.home",
+        "onCommand:vscode-kafka.open.docs.page",
         "onCommand:vscode-kafka.explorer.addcluster",
         "onCommand:vscode-kafka.explorer.selectcluster",
         "onCommand:vscode-kafka.explorer.deletecluster",
@@ -54,7 +56,7 @@
                         "latest"
                     ],
                     "default": "latest",
-                    "description": "Initial offset to read from for new consumers."
+                    "markdownDescription": "Initial offset to read from for new consumers. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Consuming%22%2C%22section%22%3A%22kafkaconsumersoffset%22%7D%5D) for more information."
                 },
                 "kafka.explorer.topics.sort": {
                     "type": "string",
@@ -63,7 +65,7 @@
                         "partitions"
                     ],
                     "default": "name",
-                    "description": "Choose sorting for topics in explorer"
+                    "markdownDescription": "Choose sorting for topics in explorer. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Explorer%22%2C%22section%22%3A%22kafkaexplorertopicssort%22%7D%5D) for more information."
                 },
                 "kafka.explorer.topics.filter": {
                     "type": "array",
@@ -72,17 +74,17 @@
                         "__transaction_state",
                         "_schemas"
                     ],
-                    "markdownDescription": "Glob patterns filtering topics out of the Kafka explorer. `*` matches any string, `?` matches a single character."
+                    "markdownDescription": "Glob patterns filtering topics out of the Kafka explorer. `*` matches any string, `?` matches a single character. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Explorer%22%2C%22section%22%3A%22kafkaexplorertopicsfilter%22%7D%5D) for more information."
                 },
                 "kafka.explorer.consumers.filter": {
                     "type": "array",
                     "default": [],
-                    "markdownDescription": "Glob patterns filtering consumer groups out of the Kafka explorer. `*` matches any string, `?` matches a single character."
+                    "markdownDescription": "Glob patterns filtering consumer groups out of the Kafka explorer. `*` matches any string, `?` matches a single character. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Explorer%22%2C%22section%22%3A%22kafkaexplorerconsumersfilter%22%7D%5D) for more information."
                 },
                 "kafka.producers.fakerjs.enabled": {
                     "type": "boolean",
                     "default": true,
-                    "markdownDescription": "Enable injection of [faker.js](https://github.com/marak/Faker.js/#api-methods)-randomized data in record templates, using the mustache syntax."
+                    "markdownDescription": "Enable injection of [faker.js](https://github.com/marak/Faker.js/#api-methods)-randomized data in record templates, using the mustache syntax. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Producing%22%2C%22section%22%3A%22kafkaproducersfakerjsenabled%22%7D%5D) for more information."
                 },
                 "kafka.producers.fakerjs.locale": {
                     "type": "string",
@@ -133,7 +135,7 @@
                         "zh_TW"
                     ],
                     "default": "en",
-                    "markdownDescription": "[experimental] The locale used to generate [faker.js](https://github.com/marak/Faker.js/#api-methods)-randomized data in record templates."
+                    "markdownDescription": "[experimental] The locale used to generate [faker.js](https://github.com/marak/Faker.js/#api-methods)-randomized data in record templates. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Producing%22%2C%22section%22%3A%22kafkaproducersfakerjslocale%22%7D%5D) for more information."
                 }
             }
         },
@@ -174,6 +176,11 @@
             }
         ],
         "commands": [
+            {
+                "command": "vscode-kafka.open.docs.home",
+                "title": "Open Documentation",
+                "category": "Kafka"
+            },
             {
                 "command": "vscode-kafka.explorer.addcluster",
                 "title": "Add Cluster",
@@ -383,6 +390,7 @@
         "package": "vsce package"
     },
     "dependencies": {
+        "fs-extra": "^8.1.0",
         "glob": "^7.1.6",
         "js-yaml": "^3.14.0",
         "faker": "^5.1.0",
@@ -390,6 +398,7 @@
     },
     "devDependencies": {
         "@types/faker": "^5.1.5",
+        "@types/fs-extra": "^8.0.0",
         "@types/glob": "^7.1.1",
         "@types/js-yaml": "^3.12.4",
         "@types/mocha": "^8.0.4",

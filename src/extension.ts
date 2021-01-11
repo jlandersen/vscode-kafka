@@ -25,6 +25,8 @@ import { TopicGroupItem } from "./explorer/models/topics";
 import { ConsumerStatusBarItem } from "./views/consumerStatusBarItem";
 import { SelectedClusterStatusBarItem } from "./views/selectedClusterStatusBarItem";
 import { NodeBase } from "./explorer/models/nodeBase";
+import * as path from 'path';
+import { markdownPreviewProvider } from "./docs/markdownPreviewProvider";
 
 export function activate(context: vscode.ExtensionContext): void {
     Context.register(context);
@@ -108,6 +110,7 @@ export function activate(context: vscode.ExtensionContext): void {
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.consumer.toggle",
         handleErrors(() => toggleConsumerCommandHandler.execute())));
+    registerVSCodeKafkaDocumentationCommands(context);
 
     // .kafka file related
     const documentSelector = [
@@ -126,4 +129,22 @@ export function activate(context: vscode.ExtensionContext): void {
 
 export function deactivate(): void {
     // noop
+}
+
+function registerVSCodeKafkaDocumentationCommands(context: vscode.ExtensionContext): void {
+    // Register commands for VSCode Kafka documentation
+    context.subscriptions.push(markdownPreviewProvider);
+    context.subscriptions.push(vscode.commands.registerCommand("vscode-kafka.open.docs.home", async () => {
+        const uri = 'README.md';
+        const title = 'Kafka Documentation';
+        const sectionId = '';
+        markdownPreviewProvider.show(context.asAbsolutePath(path.join('docs', uri)), title, sectionId, context);
+    }));
+    context.subscriptions.push(vscode.commands.registerCommand("vscode-kafka.open.docs.page", async (params: { page: string, section: string }) => {
+        const page = params.page.endsWith('.md') ? params.page.substr(0, params.page.length - 3) : params.page;
+        const uri = page + '.md';
+        const sectionId = params.section || '';
+        const title = 'Kafka ' + page;
+        markdownPreviewProvider.show(context.asAbsolutePath(path.join('docs', uri)), title, sectionId, context);
+    }));
 }
