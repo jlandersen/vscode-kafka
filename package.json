@@ -63,6 +63,16 @@
                     "default": "name",
                     "description": "Choose sorting for topics in explorer"
                 },
+                "kafka.explorer.topics.filter": {
+                    "type": "array",
+                    "default": ["__consumer_offsets", "__transaction_state", "_schemas"],
+                    "markdownDescription": "Glob patterns filtering topics out of the Kafka explorer. `*` matches any string, `?` matches a single character."
+                },
+                "kafka.explorer.consumers.filter": {
+                    "type": "array",
+                    "default": [],
+                    "markdownDescription": "Glob patterns filtering consumer groups out of the Kafka explorer. `*` matches any string, `?` matches a single character."
+                },
                 "kafka.producers.fakerjs.enabled":{
                     "type": "boolean",
                     "default":true,
