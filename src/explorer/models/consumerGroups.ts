@@ -16,15 +16,22 @@ export class ConsumerGroupsItem extends NodeBase {
         super(parent);
     }
 
-    async computeChildren() : Promise<NodeBase[]> {
+    async computeChildren(): Promise<NodeBase[]> {
         const client = this.getParent().client;
-        let consumerGroupIds = await client.getConsumerGroupIds();
         const settings = getWorkspaceSettings();
-        consumerGroupIds = consumerGroupIds.filter(cg => this.isDisplayed(cg, settings.consumerFilters));
-
+        const consumerGroupIds = (await client.getConsumerGroupIds())
+            .filter(cg => this.isDisplayed(cg, settings.consumerFilters))
+            .sort(this.sortByAscending);
         return Promise.resolve(
             consumerGroupIds.map((consumerGroupId) => (new ConsumerGroupItem(consumerGroupId, this))));
     }
+
+    private sortByAscending(a: string, b: string): -1 | 0 | 1 {
+        if (a.toLowerCase() < b.toLowerCase()) { return -1; }
+        if (a.toLowerCase() > b.toLowerCase()) { return 1; }
+        return 0;
+    }
+
     getParent(): ClusterItem {
         return <ClusterItem>super.getParent();
     }
@@ -34,7 +41,7 @@ export class ConsumerGroupsItem extends NodeBase {
             return true;
         }
         const id = consumerGroup.toLowerCase();
-        return !filters.find( f => minimatch(id, f));
+        return !filters.find(f => minimatch(id, f));
     }
 }
 
@@ -51,10 +58,17 @@ class ConsumerGroupItem extends NodeBase {
     async computeChildren(): Promise<NodeBase[]> {
         const client = this.getParent().getParent().client;
         const groupDetails = await client.getConsumerGroupDetails(this.consumerGroupId);
+        const members = groupDetails.members.sort(this.sortByMemberIdAscending);
         return [
             new ConsumerGroupDetailsItem("State", groupDetails.state, this),
-            new ConsumerGroupMembersItem(groupDetails.members, this),
+            new ConsumerGroupMembersItem(members, this),
         ];
+    }
+
+    private sortByMemberIdAscending(a: ConsumerGroupMember, b: ConsumerGroupMember): -1 | 0 | 1 {
+        if (a.memberId.toLowerCase() < b.memberId.toLowerCase()) { return -1; }
+        if (a.memberId.toLowerCase() > b.memberId.toLowerCase()) { return 1; }
+        return 0;
     }
 
     getParent(): ConsumerGroupsItem {
