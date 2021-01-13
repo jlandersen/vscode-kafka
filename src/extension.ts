@@ -94,8 +94,11 @@ export function activate(context: vscode.ExtensionContext): void {
         "vscode-kafka.explorer.dumpbrokermetadata",
         handleErrors((broker?: BrokerItem) => dumpBrokerMetadataCommandHandler.execute(broker))));
     context.subscriptions.push(vscode.commands.registerCommand(
-            "vscode-kafka.explorer.copylabel",
-            handleErrors((_item?:any, selection?: NodeBase[]) => explorer.copyLabelsToClipboard(selection))));
+        "vscode-kafka.explorer.copylabel",
+        handleErrors((_item?: any, selection?: NodeBase[]) => explorer.copyLabelsToClipboard(selection))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        "vscode-kafka.explorer.deleteselected",
+        handleErrors((_item?: any, selection?: NodeBase[]) => explorer.deleteSelectedItem(_item, selection))));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.consumer.consume",
         handleErrors((topic?: TopicItem) => startConsumerCommandHandler.execute(topic))));
