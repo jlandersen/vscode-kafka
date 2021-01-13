@@ -6,6 +6,7 @@ All notable changes to Kafka extension will be documented in this file.
 - Click on empty Kafka explorer to add a new cluster. See [#76](https//github.com/jlandersen/vscode-kafka/pull/76).
 - Added glob patterns to filter topics (`kafka.explorer.topics.filters`) and consumer groups (`kafka.explorer.consumers.filters`) out of the Kafka explorer. See [#74](https://github.com/jlandersen/vscode-kafka/pull/74).
 - Kafka Explorer item labels can now be copied to the clipboard (supports multi selection). See [#68](https://github.com/jlandersen/vscode-kafka/issues/68).
+- Selected Cluster or Topic can now be deleted via the Delete shortcut (Cmd+Backspace on Mac). See [#79](https://github.com/jlandersen/vscode-kafka/issues/79)
 
 ### Changed
 - Improved the "New cluster" and "New topic" wizards: now include validation and a back button. See [#21](https://github.com/jlandersen/vscode-kafka/issues/21).

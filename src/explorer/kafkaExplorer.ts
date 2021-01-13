@@ -7,6 +7,7 @@ import { TreeView } from "vscode";
 import { KafkaModel } from "./models/kafka";
 import { ClusterItem } from "./models/cluster";
 import { EOL } from 'os';
+import { TopicItem } from "./models/topics";
 
 const TREEVIEW_ID = 'kafkaExplorer';
 
@@ -36,7 +37,7 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
         this.root = null;
         this.tree = vscode.window.createTreeView(TREEVIEW_ID, {
             treeDataProvider: this,
-            canSelectMany:true
+            canSelectMany: true
         });
     }
 
@@ -125,13 +126,33 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
         if (nodes && nodes.length > 0) {
             let output = '';
             for (let i = 0; i < nodes.length; i++) {
-                if (i> 0) {
-                    output+=EOL;
+                if (i > 0) {
+                    output += EOL;
                 }
-                output+=nodes[i];
+                output += nodes[i];
             }
             vscode.env.clipboard.writeText(output);
         }
     }
 
+    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+    public async deleteSelectedItem(item: any, nodes: NodeBase[] | undefined): Promise<any> {
+        if (!nodes) {
+            if (item instanceof NodeBase) {
+                // case when user click on the Trashcan icon
+                nodes = [item];
+            } else {
+                // get selected tree items (command was executed via keyboard shortcut)
+                nodes = this.tree?.selection;
+            }
+        }
+        if (nodes && nodes.length > 0) {
+            const item = nodes[0];
+            if (item instanceof ClusterItem) {
+                vscode.commands.executeCommand('vscode-kafka.explorer.deletecluster', item);
+            } else if (item instanceof TopicItem) {
+                vscode.commands.executeCommand('vscode-kafka.explorer.deletetopic', item);
+            }
+        }
+    }
 }

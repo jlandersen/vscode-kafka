@@ -35,7 +35,8 @@
         "onCommand:vscode-kafka.consumer.consume",
         "onCommand:vscode-kafka.consumer.list",
         "onCommand:vscode-kafka.consumer.toggle",
-        "onCommand:vscode-kafka.explorer.copy",
+        "onCommand:vscode-kafka.explorer.copylabel",
+        "onCommand:vscode-kafka.explorer.deleteselected",
         "onView:kafkaExplorer",
         "onLanguage:kafka",
         "onDebug"
@@ -66,7 +67,11 @@
                 },
                 "kafka.explorer.topics.filter": {
                     "type": "array",
-                    "default": ["__consumer_offsets", "__transaction_state", "_schemas"],
+                    "default": [
+                        "__consumer_offsets",
+                        "__transaction_state",
+                        "_schemas"
+                    ],
                     "markdownDescription": "Glob patterns filtering topics out of the Kafka explorer. `*` matches any string, `?` matches a single character."
                 },
                 "kafka.explorer.consumers.filter": {
@@ -74,12 +79,12 @@
                     "default": [],
                     "markdownDescription": "Glob patterns filtering consumer groups out of the Kafka explorer. `*` matches any string, `?` matches a single character."
                 },
-                "kafka.producers.fakerjs.enabled":{
+                "kafka.producers.fakerjs.enabled": {
                     "type": "boolean",
-                    "default":true,
+                    "default": true,
                     "markdownDescription": "Enable injection of [faker.js](https://github.com/marak/Faker.js/#api-methods)-randomized data in record templates, using the mustache syntax."
                 },
-                "kafka.producers.fakerjs.locale":{
+                "kafka.producers.fakerjs.locale": {
                     "type": "string",
                     "enum": [
                         "az",
@@ -184,13 +189,18 @@
                 "category": "Kafka"
             },
             {
-                "command": "vscode-kafka.explorer.deletecluster",
-                "title": "Delete Cluster",
+                "command": "vscode-kafka.explorer.deleteselected",
+                "title": "Delete",
                 "category": "Kafka",
                 "icon": {
                     "light": "images/light/trashcan.svg",
                     "dark": "images/dark/trashcan.svg"
                 }
+            },
+            {
+                "command": "vscode-kafka.explorer.deletecluster",
+                "title": "Delete Cluster",
+                "category": "Kafka"
             },
             {
                 "command": "vscode-kafka.explorer.refresh",
@@ -275,49 +285,44 @@
                     "group": "inline"
                 },
                 {
-                    "command": "vscode-kafka.explorer.deletecluster",
-                    "when": "view == kafkaExplorer && viewItem == cluster && !listMultiSelection",
-                    "group": "inline"
-                },
-                {
                     "command": "vscode-kafka.consumer.consume",
                     "when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
-                    "group":"1_kafka"
+                    "group": "1_kafka"
                 },
                 {
                     "command": "vscode-kafka.explorer.dumptopicmetadata",
                     "when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
-                    "group":"1_kafka"
-                },
-                {
-                    "command": "vscode-kafka.explorer.deletetopic",
-                    "when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
-                    "group":"1_kafka"
+                    "group": "1_kafka"
                 },
                 {
                     "command": "vscode-kafka.explorer.dumpclustermetadata",
                     "when": "view == kafkaExplorer && viewItem == broker && !listMultiSelection",
-                    "group":"1_kafka"
+                    "group": "1_kafka"
                 },
                 {
                     "command": "vscode-kafka.explorer.dumpbrokermetadata",
                     "when": "view == kafkaExplorer && viewItem == broker && !listMultiSelection",
-                    "group":"1_kafka"
-                },
-                {
-                    "command": "vscode-kafka.explorer.deletecluster",
-                    "when": "view == kafkaExplorer && viewItem == cluster && !listMultiSelection",
-                    "group":"1_kafka"
+                    "group": "1_kafka"
                 },
                 {
                     "command": "vscode-kafka.explorer.selectcluster",
                     "when": "view == kafkaExplorer && viewItem == cluster && !listMultiSelection",
-                    "group":"1_kafka"
+                    "group": "1_kafka"
                 },
                 {
                     "command": "vscode-kafka.explorer.copylabel",
                     "when": "view == kafkaExplorer",
                     "group": "2_cutcopypaste"
+                },
+                {
+                    "command": "vscode-kafka.explorer.deleteselected",
+                    "when": "view == kafkaExplorer && viewItem =~ /^cluster$|^topic$/ && !listMultiSelection",
+                    "group": "inline"
+                },
+                {
+                    "command": "vscode-kafka.explorer.deleteselected",
+                    "when": "view == kafkaExplorer && viewItem =~ /^cluster$|^topic$/ && !listMultiSelection",
+                    "group": "3_modification"
                 }
             ],
             "editor/title": [
@@ -345,12 +350,18 @@
                 }
             ]
         },
-        "keybindings":[
+        "keybindings": [
             {
                 "command": "vscode-kafka.explorer.copylabel",
                 "key": "Ctrl+C",
                 "mac": "Cmd+C",
                 "when": "focusedView == kafkaExplorer"
+            },
+            {
+                "command": "vscode-kafka.explorer.deleteselected",
+                "key": "delete",
+                "mac": "cmd+backspace",
+                "when": "focusedView == kafkaExplorer && !listMultiSelection"
             }
         ]
     },
