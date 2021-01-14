@@ -10,7 +10,7 @@ export class KafkaModel extends NodeBase implements Disposable {
     public collapsibleState = TreeItemCollapsibleState.Collapsed;
 
     constructor(
-        protected clusterSettings: ClusterSettings,
+        public readonly clusterSettings: ClusterSettings,
         protected clientAccessor: ClientAccessor) {
         super(undefined);
     }
@@ -33,6 +33,13 @@ export class KafkaModel extends NodeBase implements Disposable {
         return this.getChildren()
             .then(clusters =>
                 clusters.find(child => (<ClusterItem>child).cluster.name === clusterName)
+            );
+    }
+
+    async findClusterItemById(clusterId: string): Promise<NodeBase | ClusterItem | undefined> {
+        return this.getChildren()
+            .then(clusters =>
+                clusters.find(child => (<ClusterItem>child).cluster.id === clusterId)
             );
     }
 }

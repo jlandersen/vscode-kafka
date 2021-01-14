@@ -8,6 +8,7 @@ import { KafkaModel } from "./models/kafka";
 import { ClusterItem } from "./models/cluster";
 import { EOL } from 'os';
 import { TopicItem } from "./models/topics";
+import { SelectedClusterChangedEvent } from "../settings/clusters";
 
 const TREEVIEW_ID = 'kafkaExplorer';
 
@@ -39,8 +40,10 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
             treeDataProvider: this,
             canSelectMany: true
         });
+        this.clusterSettings.onDidChangeSelected((e) => {
+            this.updateClusterSelection(e);
+        });
     }
-
     public refresh(): void {
         // reset the kafka model
         this.root = null;
@@ -155,4 +158,22 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
             }
         }
     }
+
+    private async updateClusterSelection(e: SelectedClusterChangedEvent): Promise<void> {
+        // Refresh the label of the old selected cluster
+        this.refreshClusterItem(e.oldClusterId);
+        // Refresh the label of the new selected cluster
+        this.refreshClusterItem(e.newClusterId);
+    }
+
+    private async refreshClusterItem(clusterId: string | undefined): Promise<void> {
+        if (!clusterId) {
+            return;
+        }
+        const clusterItem = await this.root?.findClusterItemById(clusterId);
+        if (clusterItem != undefined) {
+            this.onDidChangeTreeDataEvent.fire(clusterItem);
+        }
+    }
+
 }

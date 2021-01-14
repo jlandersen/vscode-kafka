@@ -48,6 +48,11 @@ export class Icons {
     }
 }
 
+
+export enum GlyphChars {
+    Check = '\u2713'
+}
+
 export class CommonMessages {
     public static showNoSelectedCluster(): void {
         vscode.window.showInformationMessage("No cluster selected");

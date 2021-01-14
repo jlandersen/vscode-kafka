@@ -316,12 +316,12 @@
                 },
                 {
                     "command": "vscode-kafka.explorer.deleteselected",
-                    "when": "view == kafkaExplorer && viewItem =~ /^cluster$|^topic$/ && !listMultiSelection",
+                    "when": "view == kafkaExplorer && viewItem =~ /^cluster$|^selectedCluster$|^topic$/ && !listMultiSelection",
                     "group": "inline"
                 },
                 {
                     "command": "vscode-kafka.explorer.deleteselected",
-                    "when": "view == kafkaExplorer && viewItem =~ /^cluster$|^topic$/ && !listMultiSelection",
+                    "when": "view == kafkaExplorer && viewItem =~ /^cluster$|^selectedCluster$|^topic$/ && !listMultiSelection",
                     "group": "3_modification"
                 }
             ],
