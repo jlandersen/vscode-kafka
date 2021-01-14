@@ -16,6 +16,7 @@ All notable changes to Kafka extension will be documented in this file.
 - Internal topics are now hidden by default. See [#29](https://github.com/jlandersen/vscode-kafka/issues/29) and [#74](https://github.com/jlandersen/vscode-kafka/pull/74).
 - Elements are now sorted alphabetically in the Kafka explorer. See [#63](https://github.com/jlandersen/vscode-kafka/issues/63).
 - Clusters are now sorted in the cluster selection wizard. See [#83](https://github.com/jlandersen/vscode-kafka/issues/83).
+- Currently selected cluster is now visible in the explorer and the `Select Cluster` menu is displayed only for unselected clusters. See [#82](https://github.com/jlandersen/vscode-kafka/issues/82).
 
 ## [0.10.0] - 2021-01-02
 ### Added

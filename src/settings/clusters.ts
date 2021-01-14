@@ -2,7 +2,8 @@ import * as vscode from "vscode";
 import { Cluster } from "../client";
 import { Context } from "../context";
 
-interface SelectedClusterChangedEvent {
+export interface SelectedClusterChangedEvent {
+    oldClusterId?: string,
     newClusterId?: string;
 }
 
@@ -72,8 +73,9 @@ class MementoClusterSettings implements ClusterSettings {
     }
 
     set selected(value: Cluster | undefined) {
+        const oldClusterId = this.selected?.id;
         this.storage.update(this.selectedClusterIdStorageKey, value?.id);
-        this.onDidChangeSelectedEmitter.fire({ newClusterId: value?.id });
+        this.onDidChangeSelectedEmitter.fire({ oldClusterId : oldClusterId, newClusterId: value?.id });
     }
 
     getAll(): Cluster[] {
