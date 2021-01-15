@@ -21,7 +21,7 @@ export interface ClusterSettings {
     onDidChangeSelected: vscode.Event<SelectedClusterChangedEvent>;
 
     /**
-     * Gets the full cluster collection..
+     * Gets the full cluster collection sorted by cluster name.
      */
     getAll(): Cluster[];
 
@@ -78,7 +78,14 @@ class MementoClusterSettings implements ClusterSettings {
 
     getAll(): Cluster[] {
         const state = this.storage.get<ClusterStoreType>(this.clusterCollectionStorageKey, {});
-        return Object.values(state);
+        return Object.values(state)
+            .sort(this.sortByNameAscending);
+    }
+
+    private sortByNameAscending(a: Cluster, b: Cluster): -1 | 0 | 1 {
+        if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
+        if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
+        return 0;
     }
 
     get(id: string): Cluster | undefined {
@@ -112,7 +119,7 @@ class MementoClusterSettings implements ClusterSettings {
     }
 
     private setSelectedClusterIfNeeded(): void {
-        if (this.selected !== undefined){
+        if (this.selected !== undefined) {
             return;
         }
         const all = this.getAll();
