@@ -1,5 +1,5 @@
 import { QuickPickItem, window } from "vscode";
-import { SaslMechanism, SaslOption } from "../client";
+import { ConnectionOptions, SaslMechanism } from "../client";
 import { INPUT_TITLE } from "../constants";
 import { KafkaExplorer } from "../explorer/kafkaExplorer";
 import { ClusterSettings } from "../settings/clusters";
@@ -8,16 +8,19 @@ import { validateBroker, validateClusterName, validateAuthentificationUserName }
 
 const DEFAULT_BROKER = 'localhost:9092';
 
-interface AddClusterState extends State {
-    bootstrap: string;
+interface AddClusterState extends State, ConnectionOptions {
     name: string;
-    saslOption: SaslOption;
 }
+
+const DEFAULT_STEPS = 4;
 
 export async function addClusterWizard(clusterSettings: ClusterSettings, explorer: KafkaExplorer): Promise<void> {
 
+
+
+
     const state: Partial<AddClusterState> = {
-        totalSteps: 3
+        totalSteps: DEFAULT_STEPS
     };
 
     async function collectInputs(state: Partial<AddClusterState>, clusterSettings: ClusterSettings) {
@@ -52,14 +55,14 @@ export async function addClusterWizard(clusterSettings: ClusterSettings, explore
     }
 
     async function inputAuthentification(input: MultiStepInput, state: Partial<AddClusterState>) {
-        const authMechanisms = new Map<string,string>([
+        const authMechanisms = new Map<string, string>([
             ["SASL/PLAIN", "plain"],
             ["SASL/SCRAM-256", "scram-sha-256"],
             ["SASL/SCRAM-512", "scram-sha-512"]
         ]);
         const authOptions: QuickPickItem[] = [{ "label": "None" }]
         for (const label of authMechanisms.keys()) {
-            authOptions.push({"label":label});
+            authOptions.push({ "label": label });
         }
 
         const authentification = (await input.showQuickPick({
@@ -70,9 +73,15 @@ export async function addClusterWizard(clusterSettings: ClusterSettings, explore
             items: authOptions,
             activeItem: authOptions[0]
         })).label;
-        if (authentification && authentification != authOptions[0].label) {
-            state.saslOption = { mechanism:  authMechanisms.get(authentification) as SaslMechanism};
-            return (input: MultiStepInput) => inputAuthentificationUserName(input, state);
+        if (authentification) {
+            if (authentification == authOptions[0].label) {
+                state.totalSteps = DEFAULT_STEPS;// we're on the 4-step track
+                return (input: MultiStepInput) => inputSSL(input, state);
+            } else {
+                state.totalSteps = DEFAULT_STEPS + 1;// we're on the 5-step track
+                state.saslOption = { mechanism: authMechanisms.get(authentification) as SaslMechanism };
+                return (input: MultiStepInput) => inputAuthentificationUserName(input, state);
+            }
         }
         return undefined;
     }
@@ -107,6 +116,21 @@ export async function addClusterWizard(clusterSettings: ClusterSettings, explore
         });
     }
 
+    async function inputSSL(input: MultiStepInput, state: Partial<AddClusterState>) {
+        const sslOptions: QuickPickItem[] = [{ "label": "Disabled" }, { "label": "Enabled" }]
+        const ssl = (await input.showQuickPick({
+            title: INPUT_TITLE,
+            step: input.getStepNumber(),
+            totalSteps: state.totalSteps,
+            placeholder: 'SSL',
+            items: sslOptions,
+            activeItem: sslOptions[0]
+        })).label;
+        if (ssl) {
+            state.ssl = ssl == sslOptions[1].label;
+        }
+    }
+
     try {
         await collectInputs(state, clusterSettings);
     } catch (e) {
@@ -133,6 +157,7 @@ export async function addClusterWizard(clusterSettings: ClusterSettings, explore
             bootstrap,
             name,
             saslOption,
+            ssl: state.ssl
         });
         explorer.refresh();
         window.showInformationMessage(`Cluster '${name}' created successfully`);

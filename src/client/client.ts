@@ -6,6 +6,7 @@ import { WorkspaceSettings } from "../settings";
 export interface ConnectionOptions {
     bootstrap: string;
     saslOption?: SaslOption;
+    ssl?: boolean;
 }
 
 export interface Cluster extends ConnectionOptions {
@@ -329,6 +330,7 @@ export const createKafka = (connectionOptions: ConnectionOptions): Kafka => {
         kafkaJsClient = new Kafka({
             clientId: "vscode-kafka",
             brokers: connectionOptions.bootstrap.split(","),
+            ssl: connectionOptions.ssl
          });
     }
     return kafkaJsClient;
