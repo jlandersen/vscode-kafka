@@ -8,7 +8,7 @@ All notable changes to Kafka extension will be documented in this file.
 - Kafka Explorer item labels can now be copied to the clipboard (supports multi selection). See [#68](https://github.com/jlandersen/vscode-kafka/issues/68).
 - Selected Cluster or Topic can now be deleted via the Delete shortcut (Cmd+Backspace on Mac). See [#79](https://github.com/jlandersen/vscode-kafka/issues/79)
 - Added SASL/SCRAM-256 and SASL/SCRAM-512 authentication support. See [#3](https://github.com/jlandersen/vscode-kafka/issues/3).
-
+- Added the option to enable basic SSL support for clusters without authentication. See [#84](https://github.com/jlandersen/vscode-kafka/issues/84).
 
 ### Changed
 - Improved the "New cluster" and "New topic" wizards: now include validation and a back button. See [#21](https://github.com/jlandersen/vscode-kafka/issues/21).
