@@ -68,27 +68,3 @@ export class ClusterItem extends NodeBase implements Disposable {
     }
 
 }
-
-/**
- * A node displayed when there are no clusters, allowing to create a new one.
- */
-export class NoClusterItem extends NodeBase {
-    public contextValue = "nocluster";
-    public collapsibleState = vscode.TreeItemCollapsibleState.None;
-
-    constructor(parent: NodeBase) {
-        super(parent);
-        this.label = 'Click here to add a cluster';
-    }
-    getTreeItem(): vscode.TreeItem {
-        return {
-            label: this.label,
-            contextValue: this.contextValue,
-            description: this.description,
-            command: {
-                title: 'Add a cluster',
-                command: "vscode-kafka.explorer.addcluster"
-            }
-        }
-    }
-}

@@ -350,6 +350,12 @@
                 }
             ]
         },
+        "viewsWelcome": [
+            {
+                "view": "kafkaExplorer",
+                "contents": "No Kafka clusters found.\n[Add new cluster](command:vscode-kafka.explorer.addcluster)"
+            }
+        ],
         "keybindings": [
             {
                 "command": "vscode-kafka.explorer.copylabel",
