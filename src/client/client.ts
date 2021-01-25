@@ -94,6 +94,7 @@ export interface Client extends Disposable {
 }
 
 class EnsureConnectedDecorator implements Client {
+
     constructor(private client: Client) {
     }
 

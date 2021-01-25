@@ -35,11 +35,11 @@ The Kafka explorer shows configured clusters with their topics, brokers, consume
 
 ![Screenshot-3](docs/assets/screen-3.png)
 
-See [Kafka explorer](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Explorer.md) section for more informations.
+See [Kafka explorer](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Explorer.md) section for more information.
 
 ## Producing messages
 
-Producing can be done by creating a `.kafka` file. Write simple producers using the following format:
+Define simple producers in a `[.kafka](https://github.com/jlandersen/vscode-kafka/blob/master/docs/KafkaFile.md#kafkafile)` file, using the following format:
 
 ```json
 PRODUCER keyed-message
@@ -56,15 +56,24 @@ topic: json-events
 }
 ```
 
-![Screenshot-4](docs/assets/screen-4.png)
+![Producers](docs/assets/kafka-file-producers.png)
 
-See [Producing messages](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Producing.md) section for more informations.
+See [Producing messages](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Producing.md) section for more information.
 
 ## Consuming messages
 
-Consuming topics can be done by right clicking a topic in the explorer or from the command palette.  
+Consuming topics can be done by right-clicking on a topic in the Kafka explorer, from the command palette, or from a `[.kafka](https://github.com/jlandersen/vscode-kafka/blob/master/docs/KafkaFile.md#kafkafile)` file:
 
-See [Consuming messages](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Consuming.md) section for more informations.
+```
+CONSUMER consumer-group-id
+topic: json-events
+partitions: 0
+from: 1
+```
+
+![Start Consumer with Kafka file](docs/assets/start-consumer-from-kafkafile.png)
+
+See [Consuming messages](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Consuming.md) section for more information.
 
 ## CI Builds
 

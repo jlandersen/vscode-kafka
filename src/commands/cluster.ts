@@ -25,14 +25,14 @@ export class AddClusterCommandHandler {
  * Deletes an existing cluster from the collection.
  */
 export class DeleteClusterCommandHandler {
+
+    public static commandId = 'vscode-kafka.cluster.delete';
+
     constructor(private clusterSettings: ClusterSettings, private clientAccessor: ClientAccessor, private explorer: KafkaExplorer) {
     }
 
     async execute(clusterId?: string): Promise<void> {
-        if (!clusterId) {
-            return;
-        }
-        const cluster = this.clusterSettings.get(clusterId);
+        const cluster = clusterId ? this.clusterSettings.get(clusterId) : await pickCluster(this.clusterSettings);
         if (!cluster) {
             return;
         }
@@ -42,8 +42,8 @@ export class DeleteClusterCommandHandler {
             return;
         }
 
-        this.clusterSettings.remove(clusterId);
-        this.clientAccessor.remove(clusterId);
+        this.clusterSettings.remove(cluster.id);
+        this.clientAccessor.remove(cluster.id);
         this.explorer.refresh();
     }
 }
@@ -53,6 +53,9 @@ export class DeleteClusterCommandHandler {
  * The selected cluster is used for producing and consuming.
  */
 export class SelectClusterCommandHandler {
+
+    public static commandId = 'vscode-kafka.explorer.selectcluster';
+
     constructor(private clusterSettings: ClusterSettings) {
     }
 

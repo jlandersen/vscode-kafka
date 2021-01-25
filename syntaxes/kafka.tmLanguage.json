@@ -17,54 +17,123 @@
     },
     "patterns": [
         {
-            "include": "#kafka.producerdefinitionline"
+            "include": "#kafka.producer"
         },
         {
-            "include": "#kafka.headerdefinitionline"
+            "include": "#kafka.consumer"
         },
         {
             "include": "#kafka.separator"
         },
         {
             "include": "#kafka.commentline"
-        },
-        {
-            "include": "#kafka.value.mustache.variables"
-        },
-        {
-            "include": "#kafka.value.json"
         }
     ],
     "repository": {
-        "kafka.producerdefinitionline": {
+        "kafka.consumer": {
+            "begin": "(?i)^(consumer)\\s*([\\S\\s]*)?$",
+            "end": "(?=.)",
+            "name": "meta.consumer.kafka",
+            "applyEndPatternLast": 1,
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.control.consumer.kafka"
+                },
+                "2": {
+                    "name": "entity.name.type.consumer.kafka"
+                }
+            },
             "patterns": [
                 {
-                    "name": "kafka.producerdefinition",
-                    "match": "(?i)^(?:(producer)\\s*)([a-zA-Z\\-]+)?$",
-                    "captures": {
-                        "1": {
-                            "name": "keyword.control.kafka.producer"
-                        },
-                        "2": {
-                            "name": "kafka.producer.definition.identifier"
-                        }
-                    }
+                    "include": "#kafka.consumer.header"
                 }
             ]
         },
-        "kafka.headerdefinitionline": {
+        "kafka.consumer.header": {
+            "begin": "(?i)^(?:(topic|from|partitions))",
+            "end": "$",
+            "name": "meta.consumer.header.kafka",
+            "beginCaptures": {
+                "1": {
+                    "name": "support.type.property-name.kafka"
+                }
+            },
             "patterns": [
                 {
-                    "name": "kafka.headerdefinition",
-                    "match": "(?i)^(?:(topic|key):\\s*)([a-zA-Z0-9\\-\\.\\_]+)?$",
-                    "captures": {
-                        "1": {
-                            "name": "support.variable.kafka"
-                        },
-                        "2": {
-                            "name": "kafka.header.identifier"
+                    "begin": ":",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.separator.consumer.header.kafka"
                         }
-                    }
+                    },
+                    "end": "$",
+                    "name": "meta.consumer.header.value.kafka",
+                    "patterns": [
+                        {
+                            "include": "#kafka.value.mustache.variables"
+                        }
+                    ]
+                }
+            ]
+        },
+        "kafka.producer": {
+            "begin": "(?i)^(producer)\\s*([\\S\\s]*)?$",
+            "end": "(?=^###$)",
+            "name": "meta.producer.kafka",
+            "beginCaptures": {
+                "1": {
+                    "name": "keyword.control.producer.kafka"
+                },
+                "2": {
+                    "name": "entity.name.type.producer.kafka"
+                }
+            },
+            "patterns": [
+                {
+                    "include": "#kafka.producer.header"
+                },
+                {
+                    "include": "#kafka.producer.body"
+                }
+            ]
+        },
+        "kafka.producer.header": {
+            "begin": "(?i)^(?:(topic|key))",
+            "end": "$",
+            "name": "meta.producer.header.kafka",
+            "beginCaptures": {
+                "1": {
+                    "name": "support.type.property-name.kafka"
+                }
+            },
+            "patterns": [
+                {
+                    "begin": ":",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.separator.header.key-value.kafka"
+                        }
+                    },
+                    "end": "$",
+                    "name": "meta.producer.header.value.kafka",
+                    "patterns": [
+                        {
+                            "include": "#kafka.value.mustache.variables"
+                        }
+                    ]
+                }
+            ]
+        },
+        "kafka.producer.body": {
+            "begin": "(?=.)",
+            "while": "^(?!###)",
+            "name": "meta.producer.body.kafka",
+            "patterns": [
+                {
+                    "include": "#kafka.value.mustache.variables"
+                },
+                {
+                    "include": "#kafka.value.json"
                 }
             ]
         },

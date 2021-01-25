@@ -1,4 +1,3 @@
-import * as vscode from "vscode";
 import * as faker from "faker";
 
 import { performance } from "perf_hooks";
@@ -8,7 +7,16 @@ import { KafkaExplorer } from "../explorer";
 import { WorkspaceSettings } from "../settings";
 import { pickClient } from "./common";
 
+export interface ProduceRecordCommand {
+    topicId?: string;
+    key?: string;
+    value: string
+}
+
 export class ProduceRecordCommandHandler {
+
+    public static commandId = 'vscode-kafka.producer.produce';
+
     constructor(
         private clientAccessor: ClientAccessor,
         private channelProvider: OutputChannelProvider,
@@ -17,9 +25,13 @@ export class ProduceRecordCommandHandler {
     ) {
     }
 
-    async execute(document: vscode.TextDocument, range: vscode.Range, times: number): Promise<void> {
+    async execute(command: ProduceRecordCommand, times: number): Promise<void> {
+        const { topicId, key, value } = command;
         const channel = this.channelProvider.getChannel("Kafka Producer Log");
-        const { topic, key, value } = this.parseDocumentRange(document, range);
+        if (topicId === undefined) {
+            channel.appendLine("No topic");
+            return;
+        }
         if (this.settings.producerFakerJSEnabled) {
             faker.setLocale(this.settings.producerFakerJSLocale);
         }
@@ -47,13 +59,7 @@ export class ProduceRecordCommandHandler {
             };
         });
 
-        if (topic === undefined) {
-            channel.appendLine("No topic");
-            return;
-        }
-
         const client = await pickClient(this.clientAccessor);
-
         if (!client) {
             return;
         }
@@ -67,7 +73,7 @@ export class ProduceRecordCommandHandler {
 
         try {
             await producer.send({
-                topic: topic,
+                topic: topicId,
                 messages: messages,
             });
 
@@ -89,37 +95,5 @@ export class ProduceRecordCommandHandler {
                 channel.appendLine(`Error: ${error}`);
             }
         }
-    }
-
-    private parseDocumentRange(document: vscode.TextDocument, range: vscode.Range): { topic?: string; key?: string; value: string } {
-        let topic;
-        let key;
-        let value = "";
-        for (let currentLine = range.start.line + 1; currentLine <= range.end.line; currentLine++) {
-            const line = document.lineAt(currentLine);
-
-            if (line.text.startsWith("topic:")) {
-                topic = line.text.substr("topic:".length).trim();
-                continue;
-            }
-
-            if (line.text.startsWith("key:")) {
-                key = line.text.substr("key:".length).trim();
-                continue;
-            }
-
-            if (line.text.startsWith("--")) {
-                continue;
-            }
-
-            value = document.getText(new vscode.Range(currentLine, 0, range.end.line + 1, 0)).trim();
-            break;
-        }
-
-        return {
-            topic,
-            key,
-            value,
-        };
     }
 }

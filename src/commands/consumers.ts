@@ -1,25 +1,29 @@
 import * as vscode from "vscode";
 
-import { ConsumerCollection, Topic, ClientAccessor } from "../client";
 import { pickClient, pickConsumerGroupId, pickTopic } from "./common";
+import { ConsumerCollection, ClientAccessor, createConsumerUri, ConsumerInfoUri, parsePartitions } from "../client";
 import { KafkaExplorer } from "../explorer";
 import { ConsumerVirtualTextDocumentProvider } from "../providers";
 
-export interface StartConsumerCommand {
-    clusterId: string;
-    topic: Topic;
+export interface LaunchConsumerCommand extends ConsumerInfoUri {
+
 }
 
-export class StartConsumerCommandHandler {
+/**
+ * Start or stop a consumer.
+ */
+abstract class LaunchConsumerCommandHandler {
+
     constructor(
         private clientAccessor: ClientAccessor,
         private consumerCollection: ConsumerCollection,
-        private explorer: KafkaExplorer
+        private explorer: KafkaExplorer,
+        private start: boolean
     ) {
     }
 
-    async execute(startConsumerCommand?: StartConsumerCommand): Promise<void> {
-        if (!startConsumerCommand) {
+    async execute(command?: LaunchConsumerCommand): Promise<void> {
+        if (!command) {
             const client = await pickClient(this.clientAccessor);
             if (!client) {
                 return;
@@ -31,28 +35,100 @@ export class StartConsumerCommandHandler {
                 return;
             }
 
-            startConsumerCommand = {
-                topic,
-                clusterId: client.cluster.id,
+            const clusterId = client.cluster.id;
+            const topicId = topic.id;
+            command = {
+                clusterId,
+                consumerGroupId: `vscode-kafka-${clusterId}-${topicId}`,
+                topicId
             };
         }
-
-        const consumeUri = vscode.Uri.parse(`kafka:${startConsumerCommand.clusterId}/${startConsumerCommand.topic.id}`);
-
-        if (this.consumerCollection.has(consumeUri)) {
-            vscode.window.showInformationMessage(`Consumer already started on '${startConsumerCommand.topic.id}'`);
-        } else {
-            this.consumerCollection.create(consumeUri);
-            this.explorer.refresh();
+        if (!command.consumerGroupId) {
+            const { clusterId, topicId } = command;
+            command.consumerGroupId = `vscode-kafka-${clusterId}-${topicId}`;
         }
 
-        return openDocument(consumeUri);
+        try {
+            const consumer = this.consumerCollection.getByConsumerGroupId(command.clusterId, command.consumerGroupId);
+            if (this.start) {
+                // Try to start consumer
+
+                if (consumer) {
+                    vscode.window.showInformationMessage(`Consumer already started on '${command.topicId}'`);
+                    return;
+                }
+
+                // Validate start command
+                validatePartitions(command.partitions);
+                validateOffset(command.fromOffset);
+
+                // Start the consumer and open the document which tracks consumer messages.
+                const consumeUri = createConsumerUri(command);
+                this.consumerCollection.create(consumeUri);
+                openDocument(consumeUri);
+                this.explorer.refresh();
+            } else {
+                // Stop consumer
+                if (consumer) {
+                    const consumeUri = consumer.uri;
+                    this.consumerCollection.close(consumeUri);
+                    openDocument(consumeUri);
+                    this.explorer.refresh();
+                }
+            }
+        }
+        catch (e) {
+            vscode.window.showErrorMessage(`Error while ${this.start ? 'starting' : 'stopping'} the consumer: ${e.message}`);
+        }
+    }
+}
+
+export class StartConsumerCommandHandler extends LaunchConsumerCommandHandler {
+
+    public static commandID = 'vscode-kafka.consumer.start';
+
+    constructor(
+        clientAccessor: ClientAccessor,
+        consumerCollection: ConsumerCollection,
+        explorer: KafkaExplorer
+    ) {
+        super(clientAccessor, consumerCollection, explorer, true);
+    }
+}
+
+export class StopConsumerCommandHandler extends LaunchConsumerCommandHandler {
+
+    public static commandId = 'vscode-kafka.consumer.stop';
+
+    constructor(
+        clientAccessor: ClientAccessor,
+        consumerCollection: ConsumerCollection,
+        explorer: KafkaExplorer
+    ) {
+        super(clientAccessor, consumerCollection, explorer, false);
+    }
+}
+
+function validatePartitions(partitions?: string) {
+    if (!partitions) {
+        return;
+    }
+    parsePartitions(partitions);
+}
+
+function validateOffset(offset?: string) {
+    if (!offset || offset === 'earliest' || offset === 'latest') {
+        return;
+    }
+    const valueAsNumber = parseInt(offset, 10);
+    if (isNaN(valueAsNumber) || valueAsNumber < 0) {
+        throw new Error(`from must be a positive number or equal to 'earliest' or 'latest'.`);
     }
 }
 
 export class ToggleConsumerCommandHandler {
 
-    public static COMMAND_ID = 'vscode-kafka.consumer.toggle';
+    public static commandId = 'vscode-kafka.consumer.toggle';
 
     constructor(private consumerCollection: ConsumerCollection) {
     }
@@ -76,7 +152,7 @@ export class ToggleConsumerCommandHandler {
 }
 export class ClearConsumerViewCommandHandler {
 
-    public static COMMAND_ID = 'vscode-kafka.consumer.clear';
+    public static commandId = 'vscode-kafka.consumer.clear';
 
     constructor(private provider: ConsumerVirtualTextDocumentProvider) {
 
@@ -120,7 +196,7 @@ export class ListConsumersCommandHandler {
         const consumers = this.consumerCollection.getAll();
         const consumerQuickPickItems = consumers.map((c) => {
             return {
-                label: c.options.topic,
+                label: c.options.topicId,
                 description: c.options.bootstrap,
                 uri: c.uri,
             };
@@ -157,7 +233,7 @@ export interface DeleteConsumerGroupCommand {
 
 export class DeleteConsumerGroupCommandHandler {
 
-    public static COMMAND_ID = 'vscode-kafka.consumer.deletegroup';
+    public static commandId = 'vscode-kafka.consumer.deletegroup';
 
     constructor(
         private clientAccessor: ClientAccessor,

@@ -44,7 +44,6 @@ export async function pickTopic(client: Client): Promise<Topic | undefined> {
     });
 
     const pickedTopic = await vscode.window.showQuickPick(topicQuickPickItems);
-
     return pickedTopic?.topic;
 }
 
@@ -76,6 +75,5 @@ export async function pickBroker(clientAccessor: ClientAccessor): Promise<Broker
     });
 
     const pickedBroker = await vscode.window.showQuickPick(brokerQuickPickItems);
-
     return pickedBroker?.broker;
 }

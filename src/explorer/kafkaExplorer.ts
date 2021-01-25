@@ -10,7 +10,7 @@ import { EOL } from 'os';
 import { TopicItem } from "./models/topics";
 import { SelectedClusterChangedEvent } from "../settings/clusters";
 import { ConsumerGroupItem } from "./models/consumerGroups";
-import { DeleteConsumerGroupCommandHandler } from "../commands";
+import { DeleteClusterCommandHandler, DeleteConsumerGroupCommandHandler, DeleteTopicCommandHandler } from "../commands";
 
 const TREEVIEW_ID = 'kafkaExplorer';
 
@@ -154,11 +154,11 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
         if (nodes && nodes.length > 0) {
             const item = nodes[0];
             if (item instanceof ClusterItem) {
-                vscode.commands.executeCommand('vscode-kafka.explorer.deletecluster', item);
+                vscode.commands.executeCommand(DeleteClusterCommandHandler.commandId, item);
             } else if (item instanceof TopicItem) {
-                vscode.commands.executeCommand('vscode-kafka.explorer.deletetopic', item);
+                vscode.commands.executeCommand(DeleteTopicCommandHandler.commandId, item);
             } else if (item instanceof ConsumerGroupItem) {
-                vscode.commands.executeCommand(DeleteConsumerGroupCommandHandler.COMMAND_ID, item);
+                vscode.commands.executeCommand(DeleteConsumerGroupCommandHandler.commandId, item);
             }
         }
     }
