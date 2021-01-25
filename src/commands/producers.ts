@@ -9,7 +9,7 @@ import { WorkspaceSettings } from "../settings";
 
 export class ProduceRecordCommandHandler {
     constructor(
-        private clientAccessor: ClientAccessor, 
+        private clientAccessor: ClientAccessor,
         private channelProvider: OutputChannelProvider,
         private explorer: KafkaExplorer,
         private settings: WorkspaceSettings
@@ -22,8 +22,29 @@ export class ProduceRecordCommandHandler {
         if(this.settings.producerFakerJSEnabled) {
             faker.setLocale(this.settings.producerFakerJSLocale);
         }
-        const messages = [...Array(times).keys()].map(() => this.settings.producerFakerJSEnabled?
-                                                            faker.fake(value):value);
+
+        const messages = [...Array(times).keys()].map(() => {
+            if (this.settings.producerFakerJSEnabled) {
+                //Use same seed for key and value so we can generate content like
+                // key: customer-{{random.uuid}} // same value as in id
+                // {"id": "{{random.uuid}}"}  // same value as in key
+                const seed = Math.floor(Math.random()*1000000);
+                faker.seed(seed);
+                const randomizedKey = (key)?faker.fake(key):key;
+                faker.seed(seed);
+                const randomizedValue = faker.fake(value);
+                return {
+                    key:randomizedKey,
+                    value:randomizedValue
+                }
+            }
+
+            // Return key/value message as-is
+            return {
+                key:key,
+                value:value
+            }
+        });
 
         if (topic === undefined) {
             channel.appendLine("No topic");
@@ -43,11 +64,11 @@ export class ProduceRecordCommandHandler {
         channel.show(false);
         channel.appendLine(`Producing record(s)`);
         const startOperation = performance.now();
-        
+
         try {
             await producer.send({
                 topic: topic,
-                messages: messages.map((m) => ({ key: key, value: m })),
+                messages: messages,
             });
 
 
