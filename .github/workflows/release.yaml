@@ -1,0 +1,28 @@
+name: CI
+
+on:
+    push:
+        tags:
+          - "v*"
+
+jobs:
+ build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: 12.x
+      - run: npm install
+      - name: Publish to VSCode Marketplace
+        run: npx vsce publish -p $VSCE_TOKEN
+        env:
+          VSCE_TOKEN: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
+      - name: Publish to Open VSX
+        run: npx ovsx publish -p $OVSX_TOKEN
+        env:
+          OVSX_TOKEN: ${{ secrets.OPENVSX_MARKETPLACE_TOKEN }}
+
+
