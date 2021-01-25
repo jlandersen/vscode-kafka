@@ -1,6 +1,6 @@
 # Producing messages
 
-Producing can be done by creating a `.kafka` file. Write simple producers using the following format:
+Define simple producers in a [.kafka](KafkaFile.md#kafkafile) file, using the following format:
 
 ```
 PRODUCER keyed-message
@@ -17,7 +17,10 @@ topic: json-events
 }
 ```
 
-For actually producing a single record, click on the `Produce record` link above the `PRODUCER` line; for producing 10 records, click on `Produce record x 10`.
+To produce a single record, click on the `Produce record` link above the `PRODUCER` line; to produce 10 records, click on `Produce record x 10`.
+
+![Producers](assets/kafka-file-producers.png)
+
 The log about produced messages is printed in the `Kafka Producer Log` Output view.
 
 ## Randomized content

@@ -59,10 +59,10 @@ class MarkdownPreviewProvider implements Disposable {
             // where $1, $2, $3 are non empty strings that are then passed to the replace function
             markdownString = markdownString.replace(/\[([^\]]+)\]\(([^#)]+)#([^)]*)\)/g,
                 (_match: string, linkText: string, page: string, section: string) => {
-                    return `<a href="command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22${page}%22%2C%22section%22%3A%22${section}%22%7D%5D">${linkText}</a>`
+                    return `<a href="command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22${page}%22%2C%22section%22%3A%22${section}%22%7D%5D">${linkText}</a>`;
                 });
             body = await commands.executeCommand(MARKDOWN_API_RENDER, markdownString);
-            if(body != undefined) {
+            if(body !== undefined) {
                 this.documentCache.set(markdownFilePath, body);
             }
         }

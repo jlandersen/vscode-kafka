@@ -26,10 +26,10 @@ export class TopicGroupItem extends NodeBase {
         topics = topics.filter(t => this.isDisplayed(t, settings.topicFilters));
 
         switch (settings.topicSortOption) {
-            case TopicSortOption.Name:
+            case TopicSortOption.name:
                 topics = topics.sort(this.sortByNameAscending);
                 break;
-            case TopicSortOption.Partitions:
+            case TopicSortOption.partitions:
                 topics = topics.sort(this.sortByPartitionsAscending);
                 break;
         }
@@ -58,7 +58,7 @@ export class TopicGroupItem extends NodeBase {
             return true;
         }
         const id = t.id.toLowerCase();
-        return !filters.find( f => minimatch(id, f));
+        return !filters.find(f => minimatch(id, f));
     }
 }
 
@@ -67,10 +67,12 @@ export class TopicItem extends NodeBase {
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
     public iconPath = Icons.Topic;
     public readonly clusterId: string;
+    public topicId: string;
 
     constructor(public topic: Topic, parent: TopicGroupItem) {
         super(parent);
         this.clusterId = parent.getParent().cluster.id;
+        this.topicId = topic.id;
         this.label = topic.id;
         this.description = `Partitions: ${topic.partitionCount}, Replicas: ${topic.replicationFactor}`;
     }

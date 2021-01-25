@@ -50,6 +50,9 @@ export class DumpTopicMetadataCommandHandler {
 }
 
 export class DeleteTopicCommandHandler {
+
+    public static commandId = 'vscode-kafka.topic.delete';
+
     constructor(private clientAccessor: ClientAccessor, private explorer: KafkaExplorer) {
     }
 

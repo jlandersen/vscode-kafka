@@ -23,7 +23,7 @@
     ],
     "folding": {
         "markers": {
-            "start": "^(PRODUCER).*$",
+            "start": "^(PRODUCER|CONSUMER).*$",
             "end": "^(#{3,})$"
         }
     }

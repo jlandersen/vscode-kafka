@@ -4,8 +4,8 @@ import * as vscode from "vscode";
  * The sort options for topics.
  */
 export enum TopicSortOption {
-    Name = "name",
-    Partitions = "partitions",
+    name = "name",
+    partitions = "partitions",
 }
 
 /**
@@ -34,7 +34,7 @@ class VsCodeWorkspaceSettings implements WorkspaceSettings {
     public onDidChangeSettings: vscode.Event<undefined> = this._onDidChangeSettings.event;
 
     public consumerOffset: InitialConsumerOffset = "latest";
-    public topicSortOption: TopicSortOption = TopicSortOption.Name;
+    public topicSortOption: TopicSortOption = TopicSortOption.name;
     public producerFakerJSEnabled = true;
     public producerFakerJSLocale = DEFAULT_PRODUCER_LOCALE;
     public topicFilters = DEFAULT_TOPIC_FILTER;
@@ -57,7 +57,7 @@ class VsCodeWorkspaceSettings implements WorkspaceSettings {
     private reload(): void {
         const configuration = vscode.workspace.getConfiguration("kafka");
         this.consumerOffset = configuration.get<InitialConsumerOffset>("consumers.offset", "latest");
-        this.topicSortOption = configuration.get<TopicSortOption>("explorer.topics.sort", TopicSortOption.Name);
+        this.topicSortOption = configuration.get<TopicSortOption>("explorer.topics.sort", TopicSortOption.name);
         this.producerFakerJSEnabled = configuration.get<boolean>("producers.fakerjs.enabled", true);
         this.producerFakerJSLocale = configuration.get<string>("producers.fakerjs.locale", DEFAULT_PRODUCER_LOCALE);
         this.topicFilters = configuration.get<string[]>("explorer.topics.filter", DEFAULT_TOPIC_FILTER);

@@ -27,20 +27,21 @@
         "onCommand:vscode-kafka.open.docs.page",
         "onCommand:vscode-kafka.explorer.addcluster",
         "onCommand:vscode-kafka.explorer.selectcluster",
-        "onCommand:vscode-kafka.explorer.deletecluster",
+        "onCommand:vscode-kafka.cluster.delete",
         "onCommand:vscode-kafka.explorer.createtopic",
         "onCommand:vscode-kafka.explorer.refresh",
         "onCommand:vscode-kafka.explorer.dumptopicmetadata",
-        "onCommand:vscode-kafka.explorer.deletetopic",
+        "onCommand:vscode-kafka.topic.delete",
         "onCommand:vscode-kafka.explorer.dumpbrokermetadata",
         "onCommand:vscode-kafka.explorer.dumpclustermetadata",
-        "onCommand:vscode-kafka.consumer.consume",
+        "onCommand:vscode-kafka.explorer.copylabel",
+        "onCommand:vscode-kafka.explorer.deleteselected",
+        "onCommand:vscode-kafka.consumer.start",
+        "onCommand:vscode-kafka.consumer.stop",
         "onCommand:vscode-kafka.consumer.list",
         "onCommand:vscode-kafka.consumer.toggle",
         "onCommand:vscode-kafka.consumer.clear",
         "onCommand:vscode-kafa.consumer.deletegroup",
-        "onCommand:vscode-kafka.explorer.copylabel",
-        "onCommand:vscode-kafka.explorer.deleteselected",
         "onView:kafkaExplorer",
         "onLanguage:kafka",
         "onDebug"
@@ -175,6 +176,10 @@
             {
                 "language": "kafka",
                 "path": "./snippets/producers.json"
+            },
+            {
+                "language": "kafka",
+                "path": "./snippets/consumers.json"
             }
         ],
         "commands": [
@@ -207,7 +212,7 @@
                 }
             },
             {
-                "command": "vscode-kafka.explorer.deletecluster",
+                "command": "vscode-kafka.cluster.delete",
                 "title": "Delete Cluster",
                 "category": "Kafka"
             },
@@ -235,7 +240,7 @@
                 "category": "Kafka"
             },
             {
-                "command": "vscode-kafka.explorer.deletetopic",
+                "command": "vscode-kafka.topic.delete",
                 "title": "Delete Topic",
                 "category": "Kafka"
             },
@@ -255,8 +260,13 @@
                 "category": "Kafka"
             },
             {
-                "command": "vscode-kafka.consumer.consume",
+                "command": "vscode-kafka.consumer.start",
                 "title": "Start Consumer (UTF-8 record values)",
+                "category": "Kafka"
+            },
+            {
+                "command": "vscode-kafka.consumer.stop",
+                "title": "Stop Consumer",
                 "category": "Kafka"
             },
             {
@@ -308,7 +318,7 @@
                     "group": "inline"
                 },
                 {
-                    "command": "vscode-kafka.consumer.consume",
+                    "command": "vscode-kafka.consumer.start",
                     "when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
                     "group": "1_kafka"
                 },

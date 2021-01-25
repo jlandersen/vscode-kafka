@@ -1,0 +1,25 @@
+{
+    "consumer": {
+        "prefix": [
+            "consumer"
+        ],
+        "body": [
+            "CONSUMER ${1:consumer-group-id}",
+            "topic: ${2:topic_name}",
+            "from: ${3|earliest,latest,0|}"
+        ],
+        "description": "A simple consumer"
+    },
+    "partition-consumer": {
+        "prefix": [
+            "partitions-consumer"
+        ],
+        "body": [
+            "CONSUMER ${1:consumer-group-id}",
+            "topic: ${2:topic_name}",
+            "from: ${3|earliest,latest,0|}",
+            "partitions: ${4|0|}"
+        ],
+        "description": "A consumer with a partitions filter"
+    }
+}
