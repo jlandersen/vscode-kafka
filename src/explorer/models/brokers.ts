@@ -17,13 +17,20 @@ export class BrokerGroupItem extends NodeBase {
 
     public async computeChildren(): Promise<NodeBase[]> {
         const client = this.getParent().client;
-        const brokers = await client.getBrokers();
+        const brokers = (await client.getBrokers())
+            .sort(this.sortByNameAscending);
         return brokers.map((broker) => {
             return new BrokerItem(broker, this);
         });
     }
     getParent(): ClusterItem {
         return <ClusterItem>super.getParent();
+    }
+
+    private sortByNameAscending(a: Broker, b: Broker): -1 | 0 | 1 {
+        if (a.id.toLowerCase() < b.id.toLowerCase()) { return -1; }
+        if (a.id.toLowerCase() > b.id.toLowerCase()) { return 1; }
+        return 0;
     }
 }
 
