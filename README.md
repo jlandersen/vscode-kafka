@@ -12,9 +12,9 @@ Features:
 - View topics
 - View configs
 - Create/Delete topic
-- Producing
-- Consuming
-- SASL/PLAIN Authentication (Kafka 0.10+)
+- Producing (randomized) messages
+- Consuming messages
+- SASL/PLAIN, SASL/SCRAM-256, SASL/SCRAM-512 Authentication (Kafka 0.10+)
 
 Planned features in no particular order:
 - More administration features
