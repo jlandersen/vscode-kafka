@@ -26,7 +26,7 @@ const TOPIC_FIELD = 'Topic name';
 const PARTITIONS_FIELD = 'Number of partitions';
 const REPLICATION_FACTOR_FIELD = 'Replication Factor';
 
-const maxNameLength = 249
+const maxNameLength = 249;
 const legalChars = /^[a-zA-Z0-9\\._\\-]*$/;
 
 export async function validateTopicName(topic: string, existingTopicNames: string[]): Promise<string | undefined> {
@@ -35,7 +35,7 @@ export async function validateTopicName(topic: string, existingTopicNames: strin
     if (result) {
         return result;
     }
-    else if (topic == "." || topic == "..") {
+    else if (topic === "." || topic === "..") {
         return `${TOPIC_FIELD} cannot be '.' or '..'`;
     }
     else if (topic.length > maxNameLength) {
@@ -69,13 +69,13 @@ function validateFieldRequired(name: string, value: string): string | undefined 
     if (value.length <= 0) {
         return `${name} is required.`;
     }
-    if (value.trim().length == 0) {
+    if (value.trim().length === 0) {
         return `${name} cannot be blank.`;
     }
 }
 
 function validateFieldUniqueValue(name: string, value: string, values: string[]): string | undefined {
-    if (values.indexOf(value) != -1) {
+    if (values.indexOf(value) !== -1) {
         return `${name} '${value}' already exists.`;
     }
 }

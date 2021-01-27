@@ -197,7 +197,7 @@ class KafkaJsClient implements Client {
     }
 
     canConnect(): boolean {
-        return this.kafkaAdminClient != null;
+        return this.kafkaAdminClient !== null;
     }
 
     connect(): Promise<void> {
@@ -241,7 +241,7 @@ class KafkaJsClient implements Client {
                     id: b.nodeId.toString(),
                     host: b.host,
                     port: b.port,
-                    isController: b.nodeId == describeClusterResponse.controller,
+                    isController: b.nodeId === describeClusterResponse.controller,
                 };
             }),
         };
@@ -351,4 +351,4 @@ export const createKafka = (connectionOptions: ConnectionOptions): Kafka => {
         });
     }
     return kafkaJsClient;
-}
+};

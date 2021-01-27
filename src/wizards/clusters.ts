@@ -60,7 +60,7 @@ export async function addClusterWizard(clusterSettings: ClusterSettings, explore
             ["SASL/SCRAM-256", "scram-sha-256"],
             ["SASL/SCRAM-512", "scram-sha-512"]
         ]);
-        const authOptions: QuickPickItem[] = [{ "label": "None" }]
+        const authOptions: QuickPickItem[] = [{ "label": "None" }];
         for (const label of authMechanisms.keys()) {
             authOptions.push({ "label": label });
         }
@@ -74,7 +74,7 @@ export async function addClusterWizard(clusterSettings: ClusterSettings, explore
             activeItem: authOptions[0]
         })).label;
         if (authentification) {
-            if (authentification == authOptions[0].label) {
+            if (authentification === authOptions[0].label) {
                 state.totalSteps = DEFAULT_STEPS;// we're on the 4-step track
                 return (input: MultiStepInput) => inputSSL(input, state);
             } else {
@@ -117,7 +117,7 @@ export async function addClusterWizard(clusterSettings: ClusterSettings, explore
     }
 
     async function inputSSL(input: MultiStepInput, state: Partial<AddClusterState>) {
-        const sslOptions: QuickPickItem[] = [{ "label": "Disabled" }, { "label": "Enabled" }]
+        const sslOptions: QuickPickItem[] = [{ "label": "Disabled" }, { "label": "Enabled" }];
         const ssl = (await input.showQuickPick({
             title: INPUT_TITLE,
             step: input.getStepNumber(),
@@ -127,7 +127,7 @@ export async function addClusterWizard(clusterSettings: ClusterSettings, explore
             activeItem: sslOptions[0]
         })).label;
         if (ssl) {
-            state.ssl = ssl == sslOptions[1].label;
+            state.ssl = ssl === sslOptions[1].label;
         }
     }
 

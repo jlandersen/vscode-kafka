@@ -95,7 +95,9 @@ export class ClearConsumerViewCommandHandler {
 }
 
 enum ConsumerOption {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     Open,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     Close,
 }
 

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import * as vscode from "vscode";
 import * as path from "path";
 import { Context } from "./context";
@@ -5,7 +6,7 @@ import { Context } from "./context";
 export const imagesPath = "images";
 export const INPUT_TITLE = 'Kafka Tools';
 
-type DarkLightPath = { light: string; dark: string}
+type DarkLightPath = { light: string; dark: string};
 
 const getDarkLightPath = (fileName: string): DarkLightPath => {
     return {

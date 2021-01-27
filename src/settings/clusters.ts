@@ -44,7 +44,7 @@ export interface ClusterSettings {
     remove(id: string): void;
 }
 
-type ClusterStoreType = { [id: string]: Cluster }
+type ClusterStoreType = { [id: string]: Cluster };
 
 /**
  * An implementation of {@link ClusterSettings} that stores settings using the VS Code memento API.

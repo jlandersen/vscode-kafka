@@ -73,7 +73,7 @@ class Consumer implements vscode.Disposable {
         this.kafkaClient = createKafka(this.options);
         this.consumer = this.kafkaClient.consumer({ groupId: `vscode-kafka-${this.options.clusterId}-${this.options.topic}`, retry: { retries: 3 }});
         await this.consumer.connect();
-        await this.consumer.subscribe({ topic: this.options.topic, fromBeginning: this.options.fromOffset ===  "earliest" })
+        await this.consumer.subscribe({ topic: this.options.topic, fromBeginning: this.options.fromOffset ===  "earliest" });
 
         await this.consumer.run({
             eachMessage: async ({ topic , partition, message }) => {

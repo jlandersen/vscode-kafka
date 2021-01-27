@@ -14,7 +14,7 @@ export const handleErrors = (handler: Handler): ((...args: any[]) => Promise<any
                 vscode.window.showErrorMessage('An unexpected error occured');
             }
         }
-    }
+    };
 };
 
 export * from "./consumers";

@@ -75,7 +75,7 @@ export class DeleteTopicCommandHandler {
                     const configs = await client?.getBrokerConfigs(brokers[i].id);
                     const config = configs?.find(ce => ce.configName === AUTO_CREATE_TOPIC_KEY);
                     if (config) {
-                        autoCreateTopicsEnabled = config.configValue == 'true'
+                        autoCreateTopicsEnabled = config.configValue === 'true';
                     }
                 }
             }
