@@ -7,7 +7,7 @@ import { Disposable } from "vscode";
  */
 export class ClientAccessor implements Disposable {
     private static instance: ClientAccessor;
-    private clientsById: { [id: string]: Client } = {}
+    private clientsById: { [id: string]: Client } = {};
     private clusterSettings: ClusterSettings;
 
     constructor(clusterSettings: ClusterSettings) {

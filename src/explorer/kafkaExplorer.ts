@@ -175,7 +175,7 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
             return;
         }
         const clusterItem = await this.root?.findClusterItemById(clusterId);
-        if (clusterItem != undefined) {
+        if (clusterItem !== undefined) {
             this.onDidChangeTreeDataEvent.fire(clusterItem);
         }
     }

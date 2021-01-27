@@ -18,7 +18,7 @@ interface CreateTopicState extends State {
 
 export async function addTopicWizard(clientAccessor: ClientAccessor, clusterSettings: ClusterSettings, explorer: KafkaExplorer, clusterId?: string): Promise<void> {
     const clusters = clusterSettings.getAll();
-    if (clusters.length == 0) {
+    if (clusters.length === 0) {
         window.showErrorMessage('No clusters');
         return;
     }
@@ -97,7 +97,7 @@ async function inputSelectCluster(input: MultiStepInput, state: Partial<CreateTo
     let activeClusterItem: ClusterPickItem | undefined;
     const clusterItems: ClusterPickItem[] = clusters.map((cluster) => {
         const item = { label: cluster.name, clusterId: cluster.id };
-        if (selected && cluster == selected) {
+        if (selected && cluster === selected) {
             activeClusterItem = item;
         }
         return item;
@@ -135,7 +135,7 @@ async function inputTopicName(input: MultiStepInput, state: Partial<CreateTopicS
 }
 
 async function getExistingTopicNames(clientAccessor: ClientAccessor, clusterId?: string): Promise<string[] | undefined> {
-    if (!clusterId) return [];
+    if (!clusterId) {return [];}
     try {
         const client = clientAccessor.get(clusterId);
         return (await client.getTopics()).map(topic => topic.id);

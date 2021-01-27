@@ -4,7 +4,7 @@ import { ConsumedRecord, ConsumerChangedStatusEvent, ConsumerCollection, Consume
 import { CommonMessages } from "../constants";
 
 export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentContentProvider, vscode.Disposable {
-
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     public static SCHEME = "kafka";
     private buffer: { [id: string]: string } = {};
     private disposables: vscode.Disposable[] = [];

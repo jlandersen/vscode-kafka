@@ -148,7 +148,7 @@ export class MultiStepInput {
                 disposables.push(workspace.onDidChangeConfiguration((event: ConfigurationChangeEvent) => {
                     const configNames: string[] = configChanges.map((configChange: ConfigChangeCallback) => configChange.configName);
                     const configName: string | undefined = configNames.find((name: string) => event.affectsConfiguration(name));
-                    if (!configName) return;
+                    if (!configName) {return;};
 
                     configChanges.forEach((configChange: ConfigChangeCallback) => {
                         if (configChange.configName === configName) {
@@ -239,7 +239,7 @@ export class MultiStepInput {
                 disposables.push(workspace.onDidChangeConfiguration((event: ConfigurationChangeEvent) => {
                     const configNames: string[] = configChanges.map((configChange: ConfigChangeCallback) => configChange.configName);
                     const configName: string | undefined = configNames.find((name: string) => event.affectsConfiguration(name));
-                    if (!configName) return;
+                    if (!configName) {return;}
 
                     configChanges.forEach((configChange: ConfigChangeCallback) => {
                         if (configChange.configName === configName) {

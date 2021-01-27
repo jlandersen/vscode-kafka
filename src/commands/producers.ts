@@ -35,16 +35,16 @@ export class ProduceRecordCommandHandler {
                 faker.seed(seed);
                 const randomizedValue = faker.fake(value);
                 return {
-                    key: randomizedKey,
-                    value: randomizedValue
-                }
+                    key:randomizedKey,
+                    value:randomizedValue
+                };
             }
 
             // Return key/value message as-is
             return {
-                key: key,
-                value: value
-            }
+                key:key,
+                value:value
+            };
         });
 
         if (topic === undefined) {
