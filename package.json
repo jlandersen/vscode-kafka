@@ -37,6 +37,7 @@
         "onCommand:vscode-kafka.consumer.consume",
         "onCommand:vscode-kafka.consumer.list",
         "onCommand:vscode-kafka.consumer.toggle",
+        "onCommand:vscode-kafka.consumer.clear",
         "onCommand:vscode-kafka.explorer.copylabel",
         "onCommand:vscode-kafka.explorer.deleteselected",
         "onView:kafkaExplorer",
@@ -270,6 +271,15 @@
                     "light": "images/light/toggle.svg",
                     "dark": "images/dark/toggle.svg"
                 }
+            },
+            {
+                "command": "vscode-kafka.consumer.clear",
+                "title": "Clear Consumer View",
+                "category": "Kafka",
+                "icon": {
+                    "light": "images/light/clear-all.svg",
+                    "dark": "images/dark/clear-all.svg"
+                }
             }
         ],
         "menus": {
@@ -335,6 +345,11 @@
             "editor/title": [
                 {
                     "command": "vscode-kafka.consumer.toggle",
+                    "group": "navigation",
+                    "when": "resourceScheme == kafka"
+                },
+                {
+                    "command": "vscode-kafka.consumer.clear",
                     "group": "navigation",
                     "when": "resourceScheme == kafka"
                 }
