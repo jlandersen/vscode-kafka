@@ -4,6 +4,7 @@ import { ConsumedRecord, ConsumerChangedStatusEvent, ConsumerCollection, Consume
 import { CommonMessages } from "../constants";
 
 export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentContentProvider, vscode.Disposable {
+
     public static SCHEME = "kafka";
     private buffer: { [id: string]: string } = {};
     private disposables: vscode.Disposable[] = [];
@@ -32,10 +33,9 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
     }
 
     public provideTextDocumentContent(uri: vscode.Uri): string {
-        if (!this.buffer.hasOwnProperty(uri.toString())) {
+        if (!this.isActive(uri)) {
             return "";
         }
-
         return this.buffer[uri.toString()];
     }
 
@@ -60,27 +60,20 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
     }
 
     private onDidChangeStatus(uri: vscode.Uri, status: string): void {
-        let uriBuffer = this.buffer[uri.toString()];
+        if (!this.isActive(uri)) {
+            return;
+        }
         const line = `Consumer: ${status}\n\n`;
-        uriBuffer = uriBuffer + line;
-
-        this.buffer[uri.toString()] = uriBuffer;
-        this.onDidChangeEmitter.fire(uri);
+        this.updateBuffer(uri, line);
     }
 
     private onDidReceiveRecord(uri: vscode.Uri, message: ConsumedRecord): void {
-        let uriBuffer = this.buffer[uri.toString()];
-
-        if (!uriBuffer) {
+        if (!this.isActive(uri)) {
             return;
         }
-
         let line = `Key: ${message.key}\nPartition: ${message.partition}\nOffset: ${message.offset}\n`;
         line = line + `Value:\n${message.value}\n\n`;
-        uriBuffer = uriBuffer + line;
-
-        this.buffer[uri.toString()] = uriBuffer;
-        this.onDidChangeEmitter.fire(uri);
+        this.updateBuffer(uri, line);
     }
 
     private onDidCloseConsumer(uri: vscode.Uri): void {
@@ -93,25 +86,46 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
 
     private onDidCloseTextDocument(document: vscode.TextDocument): void {
         // When language is plaintext we assume the event was triggered as a result of switching language mode
-        if (document.uri.scheme !== "kafka" || document.languageId === "plaintext") {
+        const uri = document.uri;
+        if (uri.scheme !== "kafka" || document.languageId === "plaintext") {
             return;
         }
 
-        const buffer = this.buffer[document.uri.toString()];
-
-        if (!buffer) {
+        if (!this.isActive(uri)) {
             return;
         }
 
-        if (this.consumerCollection.has(document.uri)) {
-            this.consumerCollection.close(document.uri);
+        if (this.consumerCollection.has(uri)) {
+            this.consumerCollection.close(uri);
         }
 
-        delete this.buffer[document.uri.toString()];
+        delete this.buffer[uri.toString()];
+    }
+
+    public clear(document: vscode.TextDocument): void {
+        const uri = document.uri;
+        if (!this.isActive(uri)) {
+            return;
+        }
+        this.updateBuffer(uri, '', true);
     }
 
     public dispose(): void {
         this.consumerCollection.dispose();
-        this.disposables.forEach(d=>d.dispose());
+        this.disposables.forEach(d => d.dispose());
+    }
+
+    private isActive(uri: vscode.Uri): boolean {
+        return this.buffer.hasOwnProperty(uri.toString());
+    }
+
+    private updateBuffer(uri: vscode.Uri, content: string, replace = false) {
+        if (replace) {
+            this.buffer[uri.toString()] = content;
+        } else {
+            const uriBuffer = this.buffer[uri.toString()];
+            this.buffer[uri.toString()] = uriBuffer + content;
+        }
+        this.onDidChangeEmitter.fire(uri);
     }
 }

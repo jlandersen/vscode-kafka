@@ -15,6 +15,7 @@ import {
     DeleteClusterCommandHandler,
     SelectClusterCommandHandler,
     handleErrors,
+    ClearConsumerViewCommandHandler,
 } from "./commands";
 import { Context } from "./context";
 import { BrokerItem, KafkaExplorer, TopicItem } from "./explorer";
@@ -50,6 +51,7 @@ export function activate(context: vscode.ExtensionContext): void {
     context.subscriptions.push(explorer);
     context.subscriptions.push(new ConsumerStatusBarItem(consumerCollection));
     context.subscriptions.push(new SelectedClusterStatusBarItem(clusterSettings));
+    const consumerVirtualTextDocumentProvider = new ConsumerVirtualTextDocumentProvider(consumerCollection)
 
     // Commands
     const createTopicCommandHandler = new CreateTopicCommandHandler(clientAccessor, clusterSettings, explorer);
@@ -58,6 +60,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const startConsumerCommandHandler = new StartConsumerCommandHandler(clientAccessor, clusterSettings, consumerCollection, explorer);
     const listConsumersCommandHandler = new ListConsumersCommandHandler(consumerCollection);
     const toggleConsumerCommandHandler = new ToggleConsumerCommandHandler(consumerCollection);
+    const clearConsumerViewCommandHandler = new ClearConsumerViewCommandHandler(consumerVirtualTextDocumentProvider);
     const addClusterCommandHandler = new AddClusterCommandHandler(clusterSettings, explorer);
     const deleteClusterCommandHandler = new DeleteClusterCommandHandler(clusterSettings, clientAccessor, explorer);
     const selectClusterCommandHandler = new SelectClusterCommandHandler(clusterSettings);
@@ -108,8 +111,12 @@ export function activate(context: vscode.ExtensionContext): void {
         "vscode-kafka.consumer.list",
         handleErrors(() => listConsumersCommandHandler.execute())));
     context.subscriptions.push(vscode.commands.registerCommand(
-        "vscode-kafka.consumer.toggle",
+        ToggleConsumerCommandHandler.COMMAND_ID,
         handleErrors(() => toggleConsumerCommandHandler.execute())));
+    context.subscriptions.push(vscode.commands.registerCommand(
+            ClearConsumerViewCommandHandler.COMMAND_ID,
+            handleErrors(() => clearConsumerViewCommandHandler.execute())));
+
     registerVSCodeKafkaDocumentationCommands(context);
 
     // .kafka file related
@@ -123,8 +130,7 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.languages.registerCodeLensProvider(documentSelector, new ProducerCodeLensProvider()));
 
     context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider(
-        ConsumerVirtualTextDocumentProvider.SCHEME,
-        new ConsumerVirtualTextDocumentProvider(consumerCollection)));
+        ConsumerVirtualTextDocumentProvider.SCHEME, consumerVirtualTextDocumentProvider));
 }
 
 export function deactivate(): void {

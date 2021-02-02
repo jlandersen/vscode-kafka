@@ -5,6 +5,7 @@ import { pickTopic } from "./common";
 import { ClusterSettings } from "../settings";
 import { CommonMessages } from "../constants";
 import { KafkaExplorer } from "../explorer";
+import { ConsumerVirtualTextDocumentProvider } from "../providers";
 
 export interface StartConsumerCommand {
     clusterId: string;
@@ -17,7 +18,7 @@ export class StartConsumerCommandHandler {
         private clusterSettings: ClusterSettings,
         private consumerCollection: ConsumerCollection,
         private explorer: KafkaExplorer
-        ) {
+    ) {
     }
 
     async execute(startConsumerCommand?: StartConsumerCommand): Promise<void> {
@@ -55,6 +56,9 @@ export class StartConsumerCommandHandler {
 }
 
 export class ToggleConsumerCommandHandler {
+
+    public static COMMAND_ID = 'vscode-kafka.consumer.toggle';
+
     constructor(private consumerCollection: ConsumerCollection) {
     }
 
@@ -73,6 +77,25 @@ export class ToggleConsumerCommandHandler {
         } else {
             this.consumerCollection.create(document.uri);
         }
+    }
+}
+export class ClearConsumerViewCommandHandler {
+
+    public static COMMAND_ID = 'vscode-kafka.consumer.clear';
+
+    constructor(private provider: ConsumerVirtualTextDocumentProvider) {
+
+    }
+    async execute(): Promise<void> {
+        if (!vscode.window.activeTextEditor) {
+            return;
+        }
+
+        const { document } = vscode.window.activeTextEditor;
+        if (document.uri.scheme !== "kafka") {
+            return;
+        }
+        this.provider.clear(document);
     }
 }
 
@@ -144,7 +167,7 @@ async function openDocument(uri: vscode.Uri): Promise<void> {
 
     // If there's no document we open it
     if (!document) {
-       document = await vscode.workspace.openTextDocument(uri);
+        document = await vscode.workspace.openTextDocument(uri);
     }
 
     // Check if there's an active editor, to later decide in which column the consumer
@@ -163,12 +186,12 @@ async function openDocument(uri: vscode.Uri): Promise<void> {
     // Instead, a new TextEditor instance is added to the active panel. This is the
     // default vscode behavior
     await vscode.window.showTextDocument(
-            document,
-            {
-                preview: false,
-                preserveFocus: true,
-                viewColumn: hasActiveEditor?vscode.ViewColumn.Beside:vscode.ViewColumn.Active,
-            }
-        );
+        document,
+        {
+            preview: false,
+            preserveFocus: true,
+            viewColumn: hasActiveEditor ? vscode.ViewColumn.Beside : vscode.ViewColumn.Active,
+        }
+    );
     await vscode.languages.setTextDocumentLanguage(document, "kafka-consumer");
 }
