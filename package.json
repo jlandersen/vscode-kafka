@@ -38,6 +38,7 @@
         "onCommand:vscode-kafka.consumer.list",
         "onCommand:vscode-kafka.consumer.toggle",
         "onCommand:vscode-kafka.consumer.clear",
+        "onCommand:vscode-kafa.consumer.deletegroup",
         "onCommand:vscode-kafka.explorer.copylabel",
         "onCommand:vscode-kafka.explorer.deleteselected",
         "onView:kafkaExplorer",
@@ -280,6 +281,11 @@
                     "light": "images/light/clear-all.svg",
                     "dark": "images/dark/clear-all.svg"
                 }
+            },
+            {
+                "command": "vscode-kafka.consumer.deletegroup",
+                "title": "Delete Consumer Group",
+                "category": "Kafka"
             }
         ],
         "menus": {
@@ -333,12 +339,12 @@
                 },
                 {
                     "command": "vscode-kafka.explorer.deleteselected",
-                    "when": "view == kafkaExplorer && viewItem =~ /^cluster$|^selectedCluster$|^topic$/ && !listMultiSelection",
+                    "when": "view == kafkaExplorer && viewItem =~ /^cluster$|^selectedCluster$|^topic$|^consumergroupitem$/ && !listMultiSelection",
                     "group": "inline"
                 },
                 {
                     "command": "vscode-kafka.explorer.deleteselected",
-                    "when": "view == kafkaExplorer && viewItem =~ /^cluster$|^selectedCluster$|^topic$/ && !listMultiSelection",
+                    "when": "view == kafkaExplorer && viewItem =~ /^cluster$|^selectedCluster$|^topic$|^consumergroupitem$/ && !listMultiSelection",
                     "group": "3_modification"
                 }
             ],

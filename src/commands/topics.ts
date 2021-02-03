@@ -2,21 +2,21 @@ import { ClusterSettings } from "../settings";
 import { dump } from "js-yaml";
 import * as vscode from "vscode";
 
-import { Topic, ClientAccessor, Client } from "../client";
+import { Topic, ClientAccessor } from "../client";
 import { KafkaExplorer, TopicItem } from "../explorer";
 import { OutputChannelProvider } from "../providers";
 import { addTopicWizard } from "../wizards/topics";
-import { pickTopicFromSelectedCluster } from "./common";
+import { pickClient, pickTopic } from "./common";
 
 const AUTO_CREATE_TOPIC_KEY = 'auto.create.topics.enable';
 
 export class CreateTopicCommandHandler {
 
-    constructor(private clientAccessor: ClientAccessor, private clusterSettings : ClusterSettings, private explorer: KafkaExplorer) {
+    constructor(private clientAccessor: ClientAccessor, private clusterSettings: ClusterSettings, private explorer: KafkaExplorer) {
     }
 
     async execute(clusterId?: string): Promise<void> {
-        addTopicWizard(this.clientAccessor, this.clusterSettings,  this.explorer, clusterId);
+        addTopicWizard(this.clientAccessor, this.clusterSettings, this.explorer, clusterId);
     }
 }
 
@@ -25,20 +25,12 @@ export class DumpTopicMetadataCommandHandler {
     }
 
     async execute(topic?: TopicItem): Promise<void> {
-        let client: Client | undefined;
-
-        if (topic) {
-            client = this.clientAccessor.get(topic.clusterId);
-        } else {
-            client = this.clientAccessor.getSelectedClusterClient();
-        }
-
+        const client = await pickClient(this.clientAccessor, topic?.clusterId);
         if (!client) {
-            vscode.window.showInformationMessage("No cluster selected");
             return;
         }
 
-        const topicToDump: Topic | undefined = topic ? topic.topic : await pickTopicFromSelectedCluster(this.clientAccessor);
+        const topicToDump: Topic | undefined = topic ? topic.topic : await pickTopic(client);
 
         if (!topicToDump) {
             return;
@@ -62,21 +54,13 @@ export class DeleteTopicCommandHandler {
     }
 
     async execute(topic?: TopicItem): Promise<void> {
-        let client: Client | undefined;
-
-        if (topic) {
-            client = this.clientAccessor.get(topic.clusterId);
-        } else {
-            client = this.clientAccessor.getSelectedClusterClient();
-        }
-
+        const client = await pickClient(this.clientAccessor, topic?.clusterId);
         if (!client) {
-            vscode.window.showInformationMessage("No cluster selected");
             return;
         }
 
         //TODO implement multiple topic deletion
-        const topicToDelete: Topic | undefined = topic ? topic.topic : await pickTopicFromSelectedCluster(this.clientAccessor);
+        const topicToDelete: Topic | undefined = topic?.topic || await pickTopic(client);
 
         if (!topicToDelete) {
             return;

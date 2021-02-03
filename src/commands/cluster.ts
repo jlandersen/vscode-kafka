@@ -3,7 +3,7 @@ import { dump } from "js-yaml";
 import { Broker, ClientAccessor } from "../client";
 import { BrokerItem } from "../explorer/models/brokers";
 import { OutputChannelProvider } from "../providers";
-import { pickBroker, pickCluster } from "./common";
+import { pickBroker, pickClient, pickCluster } from "./common";
 import { ClusterSettings } from "../settings";
 import { KafkaExplorer } from "../explorer";
 import { addClusterWizard } from "../wizards/clusters";
@@ -100,10 +100,9 @@ export class DumpClusterMetadataCommandHandler {
     }
 
     async execute(): Promise<void> {
-        const client = this.clientAccessor.getSelectedClusterClient();
+        const client = await pickClient(this.clientAccessor);
 
         if (!client) {
-            vscode.window.showInformationMessage("No selected cluster");
             return;
         }
 

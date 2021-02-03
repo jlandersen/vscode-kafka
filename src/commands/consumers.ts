@@ -1,9 +1,7 @@
 import * as vscode from "vscode";
 
 import { ConsumerCollection, Topic, ClientAccessor } from "../client";
-import { pickTopic } from "./common";
-import { ClusterSettings } from "../settings";
-import { CommonMessages } from "../constants";
+import { pickClient, pickConsumerGroupId, pickTopic } from "./common";
 import { KafkaExplorer } from "../explorer";
 import { ConsumerVirtualTextDocumentProvider } from "../providers";
 
@@ -15,7 +13,6 @@ export interface StartConsumerCommand {
 export class StartConsumerCommandHandler {
     constructor(
         private clientAccessor: ClientAccessor,
-        private clusterSettings: ClusterSettings,
         private consumerCollection: ConsumerCollection,
         private explorer: KafkaExplorer
     ) {
@@ -23,14 +20,12 @@ export class StartConsumerCommandHandler {
 
     async execute(startConsumerCommand?: StartConsumerCommand): Promise<void> {
         if (!startConsumerCommand) {
-            const selectedCluster = this.clusterSettings.selected;
-
-            if (!selectedCluster) {
-                CommonMessages.showNoSelectedCluster();
+            const client = await pickClient(this.clientAccessor);
+            if (!client) {
                 return;
             }
 
-            const topic = await pickTopic(this.clientAccessor.get(selectedCluster.id));
+            const topic = await pickTopic(client);
 
             if (topic === undefined) {
                 return;
@@ -38,7 +33,7 @@ export class StartConsumerCommandHandler {
 
             startConsumerCommand = {
                 topic,
-                clusterId: selectedCluster.id,
+                clusterId: client.cluster.id,
             };
         }
 
@@ -151,6 +146,51 @@ export class ListConsumersCommandHandler {
         }
     }
 
+}
+
+export interface DeleteConsumerGroupCommand {
+    clusterId: string;
+    consumerGroupId: string;
+}
+
+export class DeleteConsumerGroupCommandHandler {
+
+    public static COMMAND_ID = 'vscode-kafka.consumer.deletegroup';
+
+    constructor(
+        private clientAccessor: ClientAccessor,
+        private explorer: KafkaExplorer
+    ) {
+    }
+
+    async execute(command?: DeleteConsumerGroupCommand): Promise<void> {
+        const client = await pickClient(this.clientAccessor, command?.clusterId);
+        if (!client) {
+            return;
+        }
+
+        const consumerGroupToDelete: string | undefined = command?.consumerGroupId || await pickConsumerGroupId(client);
+        if (!consumerGroupToDelete) {
+            return;
+        }
+        try {
+            const warning = `Are you sure you want to delete consumer group '${consumerGroupToDelete}'?`;
+            const deleteConfirmation = await vscode.window.showWarningMessage(warning, 'Cancel', 'Delete');
+            if (deleteConfirmation !== 'Delete') {
+                return;
+            }
+
+            await client.deleteConsumerGroups([consumerGroupToDelete]);
+            this.explorer.refresh();
+            vscode.window.showInformationMessage(`Consumer group '${consumerGroupToDelete}' deleted successfully`);
+        } catch (error) {
+            if (error.message) {
+                vscode.window.showErrorMessage(error.message);
+            } else {
+                vscode.window.showErrorMessage(error);
+            }
+        }
+    }
 }
 
 async function openDocument(uri: vscode.Uri): Promise<void> {

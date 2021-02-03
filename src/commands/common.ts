@@ -4,6 +4,20 @@ import { Broker, Topic, ClientAccessor, Cluster, Client } from "../client";
 import { CommonMessages } from "../constants";
 import { ClusterSettings } from "../settings";
 
+export async function pickClient(clientAccessor: ClientAccessor, clusterId?: string) : Promise<Client| undefined> {
+    let client: Client | undefined = undefined;
+
+    if (clusterId) {
+        client = clientAccessor.get(clusterId);
+    } else {
+        client = clientAccessor.getSelectedClusterClient();
+    }
+
+    if (!client) {
+        CommonMessages.showNoSelectedCluster();
+    }
+    return client;
+}
 export async function pickCluster(clusterSettings: ClusterSettings): Promise<Cluster | undefined> {
     const clusters = clusterSettings.getAll();
 
@@ -17,17 +31,6 @@ export async function pickCluster(clusterSettings: ClusterSettings): Promise<Clu
 
     const pickedCluster = await vscode.window.showQuickPick(clusterQuickPickItems, { placeHolder: "Select cluster" });
     return pickedCluster?.cluster;
-}
-
-export async function pickTopicFromSelectedCluster(clientAccessor: ClientAccessor): Promise<Topic | undefined> {
-    const client = clientAccessor.getSelectedClusterClient();
-
-    if (!client) {
-        CommonMessages.showNoSelectedCluster();
-        return;
-    }
-
-    return pickTopic(client);
 }
 
 export async function pickTopic(client: Client): Promise<Topic | undefined> {
@@ -45,11 +48,21 @@ export async function pickTopic(client: Client): Promise<Topic | undefined> {
     return pickedTopic?.topic;
 }
 
-export async function pickBroker(clientAccessor: ClientAccessor): Promise<Broker | undefined> {
-    const client = clientAccessor.getSelectedClusterClient();
+export async function pickConsumerGroupId(client: Client): Promise<string | undefined> {
+    const groupIds = await client.getConsumerGroupIds();
+    const groupIdQuickPickItems = groupIds.map((groupId) => {
+        return {
+            label: groupId        };
+    });
 
+    const pickedGroupId = await vscode.window.showQuickPick(groupIdQuickPickItems);
+
+    return pickedGroupId?.label;
+}
+
+export async function pickBroker(clientAccessor: ClientAccessor): Promise<Broker | undefined> {
+    const client = await pickClient(clientAccessor);
     if (!client) {
-        CommonMessages.showNoSelectedCluster();
         return;
     }
 

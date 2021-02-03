@@ -16,6 +16,8 @@ import {
     SelectClusterCommandHandler,
     handleErrors,
     ClearConsumerViewCommandHandler,
+    DeleteConsumerGroupCommandHandler,
+    DeleteConsumerGroupCommand,
 } from "./commands";
 import { Context } from "./context";
 import { BrokerItem, KafkaExplorer, TopicItem } from "./explorer";
@@ -57,10 +59,11 @@ export function activate(context: vscode.ExtensionContext): void {
     const createTopicCommandHandler = new CreateTopicCommandHandler(clientAccessor, clusterSettings, explorer);
     const deleteTopicCommandHandler = new DeleteTopicCommandHandler(clientAccessor, explorer);
     const produceRecordCommandHandler = new ProduceRecordCommandHandler(clientAccessor, outputChannelProvider, explorer, workspaceSettings);
-    const startConsumerCommandHandler = new StartConsumerCommandHandler(clientAccessor, clusterSettings, consumerCollection, explorer);
+    const startConsumerCommandHandler = new StartConsumerCommandHandler(clientAccessor, consumerCollection, explorer);
     const listConsumersCommandHandler = new ListConsumersCommandHandler(consumerCollection);
     const toggleConsumerCommandHandler = new ToggleConsumerCommandHandler(consumerCollection);
     const clearConsumerViewCommandHandler = new ClearConsumerViewCommandHandler(consumerVirtualTextDocumentProvider);
+    const deleteConsumerGroupCommandHandler = new DeleteConsumerGroupCommandHandler(clientAccessor, explorer);
     const addClusterCommandHandler = new AddClusterCommandHandler(clusterSettings, explorer);
     const deleteClusterCommandHandler = new DeleteClusterCommandHandler(clusterSettings, clientAccessor, explorer);
     const selectClusterCommandHandler = new SelectClusterCommandHandler(clusterSettings);
@@ -116,6 +119,9 @@ export function activate(context: vscode.ExtensionContext): void {
     context.subscriptions.push(vscode.commands.registerCommand(
             ClearConsumerViewCommandHandler.COMMAND_ID,
             handleErrors(() => clearConsumerViewCommandHandler.execute())));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        DeleteConsumerGroupCommandHandler.COMMAND_ID,
+        handleErrors((command: DeleteConsumerGroupCommand) => deleteConsumerGroupCommandHandler.execute(command))));
 
     registerVSCodeKafkaDocumentationCommands(context);
 

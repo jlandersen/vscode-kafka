@@ -45,14 +45,15 @@ export class ConsumerGroupsItem extends NodeBase {
     }
 }
 
-class ConsumerGroupItem extends NodeBase {
+export class ConsumerGroupItem extends NodeBase {
     public contextValue = "consumergroupitem";
     public iconPath = Icons.Group;
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
-
-    constructor(private consumerGroupId: string, parent: ConsumerGroupsItem) {
+    public readonly clusterId: string;
+    constructor(public readonly consumerGroupId: string, parent: ConsumerGroupsItem) {
         super(parent);
         this.label = consumerGroupId;
+        this.clusterId = parent.getParent().cluster.id;
     }
 
     async computeChildren(): Promise<NodeBase[]> {

@@ -66,7 +66,7 @@ export class TopicItem extends NodeBase {
     public contextValue = "topic";
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
     public iconPath = Icons.Topic;
-    public clusterId: string;
+    public readonly clusterId: string;
 
     constructor(public topic: Topic, parent: TopicGroupItem) {
         super(parent);
