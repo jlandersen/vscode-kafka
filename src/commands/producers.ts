@@ -6,6 +6,7 @@ import { ClientAccessor } from "../client";
 import { OutputChannelProvider } from "../providers/outputChannelProvider";
 import { KafkaExplorer } from "../explorer";
 import { WorkspaceSettings } from "../settings";
+import { pickClient } from "./common";
 
 export class ProduceRecordCommandHandler {
     constructor(
@@ -13,13 +14,13 @@ export class ProduceRecordCommandHandler {
         private channelProvider: OutputChannelProvider,
         private explorer: KafkaExplorer,
         private settings: WorkspaceSettings
-        ) {
+    ) {
     }
 
     async execute(document: vscode.TextDocument, range: vscode.Range, times: number): Promise<void> {
         const channel = this.channelProvider.getChannel("Kafka Producer Log");
         const { topic, key, value } = this.parseDocumentRange(document, range);
-        if(this.settings.producerFakerJSEnabled) {
+        if (this.settings.producerFakerJSEnabled) {
             faker.setLocale(this.settings.producerFakerJSLocale);
         }
 
@@ -28,21 +29,21 @@ export class ProduceRecordCommandHandler {
                 //Use same seed for key and value so we can generate content like
                 // key: customer-{{random.uuid}} // same value as in id
                 // {"id": "{{random.uuid}}"}  // same value as in key
-                const seed = Math.floor(Math.random()*1000000);
+                const seed = Math.floor(Math.random() * 1000000);
                 faker.seed(seed);
-                const randomizedKey = (key)?faker.fake(key):key;
+                const randomizedKey = (key) ? faker.fake(key) : key;
                 faker.seed(seed);
                 const randomizedValue = faker.fake(value);
                 return {
-                    key:randomizedKey,
-                    value:randomizedValue
+                    key: randomizedKey,
+                    value: randomizedValue
                 }
             }
 
             // Return key/value message as-is
             return {
-                key:key,
-                value:value
+                key: key,
+                value: value
             }
         });
 
@@ -51,10 +52,9 @@ export class ProduceRecordCommandHandler {
             return;
         }
 
-        const client = this.clientAccessor.getSelectedClusterClient();
+        const client = await pickClient(this.clientAccessor);
 
         if (!client) {
-            vscode.window.showWarningMessage("No cluster selected");
             return;
         }
 
@@ -78,7 +78,7 @@ export class ProduceRecordCommandHandler {
             channel.appendLine(`Produced ${times} record(s) (${elapsed}ms)`);
 
             this.explorer.refresh();
-        } catch(error) {
+        } catch (error) {
             const finishedOperation = performance.now();
             const elapsed = (finishedOperation - startOperation).toFixed(2);
             channel.appendLine(`Failed to produce record(s) (${elapsed}ms)`);

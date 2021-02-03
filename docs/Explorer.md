@@ -8,6 +8,24 @@ The Kafka explorer shows configured clusters with their topics, brokers, consume
 
 ![Screenshot-3](assets/screen-3.png)
 
+## Actions
+
+### Copy Label
+
+You can copy the label of any tree node in the clipboard with `Ctrl+C` (`Cmd+C` on Mac) or  via the `Copy Label` contextual menu:
+
+![Copy Label](assets/kafka-explorer-copylabel.png)
+
+### Delete
+
+You can delete clusters, topics and consumer groups with the `Delete` (`Cmd+Delete` on Mac) key, the `Trashcan` icon or `Delete` contextual menu:
+
+![Delete Consumer Group](assets/kafka-explorer-delete-consumergroup.png)
+
+Multiple delete is not supported for the moment. See [issue 107](https://github.com/jlandersen/vscode-kafka/issues/107).
+
+To delete a consumer group, it first must be stopped, else the `Delete` action will report an error.
+
 ## Preferences
 
 ### `kafka.explorer.topics.sort`
