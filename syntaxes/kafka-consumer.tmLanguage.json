@@ -18,7 +18,7 @@
             "patterns": [
                 {
                     "name": "meta.header.kafka.consumer",
-                    "match": "(?i)^(?:(Consumer|Key|Partition|Offset|Value)(:)\\s*)(.*)?$",
+                    "match": "(?i)^(?:(Consumer options|Consumer|Key|Partition|Offset|Value|Error)(:)\\s*)(.*)?$",
                     "captures": {
                         "1": {
                             "name": "keyword.other.kafka-consumer"

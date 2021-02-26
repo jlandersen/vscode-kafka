@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { ConsumerCollection, ConsumerCollectionChangedEvent } from "../client";
+import { ConsumerCollection, ConsumerCollectionChangedEvent, ConsumerLaunchState } from "../client";
 import { LaunchConsumerCommand, StartConsumerCommandHandler, StopConsumerCommandHandler, ProduceRecordCommand, ProduceRecordCommandHandler, SelectClusterCommandHandler } from "../commands";
 import { ClusterSettings } from "../settings";
 
@@ -169,31 +169,53 @@ export class KafkaFileCodeLensProvider implements vscode.CodeLensProvider, vscod
         const lenses: vscode.CodeLens[] = [];
         if (clusterName) {
             const consumer = this.consumerCollection.getByConsumerGroupId(launchCommand.clusterId, launchCommand.consumerGroupId);
-            const started = consumer ? true : false;
-            const status = started ? '$(check)' : '$(x)';
+            const consumerState = consumer ? consumer.state : ConsumerLaunchState.none;
+            const status = this.getConsumerStatus(consumerState);
+
             // Add status lens
             lenses.push(new vscode.CodeLens(lineRange, {
                 title: `${status}`,
                 command: ''
             }));
+
             // Add Start/Stop consumer lens
-            if (!started) {
-                lenses.push(new vscode.CodeLens(lineRange, {
-                    title: `Start consumer`,
-                    command: StartConsumerCommandHandler.commandID,
-                    arguments: [launchCommand]
-                }));
-            } else {
-                lenses.push(new vscode.CodeLens(lineRange, {
-                    title: `Stop consumer`,
-                    command: StopConsumerCommandHandler.commandId,
-                    arguments: [launchCommand]
-                }));
+            switch (consumerState) {
+                case ConsumerLaunchState.starting:
+                case ConsumerLaunchState.closing:
+                    // No lens
+                    break;
+                case ConsumerLaunchState.started:
+                    lenses.push(new vscode.CodeLens(lineRange, {
+                        title: `Stop consumer`,
+                        command: StopConsumerCommandHandler.commandId,
+                        arguments: [launchCommand]
+                    }));
+                    break;
+                default:
+                    lenses.push(new vscode.CodeLens(lineRange, {
+                        title: `Start consumer`,
+                        command: StartConsumerCommandHandler.commandId,
+                        arguments: [launchCommand]
+                    }));
+                    break;
             }
         }
         // Add cluster lens
         lenses.push(this.createClusterLens(lineRange, clusterName));
         return lenses;
+    }
+
+    private getConsumerStatus(state: ConsumerLaunchState): string {
+        switch (state) {
+            case ConsumerLaunchState.starting:
+                return 'Starting...';
+            case ConsumerLaunchState.closing:
+                return 'Stopping...';
+            case ConsumerLaunchState.started:
+                return '$(check)';
+            default:
+                return '$(x)';
+        }
     }
 
     private createLaunchConsumerCommand(document: vscode.TextDocument, range: vscode.Range, selectedClusterId: string | undefined): LaunchConsumerCommand {

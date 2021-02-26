@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
 
-import { ConsumedRecord, ConsumerChangedStatusEvent, ConsumerCollection, ConsumerCollectionChangedEvent, RecordReceivedEvent } from "../client";
+import { ConsumedRecord, Consumer, ConsumerChangedStatusEvent, ConsumerCollection, ConsumerCollectionChangedEvent, ConsumerLaunchState, RecordReceivedEvent } from "../client";
 import { CommonMessages } from "../constants";
+import { ClusterSettings } from "../settings/clusters";
 
 export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentContentProvider, vscode.Disposable {
     // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -12,22 +13,34 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     public onDidChange = this.onDidChangeEmitter.event;
 
-    constructor(private consumerCollection: ConsumerCollection) {
+    constructor(private consumerCollection: ConsumerCollection, private clusterSettings: ClusterSettings) {
         this.disposables.push(vscode.workspace.onDidCloseTextDocument((e: vscode.TextDocument) => {
             this.onDidCloseTextDocument(e);
         }));
 
         this.disposables.push(this.consumerCollection.onDidChangeCollection((e: ConsumerCollectionChangedEvent) => {
-            for (const startedUri of e.created) {
-                if (!this.buffer[startedUri.toString()]) {
-                    this.buffer[startedUri.toString()] = '';
+            for (const consumer of e.consumers) {
+                const uri = consumer.uri;
+                switch (consumer.state) {
+                    case ConsumerLaunchState.starting:
+                        if (!this.buffer[uri.toString()]) {
+                            this.buffer[uri.toString()] = '';
+                            this.displayConsumerOptions(consumer);
+                        }
+                        this.onDidChangeStatus(uri, 'starting...');
+                        this.attachToConsumer(uri);
+                        break;
+                    case ConsumerLaunchState.started:
+                        this.onDidChangeStatus(uri, 'started');
+                        break;
+                    case ConsumerLaunchState.closed:
+                        this.onDidCloseConsumer(uri);
+                    default:
+                        if (consumer.error) {
+                            this.onDidConsumerError(uri, consumer.error);
+                        }
+                        break;
                 }
-                this.onDidChangeStatus(startedUri, 'started');
-                this.attachToConsumer(startedUri);
-            }
-
-            for (const closedUri of e.closed) {
-                this.onDidCloseConsumer(closedUri);
             }
         }));
     }
@@ -57,6 +70,31 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
         this.disposables.push(consumer.onDidReceiveError((e: any) => {
             this.onDidReceiveError(e);
         }));
+    }
+
+    private displayConsumerOptions(consumer: Consumer): void {
+        let line = `Consumer options:\n`;
+        const clusterName = this.clusterSettings.get(consumer.clusterId)?.name;
+        if (clusterName) {
+            line += `  - cluster: ${clusterName}\n`;
+        }
+        line += `  - bootstrap: ${consumer.options.bootstrap}\n`;
+        line += `  - consumer group id: ${consumer.options.consumerGroupId}\n`;
+        line += `  - topic: ${consumer.options.topicId}\n`;
+        line += `  - from: ${consumer.options.fromOffset}\n`;
+        if (consumer.options.partitions) {
+            line += `  - partitions: ${consumer.options.partitions}\n`;
+        }
+        line += `\n`;
+        this.updateBuffer(consumer.uri, line);
+    }
+
+    onDidConsumerError(uri: vscode.Uri, error: any): void {
+        if (!this.isActive(uri)) {
+            return;
+        }
+        const line = `Error: ${error}\n\n`;
+        this.updateBuffer(uri, line);
     }
 
     private onDidChangeStatus(uri: vscode.Uri, status: string): void {
