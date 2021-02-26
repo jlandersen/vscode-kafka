@@ -57,7 +57,7 @@ export function activate(context: vscode.ExtensionContext): void {
     context.subscriptions.push(explorer);
     context.subscriptions.push(new ConsumerStatusBarItem(consumerCollection));
     context.subscriptions.push(new SelectedClusterStatusBarItem(clusterSettings));
-    const consumerVirtualTextDocumentProvider = new ConsumerVirtualTextDocumentProvider(consumerCollection);
+    const consumerVirtualTextDocumentProvider = new ConsumerVirtualTextDocumentProvider(consumerCollection, clusterSettings);
 
     // Commands
     const createTopicCommandHandler = new CreateTopicCommandHandler(clientAccessor, clusterSettings, explorer);
@@ -110,7 +110,7 @@ export function activate(context: vscode.ExtensionContext): void {
         "vscode-kafka.explorer.deleteselected",
         handleErrors((_item?: any, selection?: NodeBase[]) => explorer.deleteSelectedItem(_item, selection))));
     context.subscriptions.push(vscode.commands.registerCommand(
-        StartConsumerCommandHandler.commandID,
+        StartConsumerCommandHandler.commandId,
         handleErrors((command?: LaunchConsumerCommand) => startConsumerCommandHandler.execute(command))));
     context.subscriptions.push(vscode.commands.registerCommand(
         StopConsumerCommandHandler.commandId,

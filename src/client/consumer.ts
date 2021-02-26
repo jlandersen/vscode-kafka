@@ -1,8 +1,6 @@
 import { Kafka, Consumer as KafkaJsConsumer, PartitionAssigner, Assignment, PartitionAssigners, AssignerProtocol, SeekEntry } from "kafkajs";
 import { URLSearchParams } from "url";
-
 import * as vscode from "vscode";
-
 import { getWorkspaceSettings, InitialConsumerOffset, ClusterSettings } from "../settings";
 import { ConnectionOptions, createKafka } from "./client";
 
@@ -31,12 +29,19 @@ export interface ConsumerChangedStatusEvent {
     status: "created" | "rebalancing" | "rebalanced";
 }
 
-export interface ConsumerCollectionChangedEvent {
-    created: vscode.Uri[];
-    closed: vscode.Uri[];
+export enum ConsumerLaunchState {
+    none,
+    starting,
+    started,
+    closing,
+    closed
 }
 
-class Consumer implements vscode.Disposable {
+export interface ConsumerCollectionChangedEvent {
+    consumers: Consumer[];
+}
+
+export class Consumer implements vscode.Disposable {
     private kafkaClient?: Kafka;
     private consumer?: KafkaJsConsumer;
     private onDidReceiveMessageEmitter = new vscode.EventEmitter<RecordReceivedEvent>();
@@ -49,25 +54,33 @@ class Consumer implements vscode.Disposable {
 
     public readonly clusterId: string;
     public readonly options: ConsumerOptions;
+    public state: ConsumerLaunchState = ConsumerLaunchState.none;
+    public error: any;
 
     constructor(public uri: vscode.Uri, clusterSettings: ClusterSettings) {
         const { clusterId, consumerGroupId, topicId, fromOffset, partitions } = extractConsumerInfoUri(uri);
         this.clusterId = clusterId;
         const cluster = clusterSettings.get(clusterId);
 
-        if (!cluster) {
-            throw new Error(`Cannot create consumer, unknown cluster ${clusterId}`);
-        }
+        try {
+            if (!cluster) {
+                throw new Error(`Cannot create consumer, unknown cluster ${clusterId}`);
+            }
 
-        const settings = getWorkspaceSettings();
-        this.options = {
-            bootstrap: cluster.bootstrap,
-            saslOption: cluster.saslOption,
-            consumerGroupId: consumerGroupId,
-            topicId,
-            fromOffset: fromOffset || settings.consumerOffset,
-            partitions: parsePartitions(partitions)
-        };
+            const settings = getWorkspaceSettings();
+            this.options = {
+                bootstrap: cluster.bootstrap,
+                saslOption: cluster.saslOption,
+                consumerGroupId: consumerGroupId,
+                topicId,
+                fromOffset: fromOffset || settings.consumerOffset,
+                partitions: parsePartitions(partitions)
+            };
+        }
+        catch (e) {
+            this.error = e;
+            throw e;
+        }
     }
 
     /***
@@ -210,15 +223,36 @@ export class ConsumerCollection implements vscode.Disposable {
     /**
      * Creates a new consumer for a provided uri.
      */
-    create(uri: vscode.Uri): Consumer {
+    async create(uri: vscode.Uri): Promise<Consumer> {
+        // Create the consumer
         const consumer = new Consumer(uri, this.clusterSettings);
         this.consumers[uri.toString()] = consumer;
-        consumer.start();
 
+        // Fire an event to notify that Consumer is starting
+        consumer.state = ConsumerLaunchState.starting;
         this.onDidChangeCollectionEmitter.fire({
-            created: [uri],
-            closed: [],
+            consumers: [consumer]
         });
+
+        // Start the consumer
+        await consumer.start()
+            .then(() => consumer.state = ConsumerLaunchState.started)
+            .catch(e => {
+                delete this.consumers[uri.toString()];
+                consumer.state = ConsumerLaunchState.none;
+                consumer.error = e;
+                throw e;
+            })
+            .finally(() => {
+                // Fire an event to notify that consumer state changed
+                // with a delay because when start is done quickly
+                // the trace 'Consumer: started' is not displayed.
+                setTimeout(() => {
+                    this.onDidChangeCollectionEmitter.fire({
+                        consumers: [consumer]
+                    });
+                }, 200);
+            });
 
         return consumer;
     }
@@ -262,17 +296,27 @@ export class ConsumerCollection implements vscode.Disposable {
     /**
      * Closes an existing consumer if exists.
      */
-    close(uri: vscode.Uri): void {
+    async close(uri: vscode.Uri): Promise<void> {
         const consumer = this.get(uri);
 
         if (consumer === null) {
             return;
         }
 
+        // Fire an event to notify that consumer is closing
+        consumer.state = ConsumerLaunchState.closing;
+        this.onDidChangeCollectionEmitter.fire({
+            consumers: [consumer]
+        });
+
         consumer.dispose();
         delete this.consumers[uri.toString()];
 
-        this.onDidChangeCollectionEmitter.fire({ created: [], closed: [uri] });
+        // Fire an event to notify that consumer is closed
+        consumer.state = ConsumerLaunchState.closed;
+        this.onDidChangeCollectionEmitter.fire({
+            consumers: [consumer]
+        });
     }
 
     /**

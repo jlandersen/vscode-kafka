@@ -1,9 +1,11 @@
 import * as vscode from "vscode";
 
 import { pickClient, pickConsumerGroupId, pickTopic } from "./common";
-import { ConsumerCollection, ClientAccessor, createConsumerUri, ConsumerInfoUri, parsePartitions } from "../client";
+import { ConsumerCollection, ClientAccessor, createConsumerUri, ConsumerInfoUri, parsePartitions, ConsumerLaunchState } from "../client";
 import { KafkaExplorer } from "../explorer";
 import { ConsumerVirtualTextDocumentProvider } from "../providers";
+import { ProgressLocation, window } from "vscode";
+import { getErrorMessage } from "../errors";
 
 export interface LaunchConsumerCommand extends ConsumerInfoUri {
 
@@ -62,30 +64,29 @@ abstract class LaunchConsumerCommandHandler {
                 validatePartitions(command.partitions);
                 validateOffset(command.fromOffset);
 
-                // Start the consumer and open the document which tracks consumer messages.
+                //  Open the document which tracks consumer messages.
                 const consumeUri = createConsumerUri(command);
-                this.consumerCollection.create(consumeUri);
                 openDocument(consumeUri);
-                this.explorer.refresh();
+
+                // Start the consumer
+                await startConsumerWithProgress(consumeUri, this.consumerCollection, this.explorer);
             } else {
-                // Stop consumer
+                // Stop the consumer
                 if (consumer) {
                     const consumeUri = consumer.uri;
-                    this.consumerCollection.close(consumeUri);
-                    openDocument(consumeUri);
-                    this.explorer.refresh();
+                    await stopConsumerWithProgress(consumeUri, this.consumerCollection, this.explorer);
                 }
             }
         }
         catch (e) {
-            vscode.window.showErrorMessage(`Error while ${this.start ? 'starting' : 'stopping'} the consumer: ${e.message}`);
+            vscode.window.showErrorMessage(`Error while ${this.start ? 'starting' : 'stopping'} the consumer: ${getErrorMessage(e)}`);
         }
     }
 }
 
 export class StartConsumerCommandHandler extends LaunchConsumerCommandHandler {
 
-    public static commandID = 'vscode-kafka.consumer.start';
+    public static commandId = 'vscode-kafka.consumer.start';
 
     constructor(
         clientAccessor: ClientAccessor,
@@ -138,15 +139,21 @@ export class ToggleConsumerCommandHandler {
             return;
         }
 
-        const { document } = vscode.window.activeTextEditor;
-        if (document.uri.scheme !== "kafka") {
+        const { uri } = vscode.window.activeTextEditor.document;
+        if (uri.scheme !== "kafka") {
             return;
         }
 
-        if (this.consumerCollection.has(document.uri)) {
-            this.consumerCollection.close(document.uri);
-        } else {
-            this.consumerCollection.create(document.uri);
+        const started = this.consumerCollection.has(uri);
+        try {
+            if (started) {
+                await stopConsumerWithProgress(uri, this.consumerCollection);
+            } else {
+                await startConsumerWithProgress(uri, this.consumerCollection);
+            }
+        }
+        catch (e) {
+            vscode.window.showErrorMessage(`Error while ${!started ? 'starting' : 'stopping'} the consumer: ${getErrorMessage(e)}`);
         }
     }
 }
@@ -269,6 +276,54 @@ export class DeleteConsumerGroupCommandHandler {
             }
         }
     }
+}
+
+async function startConsumerWithProgress(consumeUri: vscode.Uri, consumerCollection: ConsumerCollection, explorer?: KafkaExplorer) {
+    const consumer = consumerCollection.get(consumeUri);
+    if (consumer && consumer.state === ConsumerLaunchState.closing) {
+        vscode.window.showErrorMessage(`The consumer cannot be started because it is stopping.`);
+        return;
+    }
+    await window.withProgress({
+        location: ProgressLocation.Window,
+        title: `Starting consumer '${consumeUri}'.`,
+        cancellable: false
+    }, (progress, token) => {
+        return new Promise((resolve, reject) => {
+            consumerCollection.create(consumeUri)
+                .then(consumer => {
+                    if (explorer) {
+                        explorer.refresh();
+                    }
+                    resolve(consumer);
+                })
+                .catch(error => reject(error));
+        });
+    });
+}
+
+async function stopConsumerWithProgress(consumeUri: vscode.Uri, consumerCollection: ConsumerCollection, explorer?: KafkaExplorer) {
+    const consumer = consumerCollection.get(consumeUri);
+    if (consumer && consumer.state === ConsumerLaunchState.starting) {
+        vscode.window.showErrorMessage(`The consumer cannot be stopped because it is starting.`);
+        return;
+    }
+    await window.withProgress({
+        location: ProgressLocation.Window,
+        title: `Stopping consumer '${consumeUri}'.`,
+        cancellable: false
+    }, (progress, token) => {
+        return new Promise((resolve, reject) => {
+            consumerCollection.close(consumeUri)
+                .then(() => {
+                    if (explorer) {
+                        explorer.refresh();
+                    }
+                    resolve(true);
+                })
+                .catch(error => reject(error));
+        });
+    });
 }
 
 async function openDocument(uri: vscode.Uri): Promise<void> {
