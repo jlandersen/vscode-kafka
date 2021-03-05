@@ -117,12 +117,12 @@ export class KafkaFileCodeLensProvider implements vscode.CodeLensProvider, vscod
         if (clusterName) {
             // Add Produce lenses
             lenses.push(new vscode.CodeLens(lineRange, {
-                title: "Produce record",
+                title: "$(run) Produce record",
                 command: ProduceRecordCommandHandler.commandId,
                 arguments: [produceRecordCommand, 1]
             }));
             lenses.push(new vscode.CodeLens(lineRange, {
-                title: "Produce record x 10",
+                title: "$(run-all) Produce record x 10",
                 command: ProduceRecordCommandHandler.commandId,
                 arguments: [produceRecordCommand, 10]
             }));
@@ -170,7 +170,7 @@ export class KafkaFileCodeLensProvider implements vscode.CodeLensProvider, vscod
         if (clusterName) {
             const consumer = this.consumerCollection.getByConsumerGroupId(launchCommand.clusterId, launchCommand.consumerGroupId);
             const consumerState = consumer ? consumer.state : ConsumerLaunchState.none;
-            
+
             // Add Start/Stop consumer lens
             switch (consumerState) {
                 case ConsumerLaunchState.starting:
