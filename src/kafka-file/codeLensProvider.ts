@@ -106,7 +106,7 @@ export class KafkaFileCodeLensProvider implements vscode.CodeLensProvider, vscod
 
     createClusterLens(lineRange: vscode.Range, clusterName: string | undefined): vscode.CodeLens {
         return new vscode.CodeLens(lineRange, {
-            title: clusterName ? `In ${clusterName} cluster` : 'Click here to select a cluster',
+            title: clusterName ? `${clusterName}` : 'Select a cluster',
             command: SelectClusterCommandHandler.commandId
         });
     }
@@ -170,30 +170,27 @@ export class KafkaFileCodeLensProvider implements vscode.CodeLensProvider, vscod
         if (clusterName) {
             const consumer = this.consumerCollection.getByConsumerGroupId(launchCommand.clusterId, launchCommand.consumerGroupId);
             const consumerState = consumer ? consumer.state : ConsumerLaunchState.none;
-            const status = this.getConsumerStatus(consumerState);
-
-            // Add status lens
-            lenses.push(new vscode.CodeLens(lineRange, {
-                title: `${status}`,
-                command: ''
-            }));
-
+            
             // Add Start/Stop consumer lens
             switch (consumerState) {
                 case ConsumerLaunchState.starting:
                 case ConsumerLaunchState.closing:
-                    // No lens
+                    const status = this.getConsumerStatus(consumerState);
+                    lenses.push(new vscode.CodeLens(lineRange, {
+                        title: `$(sync~spin) ${status}...`,
+                        command: ''
+                    }));
                     break;
                 case ConsumerLaunchState.started:
                     lenses.push(new vscode.CodeLens(lineRange, {
-                        title: `Stop consumer`,
+                        title: `$(debug-stop) Stop consumer`,
                         command: StopConsumerCommandHandler.commandId,
                         arguments: [launchCommand]
                     }));
                     break;
                 default:
                     lenses.push(new vscode.CodeLens(lineRange, {
-                        title: `Start consumer`,
+                        title: `$(debug-start) Start consumer`,
                         command: StartConsumerCommandHandler.commandId,
                         arguments: [launchCommand]
                     }));
@@ -208,13 +205,13 @@ export class KafkaFileCodeLensProvider implements vscode.CodeLensProvider, vscod
     private getConsumerStatus(state: ConsumerLaunchState): string {
         switch (state) {
             case ConsumerLaunchState.starting:
-                return 'Starting...';
+                return 'Starting';
             case ConsumerLaunchState.closing:
-                return 'Stopping...';
+                return 'Stopping';
             case ConsumerLaunchState.started:
-                return '$(check)';
+                return 'Started';
             default:
-                return '$(x)';
+                return 'Stopped';
         }
     }
 
