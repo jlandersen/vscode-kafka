@@ -29,11 +29,7 @@ or you can read this documentation inside your editor with the command `Open Doc
 
 The Kafka explorer shows configured clusters with their topics, brokers, consumers and configurations.
 
-![Screenshot-1](docs/assets/screen-1.png)
-
-![Screenshot-2](docs/assets/screen-2.png)
-
-![Screenshot-3](docs/assets/screen-3.png)
+![Screenshot-1](docs/assets/kafka-explorer.png)
 
 See [Kafka explorer](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Explorer.md) section for more information.
 

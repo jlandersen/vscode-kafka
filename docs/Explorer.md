@@ -2,11 +2,7 @@
 
 The Kafka explorer shows configured clusters with their topics, brokers, consumers and configurations.
 
-![Screenshot-1](assets/screen-1.png)
-
-![Screenshot-2](assets/screen-2.png)
-
-![Screenshot-3](assets/screen-3.png)
+![Kafka Explorer](assets/kafka-explorer.png)
 
 ## Cluster Item
 
