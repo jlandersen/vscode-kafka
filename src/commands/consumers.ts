@@ -56,7 +56,9 @@ abstract class LaunchConsumerCommandHandler {
                 // Try to start consumer
 
                 if (consumer) {
-                    vscode.window.showInformationMessage(`Consumer already started on '${command.topicId}'`);
+                    //  The consumer is already started, just open the document which tracks consumer messages.
+                    const consumeUri = createConsumerUri(command);
+                    openDocument(consumeUri);
                     return;
                 }
 
