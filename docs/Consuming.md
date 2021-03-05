@@ -45,13 +45,13 @@ The `CONSUMER` block defines:
  * `consumer group id` which is declared after CONSUMER *[required]*.
  * `topic`: the topic id *[required]*.
  * `from`: the offset from which the consumer group will start consuming messages from. Possible values are: `earliest`, `latest`, or an integer value. *[optional]*.
- * `partitions`: the partition number(s), or a partitions range, or a combinaison of partitions ranges *[optional]*. eg:
+ * `partitions` [**EXPERIMENTAL option**] : the partition number(s), or a partitions range, or a combinaison of partitions ranges *[optional]*. eg:
     * 0
     * 0,1,2
     * 0-2
     * 0,2-3
 
-A codelens is displayed above each `CONSUMER` line, showing the `status` of the consumer group (started / stopped), and provides `Start consumer` / `Stop consumer` commands according to that status.
+A codelens is displayed above each `CONSUMER` line, and provides `Start consumer` / `Stop consumer` commands depending on the consumer group status.
 
 Completion snippets can help you quickly bootstrap new `CONSUMER` blocks:
 
