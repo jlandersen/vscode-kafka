@@ -35,7 +35,7 @@ See [Kafka explorer](https://github.com/jlandersen/vscode-kafka/blob/master/docs
 
 ## Producing messages
 
-Define simple producers in a `[.kafka](https://github.com/jlandersen/vscode-kafka/blob/master/docs/KafkaFile.md#kafkafile)` file, using the following format:
+Define simple producers in a [.kafka](https://github.com/jlandersen/vscode-kafka/blob/master/docs/KafkaFile.md#kafkafile) file, using the following format:
 
 ```json
 PRODUCER keyed-message
@@ -58,7 +58,7 @@ See [Producing messages](https://github.com/jlandersen/vscode-kafka/blob/master/
 
 ## Consuming messages
 
-Consuming topics can be done by right-clicking on a topic in the Kafka explorer, from the command palette, or from a `[.kafka](https://github.com/jlandersen/vscode-kafka/blob/master/docs/KafkaFile.md#kafkafile)` file:
+Consuming topics can be done by right-clicking on a topic in the Kafka explorer, from the command palette, or from a [.kafka](https://github.com/jlandersen/vscode-kafka/blob/master/docs/KafkaFile.md#kafkafile) file:
 
 ```
 CONSUMER consumer-group-id
