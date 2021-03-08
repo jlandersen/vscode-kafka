@@ -1,6 +1,6 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
-## [0.11.0] - TBD
+## [0.11.0] - 2021-03-08
 ### Added
 - Newly created topic or cluster is automatically selected in the Kafka Explorer. See [#61](https://github.com/jlandersen/vscode-kafka/issues/61).
 - Click on empty Kafka explorer to add a new cluster. See [#87](https//github.com/jlandersen/vscode-kafka/pull/87).
