@@ -12,12 +12,14 @@ Features:
 - View topics
 - View configs
 - Create/Delete topic
-- Producing (randomized) messages
-- Consuming messages
+- Produce (randomized) messages
+- Consume messages
 - SASL/PLAIN, SASL/SCRAM-256, SASL/SCRAM-512 Authentication (Kafka 0.10+)
 
 Planned features in no particular order:
 - More administration features
+- Make vscode-kafka extensible
+- Improve consumer DSL
 - Update configs
 
 You might also find useful information in the [Online Documentation](https://github.com/jlandersen/vscode-kafka/blob/master/docs/README.md)
@@ -48,7 +50,7 @@ record content
 PRODUCER non-keyed-json-message
 topic: json-events
 {
-    "type": "my_test_event"
+    "type": "my_test_event-{{random.number}}"
 }
 ```
 
