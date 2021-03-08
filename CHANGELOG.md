@@ -1,5 +1,10 @@
 # Change Log
 All notable changes to Kafka extension will be documented in this file.
+
+## [0.12.0]
+### Added
+- Extension API to contribute clusters. See [#123](https://github.com/jlandersen/vscode-kafka/issues/123).
+
 ## [0.11.0] - 2021-03-08
 ### Added
 - Newly created topic or cluster is automatically selected in the Kafka Explorer. See [#61](https://github.com/jlandersen/vscode-kafka/issues/61).

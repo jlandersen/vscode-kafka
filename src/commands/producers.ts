@@ -64,7 +64,7 @@ export class ProduceRecordCommandHandler {
             return;
         }
 
-        const producer = client.producer;
+        const producer = await client.producer();
         await producer.connect();
 
         channel.show(false);
