@@ -48,6 +48,14 @@
     ],
     "main": "./dist/extension",
     "contributes": {
+        "kafka": {
+            "clusterProviders": [
+                {
+                    "id": "vscode-kafka.manual",
+                    "name": "Configure manually"
+                }
+            ]
+        },
         "configuration": {
             "type": "object",
             "title": "Kafka",
@@ -180,6 +188,12 @@
             {
                 "language": "kafka",
                 "path": "./snippets/consumers.json"
+            }
+        ],
+        "jsonValidation": [
+            {
+                "fileMatch": "package.json",
+                "url": "./schemas/package.schema.json"
             }
         ],
         "commands": [

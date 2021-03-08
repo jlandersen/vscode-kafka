@@ -1,12 +1,11 @@
 import { QuickPickItem, window } from "vscode";
-import { ConnectionOptions, SaslMechanism } from "../client";
+import { Cluster, ConnectionOptions, SaslMechanism } from "../client";
 import { INPUT_TITLE } from "../constants";
 import { KafkaExplorer } from "../explorer/kafkaExplorer";
+import { ClusterProvider, getClusterProviders } from "../kafka-extensions/registry";
 import { ClusterSettings } from "../settings/clusters";
 import { MultiStepInput, showErrorMessage, State } from "./multiStepInput";
 import { validateBroker, validateClusterName, validateAuthentificationUserName } from "./validators";
-
-const DEFAULT_BROKER = 'localhost:9092';
 
 interface AddClusterState extends State, ConnectionOptions {
     name: string;
@@ -16,8 +15,79 @@ const DEFAULT_STEPS = 4;
 
 export async function addClusterWizard(clusterSettings: ClusterSettings, explorer: KafkaExplorer): Promise<void> {
 
+    async function pickClusterProvider(): Promise<ClusterProvider | undefined> {
+        const providers = getClusterProviders();
+        if (providers.length === 1) {
+            // By default, it exists the default cluster provider 'Manual' from vscode-kafka
+            // to fill a cluster with a wizard, return it.
+            return providers[0];
+        }
 
+        const providerItems: QuickPickItem[] = providers
+            .map(provider => {
+                return { "label": provider.name };
+            });
+        const selected = (await window.showQuickPick(providerItems))?.label;
+        if (!selected) {
+            return;
+        }
+        return providers.find(provider => provider.name === selected);
+    }
 
+    // Pick the cluster provider which provides the capability to return a list of clusters to add to the kafka explorer
+    // eg (configure cluster via a custom wizard, import clusters from a repository, etc)
+    const provider = await pickClusterProvider();
+    if (!provider) {
+        return;
+    }
+
+    // Collect clusters...
+    let clusters: Cluster[] | undefined;
+    try {
+        clusters = await provider.collectClusters(clusterSettings);
+        if (!clusters || clusters.length === 0) {
+            return;
+        }
+    }
+    catch (error) {
+        showErrorMessage(`Error while collecting cluster(s)`, error);
+        return;
+    }
+
+    try {
+        // Save collected clusters in settings.
+        let createdClusterNames = '';
+        for (const cluster of clusters) {
+            clusterSettings.upsert(cluster);
+            if (createdClusterNames !== '') {
+                createdClusterNames += '\', \'';
+            }
+            createdClusterNames += cluster.name;
+        }
+        window.showInformationMessage(`${clusters.length > 1 ? `${clusters.length} clusters` : 'Cluster'} '${createdClusterNames}' created successfully`);
+
+        // Refresh the explorer
+        explorer.refresh();
+
+        // Selecting the created cluster is done with TreeView#reveal
+        // 1. Show the treeview of the explorer (otherwise reveal will not work)
+        explorer.show();
+        // 2. the reveal() call must occur within a timeout(),
+        // while waiting for a fix in https://github.com/microsoft/vscode/issues/114149
+        setTimeout(() => {
+            if (clusters) {
+                explorer.selectClusterByName(clusters[0].name);
+            }
+        }, 1000);
+    }
+    catch (error) {
+        showErrorMessage(`Error while creating cluster`, error);
+    }
+}
+
+const DEFAULT_BROKER = 'localhost:9092';
+
+export async function configureDefaultClusters(clusterSettings: ClusterSettings): Promise<Cluster[] | undefined> {
 
     const state: Partial<AddClusterState> = {
         totalSteps: DEFAULT_STEPS
@@ -151,26 +221,15 @@ export async function addClusterWizard(clusterSettings: ClusterSettings, explore
     const sanitizedName = name.replace(/[^a-zA-Z0-9]/g, "");
     const suffix = Buffer.from(bootstrap).toString("base64").replace(/=/g, "");
 
-    try {
-        clusterSettings.upsert({
+    return [
+        {
             id: `${sanitizedName}-${suffix}`,
             bootstrap,
             name,
             saslOption,
             ssl: state.ssl
-        });
-        explorer.refresh();
-        window.showInformationMessage(`Cluster '${name}' created successfully`);
-        // Selecting the created cluster is done with TreeView#reveal
-        // 1. Show the treeview of the explorer (otherwise reveal will not work)
-        explorer.show();
-        // 2. the reveal() call must occur within a timeout(),
-        // while waiting for a fix in https://github.com/microsoft/vscode/issues/114149
-        setTimeout(() => {
-            explorer.selectClusterByName(name);
-        }, 1000);
-    }
-    catch (error) {
-        showErrorMessage(`Error while creating cluster`, error);
-    }
+        }
+    ];
 }
+
+

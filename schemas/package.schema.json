@@ -1,0 +1,37 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "title": "Kafka contributions to package.json",
+    "type": "object",
+    "properties": {
+        "contributes": {
+            "type": "object",
+            "properties": {
+                "kafka": {
+                    "type": "object",
+                    "markdownDescription": "Kafka extensions",
+                    "properties": {
+                        "clusterProviders": {
+                            "type": "array",
+                            "markdownDescription": "Cluster providers definitions.",
+                            "items": [
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "description": "Cluster provider id."
+                                        },
+                                        "name": {
+                                            "type": "string",
+                                            "description": "Cluster provider name."
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

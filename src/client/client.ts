@@ -1,9 +1,11 @@
-import { Admin, ConfigResourceTypes, Kafka, Producer } from "kafkajs";
+import { Admin, ConfigResourceTypes, Kafka, KafkaConfig, Producer } from "kafkajs";
 
 import { Disposable } from "vscode";
+import { getClusterProvider } from "../kafka-extensions/registry";
 import { WorkspaceSettings } from "../settings";
 
 export interface ConnectionOptions {
+    clusterProviderId?: string;
     bootstrap: string;
     saslOption?: SaslOption;
     ssl?: boolean;
@@ -80,7 +82,7 @@ export interface ConsumerGroupMember {
 
 export interface Client extends Disposable {
     cluster: Cluster;
-    producer: Producer;
+    producer(): Promise<Producer>;
     connect(): Promise<void>;
     getTopics(): Promise<Topic[]>;
     getBrokers(): Promise<Broker[]>;
@@ -102,8 +104,8 @@ class EnsureConnectedDecorator implements Client {
         return this.client.cluster;
     }
 
-    get producer(): any {
-        return this.client.producer;
+    public producer(): any {
+        return this.client.producer();
     }
 
     public connect(): Promise<void> {
@@ -176,37 +178,61 @@ class KafkaJsClient implements Client {
     public kafkaClient: any;
     public kafkaCyclicProducerClient: any;
     public kafkaKeyedProducerClient: any;
-    public producer: Producer;
-
-    private kafkaJsClient: Kafka;
-    private kafkaAdminClient: Admin;
+    private kafkaProducer: Producer | undefined;
+    private kafkaJsClient: Kafka | undefined;
+    private kafkaAdminClient: Admin | undefined;
 
     private metadata: {
         topics: Topic[];
         brokers: Broker[];
     };
 
+    // Promise which returns the KafkaJsClient instance when it is ready.
+    private kafkaPromise: Promise<KafkaJsClient>;
+
     constructor(public readonly cluster: Cluster, workspaceSettings: WorkspaceSettings) {
         this.metadata = {
             brokers: [],
             topics: [],
         };
-        this.kafkaJsClient = createKafka(cluster);
-        this.kafkaClient = this.kafkaJsClient;
-        this.kafkaAdminClient = this.kafkaJsClient.admin();
-        this.producer = this.kafkaJsClient.producer();
+        // The Kafka client is created in asynchronous since external vscode extension
+        // can contribute to the creation of Kafka instance.
+        this.kafkaPromise = createKafka(cluster)
+            .then(result => {
+                this.kafkaJsClient = result;
+                this.kafkaClient = this.kafkaJsClient;
+                this.kafkaAdminClient = this.kafkaJsClient.admin();
+                this.kafkaProducer = this.kafkaJsClient.producer();
+                return this;
+            });
+    }
+
+    public async getkafkaAdminClient(): Promise<Admin> {
+        const admin = (await this.kafkaPromise).kafkaAdminClient;
+        if (!admin) {
+            throw new Error('Kafka Admin cannot be null.');
+        }
+        return admin;
+    }
+
+    public async producer(): Promise<Producer> {
+        const producer = (await this.kafkaPromise).kafkaProducer;
+        if (!producer) {
+            throw new Error('Producer cannot be null.');
+        }
+        return producer;
     }
 
     canConnect(): boolean {
         return this.kafkaAdminClient !== null;
     }
 
-    connect(): Promise<void> {
-        return this.kafkaAdminClient.connect();
+    async connect(): Promise<void> {
+        return (await this.getkafkaAdminClient()).connect();
     }
 
     async getTopics(): Promise<Topic[]> {
-        const listTopicsResponse = await this.kafkaAdminClient.fetchTopicMetadata();
+        const listTopicsResponse = await (await this.getkafkaAdminClient()).fetchTopicMetadata();
 
         this.metadata = {
             ...this.metadata,
@@ -233,7 +259,7 @@ class KafkaJsClient implements Client {
     }
 
     async getBrokers(): Promise<Broker[]> {
-        const describeClusterResponse = await this.kafkaAdminClient?.describeCluster();
+        const describeClusterResponse = await (await this.getkafkaAdminClient()).describeCluster();
 
         this.metadata = {
             ...this.metadata,
@@ -251,7 +277,7 @@ class KafkaJsClient implements Client {
     }
 
     async getBrokerConfigs(brokerId: string): Promise<ConfigEntry[]> {
-        const describeConfigsResponse = await this.kafkaAdminClient.describeConfigs({
+        const describeConfigsResponse = await (await this.getkafkaAdminClient()).describeConfigs({
             includeSynonyms: false,
             resources: [
                 {
@@ -265,7 +291,7 @@ class KafkaJsClient implements Client {
     }
 
     async getTopicConfigs(topicId: string): Promise<ConfigEntry[]> {
-        const describeConfigsResponse = await this.kafkaAdminClient.describeConfigs({
+        const describeConfigsResponse = await (await this.getkafkaAdminClient()).describeConfigs({
             includeSynonyms: false,
             resources: [
                 {
@@ -279,12 +305,12 @@ class KafkaJsClient implements Client {
     }
 
     async getConsumerGroupIds(): Promise<string[]> {
-        const listGroupsResponse = await this.kafkaAdminClient.listGroups();
+        const listGroupsResponse = await (await this.getkafkaAdminClient()).listGroups();
         return Promise.resolve(listGroupsResponse.groups.map((g) => (g.groupId)));
     }
 
     async getConsumerGroupDetails(groupId: string): Promise<ConsumerGroup> {
-        const describeGroupResponse = await this.kafkaAdminClient.describeGroups([groupId]);
+        const describeGroupResponse = await (await this.getkafkaAdminClient()).describeGroups([groupId]);
 
         const consumerGroup: ConsumerGroup = {
             groupId: groupId,
@@ -304,11 +330,11 @@ class KafkaJsClient implements Client {
     }
 
     async deleteConsumerGroups(groupIds: string[]): Promise<void> {
-        await this.kafkaAdminClient.deleteGroups(groupIds);
+        await (await this.getkafkaAdminClient()).deleteGroups(groupIds);
     }
 
     async createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]> {
-        await this.kafkaAdminClient.createTopics({
+        await (await this.getkafkaAdminClient()).createTopics({
             validateOnly: false,
             waitForLeaders: true,
             topics: [{
@@ -321,35 +347,43 @@ class KafkaJsClient implements Client {
     }
 
     async deleteTopic(deleteTopicRequest: DeleteTopicRequest): Promise<void> {
-        return await this.kafkaAdminClient.deleteTopics({
+        return await (await this.getkafkaAdminClient()).deleteTopics({
             topics: deleteTopicRequest.topics,
             timeout: deleteTopicRequest.timeout
         });
     }
 
     dispose() {
-        this.kafkaAdminClient.disconnect();
+        if (this.kafkaAdminClient) {
+            this.kafkaAdminClient.disconnect();
+        }
     }
 }
 
 export const createClient = (cluster: Cluster, workspaceSettings: WorkspaceSettings): Client => new EnsureConnectedDecorator(
     new KafkaJsClient(cluster, workspaceSettings));
 
-export const createKafka = (connectionOptions: ConnectionOptions): Kafka => {
-    let kafkaJsClient: Kafka;
+export const createKafka = async (connectionOptions: ConnectionOptions): Promise<Kafka> => {
+    const provider = getClusterProvider(connectionOptions.clusterProviderId);
+    if (!provider) {
+        throw new Error(`Cannot find cluster provider for '${connectionOptions.clusterProviderId}' ID.`);
+    }
+    const kafkaConfig = await provider.createKafkaConfig(connectionOptions) || createDefaultKafkaConfig(connectionOptions);
+    return new Kafka(kafkaConfig);
+};
+
+export const createDefaultKafkaConfig = (connectionOptions: ConnectionOptions): KafkaConfig => {
     if (connectionOptions.saslOption && connectionOptions.saslOption.username && connectionOptions.saslOption.password) {
-        kafkaJsClient = new Kafka({
+        return {
             clientId: "vscode-kafka",
             brokers: connectionOptions.bootstrap.split(","),
             ssl: true,
             sasl: { mechanism: connectionOptions.saslOption.mechanism, username: connectionOptions.saslOption.username, password: connectionOptions.saslOption.password },
-        });
-    } else {
-        kafkaJsClient = new Kafka({
-            clientId: "vscode-kafka",
-            brokers: connectionOptions.bootstrap.split(","),
-            ssl: connectionOptions.ssl
-        });
+        };
     }
-    return kafkaJsClient;
+    return {
+        clientId: "vscode-kafka",
+        brokers: connectionOptions.bootstrap.split(","),
+        ssl: connectionOptions.ssl
+    };
 };

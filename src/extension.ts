@@ -34,8 +34,10 @@ import { NodeBase } from "./explorer/models/nodeBase";
 import * as path from 'path';
 import { markdownPreviewProvider } from "./docs/markdownPreviewProvider";
 import { KafkaFileCodeLensProvider } from "./kafka-file";
+import { getDefaultKafkaExtensionParticipant } from "./kafka-extensions/registry";
+import { KafkaExtensionParticipant } from "./kafka-extensions/api";
 
-export function activate(context: vscode.ExtensionContext): void {
+export function activate(context: vscode.ExtensionContext): KafkaExtensionParticipant {
     Context.register(context);
 
     // Settings, data etc.
@@ -144,6 +146,8 @@ export function activate(context: vscode.ExtensionContext): void {
 
     context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider(
         ConsumerVirtualTextDocumentProvider.SCHEME, consumerVirtualTextDocumentProvider));
+
+    return getDefaultKafkaExtensionParticipant();
 }
 
 export function deactivate(): void {
