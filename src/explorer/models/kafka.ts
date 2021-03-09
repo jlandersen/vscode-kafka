@@ -1,7 +1,7 @@
 import { Disposable, TreeItemCollapsibleState } from "vscode";
 import { ClientAccessor } from "../../client";
 import { ClusterSettings } from "../../settings";
-import { ClusterItem} from "./cluster";
+import { ClusterItem } from "./cluster";
 import { NodeBase } from "./nodeBase";
 
 export class KafkaModel extends NodeBase implements Disposable {
@@ -18,7 +18,7 @@ export class KafkaModel extends NodeBase implements Disposable {
     public async computeChildren(): Promise<NodeBase[]> {
         const clusters = this.clusterSettings.getAll();
         return clusters.map((c) => {
-            return new ClusterItem(this.clientAccessor.get(c.id), c, this);
+            return new ClusterItem(this.clientAccessor, c, this);
         });
     }
 
