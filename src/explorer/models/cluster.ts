@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import { Cluster, Client } from "../../client";
+import { Cluster, Client, ClientAccessor } from "../../client";
 import { NodeBase } from "./nodeBase";
 import { BrokerGroupItem } from "./brokers";
 import { TopicGroupItem, TopicItem } from "./topics";
@@ -16,10 +16,14 @@ export class ClusterItem extends NodeBase implements Disposable {
     public contextValue = "cluster";
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 
-    constructor(public client: Client, public readonly cluster: Cluster, parent: KafkaModel) {
+    constructor(private clientAccessor: ClientAccessor, public readonly cluster: Cluster, parent: KafkaModel) {
         super(parent);
         this.label = cluster.name;
         this.description = cluster.bootstrap;
+    }
+
+    public get client(): Client {
+        return this.clientAccessor.get(this.cluster.id);
     }
 
     async computeChildren(): Promise<NodeBase[]> {
