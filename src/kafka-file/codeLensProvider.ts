@@ -220,6 +220,8 @@ export class KafkaFileCodeLensProvider implements vscode.CodeLensProvider, vscod
         let topicId;
         let partitions;
         let offset = "";
+        let keyFormat;
+        let valueFormat;
         for (let currentLine = range.start.line; currentLine <= range.end.line; currentLine++) {
             const lineText = document.lineAt(currentLine).text;
 
@@ -242,6 +244,17 @@ export class KafkaFileCodeLensProvider implements vscode.CodeLensProvider, vscod
                 partitions = lineText.substr("partitions:".length).trim();
                 continue;
             }
+
+            if (lineText.startsWith("key-format:")) {
+                keyFormat = lineText.substr("key-format:".length).trim();
+                continue;
+            }
+
+            if (lineText.startsWith("value-format:")) {
+                valueFormat = lineText.substr("value-format:".length).trim();
+                continue;
+            }
+
             break;
         }
         return {
@@ -249,7 +262,9 @@ export class KafkaFileCodeLensProvider implements vscode.CodeLensProvider, vscod
             consumerGroupId,
             topicId,
             fromOffset: offset,
-            partitions
+            partitions,
+            messageKeyFormat: keyFormat,
+            messageValueFormat: valueFormat
         } as LaunchConsumerCommand;
     }
 }

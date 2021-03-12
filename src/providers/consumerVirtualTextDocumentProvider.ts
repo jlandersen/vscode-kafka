@@ -85,6 +85,12 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
         if (consumer.options.partitions) {
             line += `  - partitions: ${consumer.options.partitions}\n`;
         }
+        if (consumer.options.messageKeyFormat) {
+            line += `  - key format: ${consumer.options.messageKeyFormat}\n`;
+        }
+        if (consumer.options.messageValueFormat) {
+            line += `  - value format: ${consumer.options.messageValueFormat}\n`;
+        }
         line += `\n`;
         this.updateBuffer(consumer.uri, line);
     }
