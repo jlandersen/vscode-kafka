@@ -3,12 +3,15 @@ import { URLSearchParams } from "url";
 import * as vscode from "vscode";
 import { getWorkspaceSettings, InitialConsumerOffset, ClusterSettings } from "../settings";
 import { ConnectionOptions, createKafka } from "./client";
+import { deserialize, MessageFormat, SerializationdResult } from "./serialization";
 
 interface ConsumerOptions extends ConnectionOptions {
     consumerGroupId: string;
     topicId: string;
     fromOffset: InitialConsumerOffset | string;
     partitions?: number[];
+    messageKeyFormat?: MessageFormat;
+    messageValueFormat?: MessageFormat;
 }
 
 export interface RecordReceivedEvent {
@@ -19,9 +22,11 @@ export interface RecordReceivedEvent {
 export interface ConsumedRecord {
     topic: string;
     value: string | Buffer | null;
+    deserializedValue?: SerializationdResult | null;
     offset?: string;
     partition?: number;
     key?: string | Buffer;
+    deserializedKey?: SerializationdResult | null;
 }
 
 export interface ConsumerChangedStatusEvent {
@@ -58,7 +63,7 @@ export class Consumer implements vscode.Disposable {
     public error: any;
 
     constructor(public uri: vscode.Uri, clusterSettings: ClusterSettings) {
-        const { clusterId, consumerGroupId, topicId, fromOffset, partitions } = extractConsumerInfoUri(uri);
+        const { clusterId, consumerGroupId, topicId, fromOffset, partitions, messageKeyFormat, messageValueFormat } = extractConsumerInfoUri(uri);
         this.clusterId = clusterId;
         const cluster = clusterSettings.get(clusterId);
 
@@ -74,7 +79,9 @@ export class Consumer implements vscode.Disposable {
                 consumerGroupId: consumerGroupId,
                 topicId,
                 fromOffset: fromOffset || settings.consumerOffset,
-                partitions: parsePartitions(partitions)
+                partitions: parsePartitions(partitions),
+                messageKeyFormat,
+                messageValueFormat
             };
         }
         catch (e) {
@@ -107,9 +114,15 @@ export class Consumer implements vscode.Disposable {
 
         this.consumer.run({
             eachMessage: async ({ topic, partition, message }) => {
+                const deserializedKey = deserialize(message.key, this.options.messageKeyFormat);
+                const deserializedValue = deserialize(message.value, this.options.messageValueFormat);
                 this.onDidReceiveMessageEmitter.fire({
                     uri: this.uri,
-                    record: { topic: topic, partition: partition, ...message },
+                    record: {
+                        topic: topic, partition: partition,
+                        deserializedKey: deserializedKey, deserializedValue: deserializedValue,
+                        ...message
+                    },
                 });
             },
         });
@@ -349,11 +362,15 @@ export interface ConsumerInfoUri {
     topicId: InitialConsumerOffset | string;
     fromOffset?: string;
     partitions?: string;
+    messageKeyFormat?: MessageFormat;
+    messageValueFormat?: MessageFormat;
 }
 
 const TOPIC_QUERY_PARAMETER = 'topic';
 const FROM_QUERY_PARAMETER = 'from';
 const PARTITIONS_QUERY_PARAMETER = 'partitions';
+const KEY_FORMAT_QUERY_PARAMETER = 'key';
+const VALUE_FORMAT_QUERY_PARAMETER = 'value';
 
 export function createConsumerUri(info: ConsumerInfoUri): vscode.Uri {
     const path = `kafka:${info.clusterId}/${info.consumerGroupId}`;
@@ -361,6 +378,8 @@ export function createConsumerUri(info: ConsumerInfoUri): vscode.Uri {
     query = addQueryParameter(query, TOPIC_QUERY_PARAMETER, info.topicId);
     query = addQueryParameter(query, FROM_QUERY_PARAMETER, info.fromOffset);
     query = addQueryParameter(query, PARTITIONS_QUERY_PARAMETER, info.partitions);
+    query = addQueryParameter(query, KEY_FORMAT_QUERY_PARAMETER, info.messageKeyFormat);
+    query = addQueryParameter(query, VALUE_FORMAT_QUERY_PARAMETER, info.messageValueFormat);
     return vscode.Uri.parse(path + query);
 }
 
@@ -377,13 +396,26 @@ export function extractConsumerInfoUri(uri: vscode.Uri): ConsumerInfoUri {
     const topicId = urlParams.get(TOPIC_QUERY_PARAMETER) || '';
     const from = urlParams.get(FROM_QUERY_PARAMETER);
     const partitions = urlParams.get(PARTITIONS_QUERY_PARAMETER);
-    return {
+    const messageKeyFormat = urlParams.get(KEY_FORMAT_QUERY_PARAMETER);
+    const messageValueFormat = urlParams.get(VALUE_FORMAT_QUERY_PARAMETER);
+    const result: ConsumerInfoUri = {
         clusterId,
         consumerGroupId,
-        topicId,
-        fromOffset: from && from.trim().length > 0 ? from : undefined,
-        partitions: partitions && partitions.trim().length > 0 ? partitions : undefined
+        topicId
     };
+    if (from && from.trim().length > 0) {
+        result.fromOffset = from;
+    }
+    if (partitions && partitions.trim().length > 0) {
+        result.partitions = partitions;
+    }
+    if (messageKeyFormat && messageKeyFormat.trim().length > 0) {
+        result.messageKeyFormat = messageKeyFormat as MessageFormat;
+    }
+    if (messageValueFormat && messageValueFormat.trim().length > 0) {
+        result.messageValueFormat = messageValueFormat as MessageFormat;
+    }
+    return result;
 }
 
 export function parsePartitions(partitions?: string): number[] | undefined {

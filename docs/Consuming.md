@@ -50,8 +50,25 @@ The `CONSUMER` block defines:
     * 0,1,2
     * 0-2
     * 0,2-3
+ * `key-format` : [deserializer](#Deserializer) to use for the key.
+ * `value-format` : [deserializer](#Deserializer) to use for the value. 
+
+#### Deserializer
+
+Deserializer can have the following value:
+
+   * `none`: none deserializer.
+   * `double`: same deserializer than Kafka Java [org.apache.kafka.common.serialization.DoubleDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/DoubleDeserializer.java).
+   * `float`: same deserializer than Kafka Java [org.apache.kafka.common.serialization.FloatDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/FloatDeserializer.java).
+   * `integer`: same deserializer than Kafka Java [org.apache.kafka.common.serialization.IntegerDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/IntegerDeserializer.java).
+   * `long`: same deserializer than Kafka Java [org.apache.kafka.common.serialization.LongDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/LongDeserializer.java).
+   * short: same deserializer than Kafka Java [org.apache.kafka.common.serialization.LongDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/LongDeserializer.java). 
+
+#### Code Lens
 
 A codelens is displayed above each `CONSUMER` line, and provides `Start consumer` / `Stop consumer` commands depending on the consumer group status.
+
+#### Completion
 
 Completion snippets can help you quickly bootstrap new `CONSUMER` blocks:
 

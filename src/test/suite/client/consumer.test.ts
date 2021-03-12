@@ -39,21 +39,21 @@ suite("Extract consumer URI Test Suite", () => {
     test("Consumer URI simple", () => {
         assert.deepStrictEqual(
             extractConsumerInfoUri(vscode.Uri.parse(`kafka:cluster-id/group-id?topic=topic-id`)),
-            { clusterId: 'cluster-id', consumerGroupId: 'group-id', topicId: 'topic-id', fromOffset: undefined, partitions: undefined }
+            { clusterId: 'cluster-id', consumerGroupId: 'group-id', topicId: 'topic-id' }
         );
     });
 
     test("Consumer URI with offset", () => {
         assert.deepStrictEqual(
             extractConsumerInfoUri(vscode.Uri.parse(`kafka:cluster-id/group-id?topic=topic-id&from=1`)),
-            { clusterId: 'cluster-id', consumerGroupId: 'group-id', topicId: 'topic-id', fromOffset: '1', partitions: undefined }
+            { clusterId: 'cluster-id', consumerGroupId: 'group-id', topicId: 'topic-id', fromOffset: '1' }
         );
     });
 
     test("Consumer URI with partitions", () => {
         assert.deepStrictEqual(
             extractConsumerInfoUri(vscode.Uri.parse(`kafka:cluster-id/group-id?topic=topic-id&partitions=0-5`)),
-            { clusterId: 'cluster-id', consumerGroupId: 'group-id', topicId: 'topic-id', fromOffset: undefined, partitions: '0-5' }
+            { clusterId: 'cluster-id', consumerGroupId: 'group-id', topicId: 'topic-id', partitions: '0-5' }
         );
     });
 

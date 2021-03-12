@@ -109,8 +109,10 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
         if (!this.isActive(uri)) {
             return;
         }
-        let line = `Key: ${message.key}\nPartition: ${message.partition}\nOffset: ${message.offset}\n`;
-        line = line + `Value:\n${message.value}\n\n`;
+        const key = message.deserializedKey !== null ?  message.deserializedKey : message.key;
+        const value = message.deserializedValue !== null ?  message.deserializedValue : message.value;
+        let line = `Key: ${key}\nPartition: ${message.partition}\nOffset: ${message.offset}\n`;
+        line = line + `Value:\n${value}\n\n`;
         this.updateBuffer(uri, line);
     }
 
