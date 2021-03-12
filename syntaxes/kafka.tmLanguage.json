@@ -50,7 +50,7 @@
             ]
         },
         "kafka.consumer.header": {
-            "begin": "(?i)^(?:(topic|from|partitions))",
+            "begin": "(?i)^(?:(topic|key-format|value-format|from|partitions))",
             "end": "$",
             "name": "meta.consumer.header.kafka",
             "beginCaptures": {
