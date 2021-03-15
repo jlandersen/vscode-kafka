@@ -98,7 +98,7 @@
             ]
         },
         "kafka.producer.header": {
-            "begin": "(?i)^(?:(topic|key))",
+            "begin": "(?i)^(?:(topic|key|key-format))",
             "end": "$",
             "name": "meta.producer.header.kafka",
             "beginCaptures": {
