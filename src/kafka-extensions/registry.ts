@@ -92,7 +92,7 @@ function isKafkaExtensionParticipant(arg: any): boolean {
     return (arg as KafkaExtensionParticipant).getClusterProviderParticipant !== undefined;
 }
 
-const defaultClusterProviderId = 'vscode-kafka.manual';
+export const defaultClusterProviderId = 'vscode-kafka.manual';
 
 let providers: Map<string, ClusterProvider> = new Map();
 

@@ -9,14 +9,45 @@ import { ConsumerGroupsItem } from "./consumerGroups";
 import { KafkaModel } from "./kafka";
 import { Disposable } from "vscode";
 import { GlyphChars } from "../../constants";
+import { ClusterProvider, defaultClusterProviderId } from "../../kafka-extensions/registry";
+import { ClusterSettings } from "../../settings/clusters";
 
 const TOPIC_INDEX = 1;
+
+export class ClusterProviderItem extends NodeBase implements Disposable {
+
+    public contextValue = "clusterProvider";
+    public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+
+    constructor(private clientAccessor: ClientAccessor, public readonly clusterProvider: ClusterProvider, parent: KafkaModel) {
+        super(parent);
+        this.label = clusterProvider.name;
+    }
+
+    async computeChildren(): Promise<NodeBase[]> {
+        const clusters = this.getParent().clusterSettings.getAll();
+        return clusters
+            .filter((c) => c.clusterProviderId === this.clusterProvider.id || (c.clusterProviderId === undefined && this.clusterProvider.id === defaultClusterProviderId))
+            .map((c) => {
+                return new ClusterItem(this.getParent().clusterSettings, this.clientAccessor, c, this);
+            });
+    }
+
+    getParent(): KafkaModel {
+        return <KafkaModel>super.getParent();
+    }
+
+    public dispose(): void {
+        this.children?.forEach(child => (<ClusterItem>child).dispose());
+    }
+
+}
 
 export class ClusterItem extends NodeBase implements Disposable {
     public contextValue = "cluster";
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 
-    constructor(private clientAccessor: ClientAccessor, public readonly cluster: Cluster, parent: KafkaModel) {
+    constructor(private clusterSettings: ClusterSettings, private clientAccessor: ClientAccessor, public readonly cluster: Cluster, parent: KafkaModel | ClusterProviderItem) {
         super(parent);
         this.label = cluster.name;
         this.description = cluster.bootstrap;
@@ -31,10 +62,6 @@ export class ClusterItem extends NodeBase implements Disposable {
             new BrokerGroupItem(this),
             new TopicGroupItem(this),
             new ConsumerGroupsItem(this)];
-    }
-
-    getParent(): KafkaModel {
-        return <KafkaModel>super.getParent();
     }
 
     getTreeItem(): vscode.TreeItem {
@@ -53,11 +80,11 @@ export class ClusterItem extends NodeBase implements Disposable {
     }
 
     public get selected(): boolean {
-        return (this.getParent().clusterSettings.selected?.name === this.cluster.name);
+        return (this.clusterSettings.selected?.name === this.cluster.name);
     }
 
     public dispose(): void {
-        this.client.dispose();
+        this.clientAccessor.remove(this.cluster.id);
     }
 
     async findTopictemByName(topicName: string): Promise<NodeBase | TopicItem | undefined> {

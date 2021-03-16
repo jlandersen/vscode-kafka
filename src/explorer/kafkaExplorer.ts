@@ -94,7 +94,7 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
         if (!clusterItem) {
             return;
         }
-        this.selectItem(clusterItem);
+        await this.selectItem(clusterItem);
     }
 
     /**
@@ -112,11 +112,24 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
         if (!topicItem) {
             return;
         }
-        this.selectItem(topicItem);
+        await this.selectItem(topicItem);
     }
 
-    private selectItem(item: NodeBase): void {
-        this.tree?.reveal(item, {
+    private async selectItem(item: NodeBase): Promise<void> {
+        // Expand all parent items
+        let parent = item.getParent();
+        const children = [];
+        while(parent && !(parent instanceof KafkaModel)) {
+            children.unshift(parent);
+            parent = parent.getParent();
+        }
+        for (const child of children) {
+            await this.tree?.reveal(child, {
+                expand: true,
+            });
+        }
+        // select the item
+        await this.tree?.reveal(item, {
             select: true,
             expand: true,
             focus: true
