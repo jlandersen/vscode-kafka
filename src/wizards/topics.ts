@@ -5,15 +5,16 @@ import { INPUT_TITLE } from "../constants";
 import { KafkaExplorer } from "../explorer/kafkaExplorer";
 import { MultiStepInput, showErrorMessage, State } from "./multiStepInput";
 import { validateTopicName, validatePartitions, validateReplicationFactor } from "./validators";
+import { BrokerConfigs } from "../client/config";
 
 const DEFAULT_PARTITIONS = 1;
-const DEFAULT_REPLICATION_FACTOR = 1;
-
 interface CreateTopicState extends State {
     clusterId: string;
     topicName: string;
     partitions: string;
     replicationFactor: string;
+    defaultReplicas: number;
+    maxReplicas: number;
 }
 
 export async function addTopicWizard(clientAccessor: ClientAccessor, clusterSettings: ClusterSettings, explorer: KafkaExplorer, clusterId?: string): Promise<void> {
@@ -82,6 +83,12 @@ export async function addTopicWizard(clientAccessor: ClientAccessor, clusterSett
 
 async function collectInputs(state: Partial<CreateTopicState>, clusterSettings: ClusterSettings, clientAccessor: ClientAccessor) {
     if (state.clusterId) {
+        if (!state.maxReplicas) {
+            await setDefaultAndMaxReplicas(clientAccessor, state);
+            if (state.maxReplicas! <= 1) {
+                state.totalSteps = state.totalSteps! - 1;
+            }
+        }
         await MultiStepInput.run(input => inputTopicName(input, state, clientAccessor));
     } else {
         await MultiStepInput.run(input => inputSelectCluster(input, state, clusterSettings, clientAccessor));
@@ -89,6 +96,8 @@ async function collectInputs(state: Partial<CreateTopicState>, clusterSettings: 
 }
 
 async function inputSelectCluster(input: MultiStepInput, state: Partial<CreateTopicState>, clusterSettings: ClusterSettings, clientAccessor: ClientAccessor) {
+    //reset total steps
+    state.totalSteps = 4;
     interface ClusterPickItem extends QuickPickItem {
         clusterId: string;
     }
@@ -114,6 +123,10 @@ async function inputSelectCluster(input: MultiStepInput, state: Partial<CreateTo
         activeItem: activeClusterItem
     }));
     state.clusterId = selectedCluster.clusterId;
+    await setDefaultAndMaxReplicas(clientAccessor, state);
+    if (state.maxReplicas! <= 1) {
+        state.totalSteps = state.totalSteps! - 1;
+    }
     return (input: MultiStepInput) => inputTopicName(input, state, clientAccessor);
 }
 
@@ -135,7 +148,7 @@ async function inputTopicName(input: MultiStepInput, state: Partial<CreateTopicS
 }
 
 async function getExistingTopicNames(clientAccessor: ClientAccessor, clusterId?: string): Promise<string[] | undefined> {
-    if (!clusterId) {return [];}
+    if (!clusterId) { return []; }
     try {
         const client = clientAccessor.get(clusterId);
         return (await client.getTopics()).map(topic => topic.id);
@@ -160,12 +173,48 @@ async function inputPartitions(input: MultiStepInput, state: Partial<CreateTopic
 
 
 async function inputReplicationFactor(input: MultiStepInput, state: Partial<CreateTopicState>) {
+    if (state.maxReplicas! <= 1) {
+        state.replicationFactor = state.maxReplicas!.toString();
+        return;
+    }
     state.replicationFactor = await input.showInputBox({
         title: INPUT_TITLE,
         step: input.getStepNumber(),
         totalSteps: state.totalSteps,
-        value: state.replicationFactor || DEFAULT_REPLICATION_FACTOR.toString(),
+        value: state.replicationFactor || state.defaultReplicas!.toString(),
         prompt: 'Replication Factor',
+        validationContext: state.maxReplicas,
         validate: validateReplicationFactor
     });
 }
+async function setDefaultAndMaxReplicas(clientAccessor: ClientAccessor, state: Partial<CreateTopicState>): Promise<void> {
+    const client = clientAccessor.get(state.clusterId!);
+    const brokers = await client.getBrokers();
+    let defaultReplicationFactor = -1;
+    let maxReplicas = 1;
+    if (brokers) {
+        maxReplicas = brokers.length;
+        try {
+            for (let i = 0; i < brokers.length && defaultReplicationFactor < 0; i++) {
+                const configs = await client.getBrokerConfigs(brokers[i].id);
+                let config = configs.find(ce => ce.configName === BrokerConfigs.OFFSETS_TOPIC_REPLICATION_FACTOR);
+                if (config) {
+                    defaultReplicationFactor = parseInt(config.configValue, 10);
+                } else {
+                    config = configs.find(ce => ce.configName === BrokerConfigs.DEFAULT_REPLICATION_FACTOR);
+                    if (config) {
+                        defaultReplicationFactor = parseInt(config.configValue, 10);
+                    }
+                }
+            }
+        } catch (e) {
+            console.log(`Failed to read replication factor configuration from broker: ${e.message}`);
+        }
+        if (defaultReplicationFactor < 0) {
+            defaultReplicationFactor = Math.min(3, maxReplicas);
+        }
+    }
+    state.maxReplicas = maxReplicas;
+    state.defaultReplicas = defaultReplicationFactor;
+}
+

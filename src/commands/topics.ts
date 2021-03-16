@@ -1,14 +1,12 @@
-import { ClusterSettings } from "../settings";
-import { dump } from "js-yaml";
 import * as vscode from "vscode";
-
+import { dump } from "js-yaml";
+import { ClusterSettings } from "../settings";
 import { Topic, ClientAccessor } from "../client";
 import { KafkaExplorer, TopicItem } from "../explorer";
 import { OutputChannelProvider } from "../providers";
 import { addTopicWizard } from "../wizards/topics";
 import { pickClient, pickTopic } from "./common";
-
-const AUTO_CREATE_TOPIC_KEY = 'auto.create.topics.enable';
+import { BrokerConfigs } from "../client/config";
 
 export class CreateTopicCommandHandler {
 
@@ -76,7 +74,7 @@ export class DeleteTopicCommandHandler {
             if (brokers) {
                 for (let i = 0; i < brokers.length && !autoCreateTopicsEnabled; i++) {
                     const configs = await client?.getBrokerConfigs(brokers[i].id);
-                    const config = configs?.find(ce => ce.configName === AUTO_CREATE_TOPIC_KEY);
+                    const config = configs?.find(ce => ce.configName === BrokerConfigs.AUTO_CREATE_TOPIC_ENABLE);
                     if (config) {
                         autoCreateTopicsEnabled = config.configValue === 'true';
                     }
@@ -85,7 +83,7 @@ export class DeleteTopicCommandHandler {
 
             let warning = `Are you sure you want to delete topic '${topicToDelete.id}'?`;
             if (autoCreateTopicsEnabled) {
-                warning += ` The cluster is configured with '${AUTO_CREATE_TOPIC_KEY}=true', so the topic might be recreated automatically.`;
+                warning += ` The cluster is configured with '${BrokerConfigs.AUTO_CREATE_TOPIC_ENABLE}=true', so the topic might be recreated automatically.`;
             }
             const deleteConfirmation = await vscode.window.showWarningMessage(warning, 'Cancel', 'Delete');
             if (deleteConfirmation !== 'Delete') {

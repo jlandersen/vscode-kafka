@@ -55,12 +55,12 @@ export async function validatePartitions(partitions: string): Promise<string | u
     return validateFieldPositiveNumber(PARTITIONS_FIELD, partitions);
 }
 
-export async function validateReplicationFactor(replicationFactor: string): Promise<string | undefined> {
+export async function validateReplicationFactor(replicationFactor: string, max: number): Promise<string | undefined> {
     const result = validateFieldRequired(REPLICATION_FACTOR_FIELD, replicationFactor);
     if (result) {
         return result;
-    }
-    return validateFieldPositiveNumber(REPLICATION_FACTOR_FIELD, replicationFactor);
+    } 
+    return validateFieldPositiveNumber(REPLICATION_FACTOR_FIELD, replicationFactor, max);
 }
 
 // ------------------ Commons Validators
@@ -80,9 +80,12 @@ function validateFieldUniqueValue(name: string, value: string, values: string[])
     }
 }
 
-function validateFieldPositiveNumber(name: string, value: string): string | undefined {
-    const valueAsNumber = parseInt(value, 10);
+function validateFieldPositiveNumber(name: string, value: string, max?: number): string | undefined {
+    const valueAsNumber = Number(value);
     if (isNaN(valueAsNumber) || valueAsNumber < 1) {
         return `${name} must be a positive number.`;
+    }
+    if (max && valueAsNumber > max) {
+        return `${name} can not be greater than ${max}.`;
     }
 }
