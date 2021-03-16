@@ -5,6 +5,9 @@ All notable changes to Kafka extension will be documented in this file.
 ### Added
 - Extension API to contribute clusters. See [#123](https://github.com/jlandersen/vscode-kafka/issues/123).
 
+### Changed
+- Improved the "New topic" wizard: the replication factor is now read from the broker configuration. Input will be skipped if value can't be higher than 1. See [#64](https://github.com/jlandersen/vscode-kafka/issues/64).
+
 ## [0.11.0] - 2021-03-08
 ### Added
 - Newly created topic or cluster is automatically selected in the Kafka Explorer. See [#61](https://github.com/jlandersen/vscode-kafka/issues/61).
