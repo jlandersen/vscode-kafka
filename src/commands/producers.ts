@@ -67,7 +67,6 @@ export class ProduceRecordCommandHandler {
         const producer = await client.producer();
         await producer.connect();
 
-        channel.show(false);
         channel.appendLine(`Producing record(s)`);
         const startOperation = performance.now();
 
