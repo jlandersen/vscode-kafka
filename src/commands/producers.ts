@@ -6,11 +6,14 @@ import { OutputChannelProvider } from "../providers/outputChannelProvider";
 import { KafkaExplorer } from "../explorer";
 import { WorkspaceSettings } from "../settings";
 import { pickClient } from "./common";
+import { MessageFormat, serialize } from "../client/serialization";
 
 export interface ProduceRecordCommand {
     topicId?: string;
     key?: string;
-    value: string
+    value: string;
+    messageKeyFormat?: MessageFormat;
+    messageValueFormat?: MessageFormat;
 }
 
 export class ProduceRecordCommandHandler {
@@ -26,6 +29,11 @@ export class ProduceRecordCommandHandler {
     }
 
     async execute(command: ProduceRecordCommand, times: number): Promise<void> {
+        const client = await pickClient(this.clientAccessor);
+        if (!client) {
+            return;
+        }
+
         const { topicId, key, value } = command;
         const channel = this.channelProvider.getChannel("Kafka Producer Log");
         if (topicId === undefined) {
@@ -47,22 +55,17 @@ export class ProduceRecordCommandHandler {
                 faker.seed(seed);
                 const randomizedValue = faker.fake(value);
                 return {
-                    key:randomizedKey,
-                    value:randomizedValue
+                    key: serialize(randomizedKey, command.messageKeyFormat),
+                    value: serialize(randomizedValue, command.messageValueFormat)
                 };
             }
 
             // Return key/value message as-is
             return {
-                key:key,
-                value:value
+                key: serialize(key, command.messageKeyFormat),
+                value: serialize(value, command.messageValueFormat)
             };
         });
-
-        const client = await pickClient(this.clientAccessor);
-        if (!client) {
-            return;
-        }
 
         const producer = await client.producer();
         await producer.connect();

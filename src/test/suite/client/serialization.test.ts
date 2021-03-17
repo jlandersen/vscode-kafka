@@ -1,5 +1,113 @@
 import * as assert from "assert";
-import { deserialize } from "../../../client/serialization";
+import { deserialize, serialize } from "../../../client/serialization";
+
+suite("Serializer Test Suite", () => {
+
+    test("Null data", () => {
+
+        assert.deepStrictEqual(
+            serialize(),
+            null
+        );
+    });
+
+    test("No serializer", () => {
+
+        assert.deepStrictEqual(
+            serialize('abcd'),
+            'abcd'
+        );
+    });
+
+    test("String serializer", () => {
+
+        assert.deepStrictEqual(
+            serialize('abcd', "string"),
+            'abcd'
+        );
+    });
+
+    test("Double serializer", () => {
+
+        assert.deepStrictEqual(
+            serialize('123', "double"),
+            Buffer.from([64, 94, 192, 0, 0, 0, 0, 0])
+        );
+
+        assert.deepStrictEqual(
+            serialize('123.456', "double"),
+			Buffer.from([64, 94, 221, 47, 26, 159, 190, 119]),
+        );
+
+        assert.deepStrictEqual(
+            serialize('-123', "double"),
+            Buffer.from([192, 94, 192, 0, 0, 0, 0, 0])
+        );
+
+    });
+
+    test("Float serializer", () => {
+
+        assert.deepStrictEqual(
+            serialize('123', "float"),
+            Buffer.from([66, 246, 0, 0])
+        );
+
+        assert.deepStrictEqual(
+            serialize('123.45600128173828', "float"),
+            Buffer.from([66, 246, 233, 121])
+        );
+
+        assert.deepStrictEqual(
+            serialize('-123', "float"),
+            Buffer.from([194, 246, 0, 0])
+        );
+
+    });
+
+    test("Integer serializer", () => {
+
+        assert.deepStrictEqual(
+            serialize('123', "integer"),
+            Buffer.from([0, 0, 0, 123])
+        );
+
+        assert.deepStrictEqual(
+            serialize('-123', "integer"),
+            Buffer.from([255, 255, 255, 133])
+        );
+
+    });
+
+    test("Long serializer", () => {
+
+        assert.deepStrictEqual(
+            serialize('123', "long"),
+            Buffer.from([0, 0, 0, 0, 0, 0, 0, 123])
+        );
+
+        assert.deepStrictEqual(
+            serialize('-123', "long"),
+            Buffer.from([255, 255, 255, 255, 255, 255, 255, 133])
+        );
+
+    });
+
+    test("Short serializer", () => {
+
+        assert.deepStrictEqual(
+            serialize('123', "short"),
+            Buffer.from([0, 123])
+        );
+
+        assert.deepStrictEqual(
+            serialize('-123', "short"),
+            Buffer.from([255, 133])
+        );
+
+    });
+
+});
 
 suite("Deserializer Test Suite", () => {
 
