@@ -55,7 +55,7 @@ The `CONSUMER` block defines:
 
 #### Deserializer
 
-Deserializer can have the following value:
+The deserializers can have the following value:
 
    * `none`: no deserializer (ignores content).
    * `string`: similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.StringDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringDeserializer.java) which currently only supports `UTF-8` encoding.

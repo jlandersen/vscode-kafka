@@ -4,6 +4,93 @@ export type SerializationdResult = any | Error;
 
 export class SerializationException extends Error { }
 
+// ---------------- Serializers ----------------
+
+interface Serializer {
+    serialize(data: string): Buffer | string | null;
+}
+
+const serializerRegistry: Map<MessageFormat, Serializer> = new Map();
+
+export function serialize(data?: string, format?: MessageFormat): Buffer | string | null   {
+    if (!data || !format) {
+        return data || null;
+    }
+    const serializer = getSerializer(format);
+    if (!serializer) {
+        throw new SerializationException(`Cannot find a serializer for ${format} format.`);
+    }
+    return serializer.serialize(data);
+}
+
+function getSerializer(format: MessageFormat): Serializer | undefined {
+    return serializerRegistry.get(format);
+}
+
+class DoubleSerializer implements Serializer {
+
+    serialize(value: string): Buffer | string | null {
+        const data = parseFloat(value);
+        const result = Buffer.alloc(8);
+        result.writeDoubleBE(data, 0);
+        return result;
+    };
+}
+
+class FloatSerializer implements Serializer {
+
+    serialize(value: string): Buffer | string | null {
+        const data = parseFloat(value);
+        const result = Buffer.alloc(4);
+        result.writeFloatBE(data, 0);
+        return result;
+    };
+}
+
+class IntegerSerializer implements Serializer {
+
+    serialize(value: string): Buffer | string | null {
+        const data = parseInt(value);
+        const result = Buffer.alloc(4);
+        result.writeInt32BE(data, 0);
+        return result;
+    };
+}
+
+class LongSerializer implements Serializer {
+
+    serialize(value: string): Buffer | string | null {
+        const data = parseInt(value);
+        const result = Buffer.alloc(8);
+        result.writeBigInt64BE(BigInt(data), 0);
+        return result;
+    };
+}
+
+class ShortSerializer implements Serializer {
+
+    serialize(value: string): Buffer | string | null {
+        const data = parseInt(value);
+        const result = Buffer.alloc(2);
+        result.writeInt16BE(data, 0);
+        return result;
+    };
+}
+
+class StringSerializer implements Serializer {
+
+    serialize(value: string): Buffer | string | null {
+        return value;
+    };
+}
+
+serializerRegistry.set("double", new DoubleSerializer());
+serializerRegistry.set("float", new FloatSerializer());
+serializerRegistry.set("integer", new IntegerSerializer());
+serializerRegistry.set("long", new LongSerializer());
+serializerRegistry.set("short", new ShortSerializer());
+serializerRegistry.set("string", new StringSerializer());
+
 // ---------------- Deserializers ----------------
 
 interface Deserializer {

@@ -136,6 +136,8 @@ export class KafkaFileCodeLensProvider implements vscode.CodeLensProvider, vscod
         let topicId;
         let key;
         let value = "";
+        let keyFormat;
+        let valueFormat;
         for (let currentLine = range.start.line + 1; currentLine <= range.end.line; currentLine++) {
             const lineText = document.lineAt(currentLine).text;
 
@@ -146,6 +148,16 @@ export class KafkaFileCodeLensProvider implements vscode.CodeLensProvider, vscod
 
             if (lineText.startsWith("key:")) {
                 key = lineText.substr("key:".length).trim();
+                continue;
+            }
+
+            if (lineText.startsWith("key-format:")) {
+                keyFormat = lineText.substr("key-format:".length).trim();
+                continue;
+            }
+
+            if (lineText.startsWith("value-format:")) {
+                valueFormat = lineText.substr("value-format:".length).trim();
                 continue;
             }
 
@@ -161,7 +173,9 @@ export class KafkaFileCodeLensProvider implements vscode.CodeLensProvider, vscod
             topicId,
             key,
             value,
-        };
+            messageKeyFormat: keyFormat,
+            messageValueFormat: valueFormat
+        } as ProduceRecordCommand;
     }
 
     private createConsumerLens(lineRange: vscode.Range, range: vscode.Range, document: vscode.TextDocument, clusterName: string | undefined): vscode.CodeLens[] {

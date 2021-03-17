@@ -5,6 +5,7 @@ All notable changes to Kafka extension will be documented in this file.
 ### Added
 - Extension API to contribute clusters. See [#123](https://github.com/jlandersen/vscode-kafka/issues/123).
 - declare key/value formats for CONSUMER in kafka file. See [#112](https://github.com/jlandersen/vscode-kafka/issues/112).
+- declare key/value formats for PRODUCER in kafka file. See [#113](https://github.com/jlandersen/vscode-kafka/issues/113).
 
 ### Changed
 - Improved the "New topic" wizard: the replication factor is now read from the broker configuration. Input will be skipped if value can't be higher than 1. See [#64](https://github.com/jlandersen/vscode-kafka/issues/64).
