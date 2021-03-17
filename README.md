@@ -1,10 +1,10 @@
-# Kafka extension for Visual Studio Code
+# Apache Kafka extension for Visual Studio Code
 
 [![CI](https://img.shields.io/github/workflow/status/jlandersen/vscode-kafka/CI/master)](https://github.com/jlandersen/vscode-kafka/actions?query=workflow%3ACI+branch%3Amaster)
 [![Latest version](https://img.shields.io/visual-studio-marketplace/v/jeppeandersen.vscode-kafka?color=brightgreen)](https://marketplace.visualstudio.com/items?itemName=jeppeandersen.vscode-kafka)
 [![Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/jeppeandersen.vscode-kafka?logo=Installs)](https://marketplace.visualstudio.com/items?itemName=jeppeandersen.vscode-kafka)
 
-Work with Kafka directly in Visual Studio Code. Kafka clusters running version 0.11 or higher are supported.
+Work with Apache Kafka® directly in Visual Studio Code. Kafka clusters running version 0.11 or higher are supported.
 
 Features:
 - Connect to multiple clusters
@@ -81,3 +81,8 @@ vscode-kafka is built using Github Actions. Here's how to download and install t
 - Locate the vscode-kafka artifact down the page and download it,
 - Unzip the archive,
 - Install the vscode-kafka-*.vsix extension by following these [instructions](https://code.visualstudio.com/docs/editor/extension-gallery#_install-from-a-vsix).
+
+## License
+MIT License. See [LICENSE](LICENSE) file.
+
+Apache, Apache Kafka, Kafka and associated logos are trademarks of the Apache Software Foundation (ASF). vscode-kafka is not affiliated with, endorsed by, or otherwise associated with the Apache Software Foundation or any of its projects.
