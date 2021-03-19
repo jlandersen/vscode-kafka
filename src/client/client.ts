@@ -208,6 +208,9 @@ class KafkaJsClient implements Client {
     }
 
     public async getkafkaAdminClient(): Promise<Admin> {
+        if (this.kafkaAdminClient) {
+            return this.kafkaAdminClient;
+        }
         const admin = (await this.kafkaPromise).kafkaAdminClient;
         if (!admin) {
             throw new Error('Kafka Admin cannot be null.');
@@ -216,6 +219,9 @@ class KafkaJsClient implements Client {
     }
 
     public async producer(): Promise<Producer> {
+        if (this.kafkaProducer) {
+            return this.kafkaProducer;
+        }
         const producer = (await this.kafkaPromise).kafkaProducer;
         if (!producer) {
             throw new Error('Producer cannot be null.');
@@ -387,3 +393,10 @@ export const createDefaultKafkaConfig = (connectionOptions: ConnectionOptions): 
         ssl: connectionOptions.ssl
     };
 };
+
+export function addQueryParameter(query: string, name: string, value?: string): string {
+    if (value === undefined) {
+        return query;
+    }
+    return `${query}${query.length > 0 ? '&' : '?'}${name}=${value}`;
+}

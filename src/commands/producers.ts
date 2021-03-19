@@ -1,3 +1,4 @@
+import * as vscode from "vscode";
 import * as faker from "faker";
 
 import { performance } from "perf_hooks";
@@ -7,11 +8,10 @@ import { KafkaExplorer } from "../explorer";
 import { WorkspaceSettings } from "../settings";
 import { pickClient } from "./common";
 import { MessageFormat, serialize } from "../client/serialization";
+import { createProducerUri, ProducerCollection, ProducerInfoUri, ProducerLaunchState } from "../client/producer";
+import { ProducerRecord } from "kafkajs";
 
-export interface ProduceRecordCommand {
-    topicId?: string;
-    key?: string;
-    value: string;
+export interface ProduceRecordCommand extends ProducerInfoUri {
     messageKeyFormat?: MessageFormat;
     messageValueFormat?: MessageFormat;
 }
@@ -22,6 +22,7 @@ export class ProduceRecordCommandHandler {
 
     constructor(
         private clientAccessor: ClientAccessor,
+        private producerCollection: ProducerCollection,
         private channelProvider: OutputChannelProvider,
         private explorer: KafkaExplorer,
         private settings: WorkspaceSettings
@@ -67,25 +68,53 @@ export class ProduceRecordCommandHandler {
             };
         });
 
-        const producer = await client.producer();
-        await producer.connect();
+        command.clusterId = client.cluster.id;
+        const producerUri = createProducerUri(command);
+        const record = {
+            topic: topicId,
+            messages: messages,
+        };
+        // Start the producer
+        await startProducerWithProgress(producerUri, record, this.producerCollection, channel, times, this.explorer);
+    }
+}
 
+async function startProducerWithProgress(producerUri: vscode.Uri, record: ProducerRecord, producerCollection: ProducerCollection, channel: vscode.OutputChannel, times: number, explorer?: KafkaExplorer) {
+
+    function isBusy(state: ProducerLaunchState) {
+        return state === ProducerLaunchState.connecting || state === ProducerLaunchState.sending;
+    }
+
+    const producer = producerCollection.get(producerUri);
+    if (producer && !isBusy(producer.state)) {
+        vscode.window.showErrorMessage(`The producer cannot be started because it is producing.`);
+        return;
+    }
+    await vscode.window.withProgress({
+        location: vscode.ProgressLocation.Window,
+        title: `Starting producer '${producerUri}'.`,
+        cancellable: false
+    }, async (progress, token) => {
+
+        // 1. Connect the producer
+        progress.report({ message: `Connecting producer '${producerUri}'.`, increment: 30 });
+        await producerCollection.create(producerUri);
+
+        // 2. Send the producer record.
+        progress.report({ message: `Producing record(s) '${producerUri}'.`, increment: 30 });
         channel.appendLine(`Producing record(s)`);
         const startOperation = performance.now();
 
         try {
-            await producer.send({
-                topic: topicId,
-                messages: messages,
-            });
-
+            await producerCollection.send(producerUri, record);
 
             const finishedOperation = performance.now();
             const elapsed = (finishedOperation - startOperation).toFixed(2);
 
             channel.appendLine(`Produced ${times} record(s) (${elapsed}ms)`);
-
-            this.explorer.refresh();
+            if (explorer) {
+                explorer.refresh();
+            }
         } catch (error) {
             const finishedOperation = performance.now();
             const elapsed = (finishedOperation - startOperation).toFixed(2);
@@ -96,6 +125,12 @@ export class ProduceRecordCommandHandler {
             } else {
                 channel.appendLine(`Error: ${error}`);
             }
+            throw error;
         }
-    }
+        finally {
+            // 3. Close the producer
+            progress.report({ message: `Closing producer '${producerUri}'.`, increment: 40 });
+            await producerCollection.close(producerUri);
+        }
+    });
 }

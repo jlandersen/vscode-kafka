@@ -36,6 +36,7 @@ import { markdownPreviewProvider } from "./docs/markdownPreviewProvider";
 import { KafkaFileCodeLensProvider } from "./kafka-file";
 import { getDefaultKafkaExtensionParticipant } from "./kafka-extensions/registry";
 import { KafkaExtensionParticipant } from "./kafka-extensions/api";
+import { ProducerCollection } from "./client/producer";
 
 export function activate(context: vscode.ExtensionContext): KafkaExtensionParticipant {
     Context.register(context);
@@ -48,9 +49,10 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     const clusterSettings = getClusterSettings();
     const clientAccessor = getClientAccessor();
     const consumerCollection = new ConsumerCollection(clusterSettings);
+    const producerCollection = new ProducerCollection(clientAccessor);
     context.subscriptions.push(clientAccessor);
     context.subscriptions.push(consumerCollection);
-
+    context.subscriptions.push(producerCollection);
 
     // Views (sidebar, status bar items etc.)
     const outputChannelProvider = new OutputChannelProvider();
@@ -64,7 +66,7 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     // Commands
     const createTopicCommandHandler = new CreateTopicCommandHandler(clientAccessor, clusterSettings, explorer);
     const deleteTopicCommandHandler = new DeleteTopicCommandHandler(clientAccessor, explorer);
-    const produceRecordCommandHandler = new ProduceRecordCommandHandler(clientAccessor, outputChannelProvider, explorer, workspaceSettings);
+    const produceRecordCommandHandler = new ProduceRecordCommandHandler(clientAccessor, producerCollection, outputChannelProvider, explorer, workspaceSettings);
     const startConsumerCommandHandler = new StartConsumerCommandHandler(clientAccessor, consumerCollection, explorer);
     const stopConsumerCommandHandler = new StopConsumerCommandHandler(clientAccessor, consumerCollection, explorer);
     const listConsumersCommandHandler = new ListConsumersCommandHandler(consumerCollection);
@@ -142,7 +144,7 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     ];
 
     context.subscriptions.push(
-        vscode.languages.registerCodeLensProvider(documentSelector, new KafkaFileCodeLensProvider(clusterSettings, consumerCollection)));
+        vscode.languages.registerCodeLensProvider(documentSelector, new KafkaFileCodeLensProvider(clusterSettings, producerCollection, consumerCollection)));
 
     context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider(
         ConsumerVirtualTextDocumentProvider.SCHEME, consumerVirtualTextDocumentProvider));

@@ -2,7 +2,7 @@ import { Kafka, Consumer as KafkaJsConsumer, PartitionAssigner, Assignment, Part
 import { URLSearchParams } from "url";
 import * as vscode from "vscode";
 import { getWorkspaceSettings, InitialConsumerOffset, ClusterSettings } from "../settings";
-import { ConnectionOptions, createKafka } from "./client";
+import { addQueryParameter, ConnectionOptions, createKafka } from "./client";
 import { deserialize, MessageFormat, SerializationdResult } from "./serialization";
 
 interface ConsumerOptions extends ConnectionOptions {
@@ -33,7 +33,7 @@ export interface ConsumerChangedStatusEvent {
 }
 
 export enum ConsumerLaunchState {
-    none,
+    idle,
     starting,
     started,
     closing,
@@ -57,7 +57,7 @@ export class Consumer implements vscode.Disposable {
 
     public readonly clusterId: string;
     public readonly options: ConsumerOptions;
-    public state: ConsumerLaunchState = ConsumerLaunchState.none;
+    public state: ConsumerLaunchState = ConsumerLaunchState.idle;
     public error: any;
 
     constructor(public uri: vscode.Uri, clusterSettings: ClusterSettings) {
@@ -247,7 +247,7 @@ export class ConsumerCollection implements vscode.Disposable {
             .then(() => consumer.state = ConsumerLaunchState.started)
             .catch(e => {
                 delete this.consumers[uri.toString()];
-                consumer.state = ConsumerLaunchState.none;
+                consumer.state = ConsumerLaunchState.idle;
                 consumer.error = e;
                 throw e;
             })
@@ -376,13 +376,6 @@ export function createConsumerUri(info: ConsumerInfoUri): vscode.Uri {
     query = addQueryParameter(query, KEY_FORMAT_QUERY_PARAMETER, info.messageKeyFormat);
     query = addQueryParameter(query, VALUE_FORMAT_QUERY_PARAMETER, info.messageValueFormat);
     return vscode.Uri.parse(path + query);
-}
-
-function addQueryParameter(query: string, name: string, value?: string): string {
-    if (value === undefined) {
-        return query;
-    }
-    return `${query}${query.length > 0 ? '&' : '?'}${name}=${value}`;
 }
 
 export function extractConsumerInfoUri(uri: vscode.Uri): ConsumerInfoUri {
