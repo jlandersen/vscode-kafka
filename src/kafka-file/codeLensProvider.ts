@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { ConsumerCollection, ConsumerCollectionChangedEvent, ConsumerLaunchState } from "../client";
+import { createProducerUri, ProducerCollection, ProducerCollectionChangedEvent, ProducerLaunchState } from "../client/producer";
 import { LaunchConsumerCommand, StartConsumerCommandHandler, StopConsumerCommandHandler, ProduceRecordCommand, ProduceRecordCommandHandler, SelectClusterCommandHandler } from "../commands";
 import { ClusterSettings } from "../settings";
 
@@ -16,6 +17,7 @@ export class KafkaFileCodeLensProvider implements vscode.CodeLensProvider, vscod
 
     constructor(
         private clusterSettings: ClusterSettings,
+        private producerCollection: ProducerCollection,
         private consumerCollection: ConsumerCollection
     ) {
         // Refresh the code lenses when:
@@ -23,7 +25,11 @@ export class KafkaFileCodeLensProvider implements vscode.CodeLensProvider, vscod
         this.disposables.push(this.consumerCollection.onDidChangeCollection((e: ConsumerCollectionChangedEvent) => {
             this._onDidChangeCodeLenses.fire();
         }));
-        // 2. a cluster is selected
+        // 2. a producer is started / stopped to refresh the status of each declared PRODUCER
+        this.disposables.push(this.producerCollection.onDidChangeCollection((e: ProducerCollectionChangedEvent) => {
+            this._onDidChangeCodeLenses.fire();
+        }));
+        // 3. a cluster is selected
         this.clusterSettings.onDidChangeSelected((e) => {
             this._onDidChangeCodeLenses.fire();
         });
@@ -112,27 +118,57 @@ export class KafkaFileCodeLensProvider implements vscode.CodeLensProvider, vscod
     }
 
     private createProducerLens(lineRange: vscode.Range, range: vscode.Range, document: vscode.TextDocument, clusterName: string | undefined): vscode.CodeLens[] {
-        const produceRecordCommand = this.createProduceRecordCommand(document, range);
+        const produceRecordCommand = this.createProduceRecordCommand(document, range, this.clusterSettings.selected?.id);
         const lenses: vscode.CodeLens[] = [];
         if (clusterName) {
-            // Add Produce lenses
-            lenses.push(new vscode.CodeLens(lineRange, {
-                title: "$(run) Produce record",
-                command: ProduceRecordCommandHandler.commandId,
-                arguments: [produceRecordCommand, 1]
-            }));
-            lenses.push(new vscode.CodeLens(lineRange, {
-                title: "$(run-all) Produce record x 10",
-                command: ProduceRecordCommandHandler.commandId,
-                arguments: [produceRecordCommand, 10]
-            }));
+            const producerUri = createProducerUri(produceRecordCommand);
+            const producer = this.producerCollection.get(producerUri);
+            const producerState = producer ? producer.state : ProducerLaunchState.idle;
+            switch (producerState) {
+                case ProducerLaunchState.connecting:
+                case ProducerLaunchState.sending:
+                    const status = this.getProducerStatus(producerState);
+                    lenses.push(new vscode.CodeLens(lineRange, {
+                        title: `$(sync~spin) ${status}...`,
+                        command: ''
+                    }));
+                    break;
+                default:
+                    // Add Produce lenses
+                    lenses.push(new vscode.CodeLens(lineRange, {
+                        title: "$(run) Produce record",
+                        command: ProduceRecordCommandHandler.commandId,
+                        arguments: [produceRecordCommand, 1]
+                    }));
+                    lenses.push(new vscode.CodeLens(lineRange, {
+                        title: "$(run-all) Produce record x 10",
+                        command: ProduceRecordCommandHandler.commandId,
+                        arguments: [produceRecordCommand, 10]
+                    }));
+                    break;
+            }
         }
         // Add cluster lens
         lenses.push(this.createClusterLens(lineRange, clusterName));
         return lenses;
     }
 
-    private createProduceRecordCommand(document: vscode.TextDocument, range: vscode.Range): ProduceRecordCommand {
+    private getProducerStatus(state: ProducerLaunchState): string {
+        switch (state) {
+            case ProducerLaunchState.connecting:
+                return 'Connecting';
+            case ProducerLaunchState.connected:
+                return 'Connected';
+            case ProducerLaunchState.sending:
+                return 'Sending';
+            case ProducerLaunchState.sent:
+                return 'Sent';
+            default:
+                return '';
+        }
+    }
+
+    private createProduceRecordCommand(document: vscode.TextDocument, range: vscode.Range, selectedClusterId: string | undefined): ProduceRecordCommand {
         let topicId;
         let key;
         let value = "";
@@ -170,6 +206,7 @@ export class KafkaFileCodeLensProvider implements vscode.CodeLensProvider, vscod
         }
 
         return {
+            clusterId: selectedClusterId,
             topicId,
             key,
             value,
@@ -183,7 +220,7 @@ export class KafkaFileCodeLensProvider implements vscode.CodeLensProvider, vscod
         const lenses: vscode.CodeLens[] = [];
         if (clusterName) {
             const consumer = this.consumerCollection.getByConsumerGroupId(launchCommand.clusterId, launchCommand.consumerGroupId);
-            const consumerState = consumer ? consumer.state : ConsumerLaunchState.none;
+            const consumerState = consumer ? consumer.state : ConsumerLaunchState.idle;
 
             // Add Start/Stop consumer lens
             switch (consumerState) {
