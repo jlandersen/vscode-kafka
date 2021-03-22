@@ -1,8 +1,9 @@
-import { Kafka, Consumer as KafkaJsConsumer, PartitionAssigner, Assignment, PartitionAssigners, AssignerProtocol, SeekEntry } from "kafkajs";
+import { Consumer as KafkaJsConsumer, PartitionAssigner, Assignment, PartitionAssigners, AssignerProtocol, SeekEntry } from "kafkajs";
 import { URLSearchParams } from "url";
 import * as vscode from "vscode";
+import { ClientAccessor } from ".";
 import { getWorkspaceSettings, InitialConsumerOffset, ClusterSettings } from "../settings";
-import { addQueryParameter, ConnectionOptions, createKafka } from "./client";
+import { addQueryParameter, Client, ConnectionOptions } from "./client";
 import { deserialize, MessageFormat, SerializationdResult } from "./serialization";
 
 interface ConsumerOptions extends ConnectionOptions {
@@ -45,7 +46,7 @@ export interface ConsumerCollectionChangedEvent {
 }
 
 export class Consumer implements vscode.Disposable {
-    private kafkaClient?: Kafka;
+    private kafkaClient?: Client;
     private consumer?: KafkaJsConsumer;
     private onDidReceiveMessageEmitter = new vscode.EventEmitter<RecordReceivedEvent>();
     private onDidReceiveErrorEmitter = new vscode.EventEmitter<any>();
@@ -60,7 +61,7 @@ export class Consumer implements vscode.Disposable {
     public state: ConsumerLaunchState = ConsumerLaunchState.idle;
     public error: any;
 
-    constructor(public uri: vscode.Uri, clusterSettings: ClusterSettings) {
+    constructor(public uri: vscode.Uri, clusterSettings: ClusterSettings, private clientAccessor: ClientAccessor) {
         const { clusterId, consumerGroupId, topicId, fromOffset, partitions, messageKeyFormat, messageValueFormat } = extractConsumerInfoUri(uri);
         this.clusterId = clusterId;
         const cluster = clusterSettings.get(clusterId);
@@ -99,8 +100,8 @@ export class Consumer implements vscode.Disposable {
         const fromOffset = this.options.fromOffset;
         const topic = this.options.topicId;
 
-        this.kafkaClient = await createKafka(this.options);
-        this.consumer = this.kafkaClient.consumer({
+        this.kafkaClient = this.clientAccessor.get(this.clusterId);
+        this.consumer = await this.kafkaClient.consumer({
             groupId: this.options.consumerGroupId, retry: { retries: 3 },
             partitionAssigners: [
                 partitionAssigner
@@ -125,7 +126,7 @@ export class Consumer implements vscode.Disposable {
         const offsetAsNumber = (fromOffset && subscribeOptions.fromBeginning === undefined);
         if (partitions || offsetAsNumber) {
             const definedOffset = offsetAsNumber ? fromOffset : undefined;
-            const topicOffsets = !definedOffset ? await this.kafkaClient?.admin().fetchTopicOffsets(topic) : undefined;
+            const topicOffsets = !definedOffset ? await this.kafkaClient?.fetchTopicOffsets(topic) : undefined;
             const definedPartitions = await this.getPartitions(topic, partitions);
             for (let i = 0; i < definedPartitions.length; i++) {
                 const partition = definedPartitions[i];
@@ -141,8 +142,7 @@ export class Consumer implements vscode.Disposable {
             return partitions;
         }
         // returns the topics partitions
-        const partitionMetadata = await this.kafkaClient?.admin().fetchTopicMetadata({ topics: [topic] });
-        return partitionMetadata?.topics[0].partitions.map(m => m.partitionId) || [0];
+        return this.kafkaClient?.fetchTopicPartitions(topic) || [0];
     }
 
     private async getOffsetToSeek(topicOffsets: Array<SeekEntry & { high: string; low: string }> | undefined, fromOffset: string, partition: number): Promise<string> {
@@ -205,9 +205,9 @@ export class Consumer implements vscode.Disposable {
         return { topic };
     }
 
-    dispose(): void {
+    async dispose(): Promise<void> {
         if (this.consumer) {
-            this.consumer.disconnect();
+            await this.consumer.disconnect();
         }
 
         this.onDidReceiveErrorEmitter.dispose();
@@ -225,7 +225,7 @@ export class ConsumerCollection implements vscode.Disposable {
     private onDidChangeCollectionEmitter = new vscode.EventEmitter<ConsumerCollectionChangedEvent>();
     public onDidChangeCollection = this.onDidChangeCollectionEmitter.event;
 
-    constructor(private clusterSettings: ClusterSettings) {
+    constructor(private clusterSettings: ClusterSettings, private clientAccessor: ClientAccessor) {
     }
 
     /**
@@ -233,7 +233,7 @@ export class ConsumerCollection implements vscode.Disposable {
      */
     async create(uri: vscode.Uri): Promise<Consumer> {
         // Create the consumer
-        const consumer = new Consumer(uri, this.clusterSettings);
+        const consumer = new Consumer(uri, this.clusterSettings, this.clientAccessor);
         this.consumers[uri.toString()] = consumer;
 
         // Fire an event to notify that Consumer is starting
@@ -244,7 +244,6 @@ export class ConsumerCollection implements vscode.Disposable {
 
         // Start the consumer
         await consumer.start()
-            .then(() => consumer.state = ConsumerLaunchState.started)
             .catch(e => {
                 delete this.consumers[uri.toString()];
                 consumer.state = ConsumerLaunchState.idle;
@@ -256,6 +255,9 @@ export class ConsumerCollection implements vscode.Disposable {
                 // with a delay because when start is done quickly
                 // the trace 'Consumer: started' is not displayed.
                 setTimeout(() => {
+                    if (!consumer.error) {
+                        consumer.state = ConsumerLaunchState.started;
+                    }
                     this.onDidChangeCollectionEmitter.fire({
                         consumers: [consumer]
                     });
@@ -317,7 +319,7 @@ export class ConsumerCollection implements vscode.Disposable {
             consumers: [consumer]
         });
 
-        consumer.dispose();
+        await consumer.dispose();
         delete this.consumers[uri.toString()];
 
         // Fire an event to notify that consumer is closed

@@ -48,7 +48,7 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     }));
     const clusterSettings = getClusterSettings();
     const clientAccessor = getClientAccessor();
-    const consumerCollection = new ConsumerCollection(clusterSettings);
+    const consumerCollection = new ConsumerCollection(clusterSettings, clientAccessor);
     const producerCollection = new ProducerCollection(clientAccessor);
     context.subscriptions.push(clientAccessor);
     context.subscriptions.push(consumerCollection);

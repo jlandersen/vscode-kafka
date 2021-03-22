@@ -1,4 +1,4 @@
-import { Admin, ConfigResourceTypes, Kafka, KafkaConfig, Producer } from "kafkajs";
+import { Admin, ConfigResourceTypes, Consumer, ConsumerConfig, Kafka, KafkaConfig, Producer, SeekEntry } from "kafkajs";
 
 import { Disposable } from "vscode";
 import { getClusterProvider } from "../kafka-extensions/registry";
@@ -83,6 +83,7 @@ export interface ConsumerGroupMember {
 export interface Client extends Disposable {
     cluster: Cluster;
     producer(): Promise<Producer>;
+    consumer(config?: ConsumerConfig): Promise<Consumer>;
     connect(): Promise<void>;
     getTopics(): Promise<Topic[]>;
     getBrokers(): Promise<Broker[]>;
@@ -93,6 +94,8 @@ export interface Client extends Disposable {
     deleteConsumerGroups(groupIds: string[]): Promise<void>;
     createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]>;
     deleteTopic(deleteTopicRequest: DeleteTopicRequest): Promise<void>;
+    fetchTopicPartitions(topic: string): Promise<number[]>;
+    fetchTopicOffsets(topic: string):  Promise<Array<SeekEntry & { high: string; low: string }>>;
 }
 
 class EnsureConnectedDecorator implements Client {
@@ -104,8 +107,12 @@ class EnsureConnectedDecorator implements Client {
         return this.client.cluster;
     }
 
-    public producer(): any {
+    public producer(): Promise<Producer> {
         return this.client.producer();
+    }
+
+    public consumer(config?: ConsumerConfig): Promise<Consumer> {
+        return this.client.consumer(config);
     }
 
     public connect(): Promise<void> {
@@ -157,6 +164,16 @@ class EnsureConnectedDecorator implements Client {
         return await this.client.deleteTopic(deleteTopicRequest);
     }
 
+    public async fetchTopicPartitions(topic: string): Promise<number[]> {
+        await this.waitUntilConnected();
+        return await this.client.fetchTopicPartitions(topic);
+    }
+
+    public async fetchTopicOffsets(topic: string):  Promise<Array<SeekEntry & { high: string; low: string }>> {
+        await this.waitUntilConnected();
+        return await this.client.fetchTopicOffsets(topic);
+    }
+
     public dispose(): void {
         return this.client.dispose();
     }
@@ -175,11 +192,8 @@ class EnsureConnectedDecorator implements Client {
 }
 
 class KafkaJsClient implements Client {
-    public kafkaClient: any;
-    public kafkaCyclicProducerClient: any;
-    public kafkaKeyedProducerClient: any;
-    private kafkaProducer: Producer | undefined;
     private kafkaJsClient: Kafka | undefined;
+    private kafkaProducer: Producer | undefined;
     private kafkaAdminClient: Admin | undefined;
 
     private metadata: {
@@ -200,17 +214,21 @@ class KafkaJsClient implements Client {
         this.kafkaPromise = createKafka(cluster)
             .then(result => {
                 this.kafkaJsClient = result;
-                this.kafkaClient = this.kafkaJsClient;
                 this.kafkaAdminClient = this.kafkaJsClient.admin();
                 this.kafkaProducer = this.kafkaJsClient.producer();
                 return this;
             });
     }
 
-    public async getkafkaAdminClient(): Promise<Admin> {
-        if (this.kafkaAdminClient) {
-            return this.kafkaAdminClient;
+    private async getkafkaClient(): Promise<Kafka> {
+        const client = (await this.kafkaPromise).kafkaJsClient;
+        if (!client) {
+            throw new Error('Kafka client cannot be null.');
         }
+        return client;
+    }
+
+    private async getkafkaAdminClient(): Promise<Admin> {
         const admin = (await this.kafkaPromise).kafkaAdminClient;
         if (!admin) {
             throw new Error('Kafka Admin cannot be null.');
@@ -227,6 +245,10 @@ class KafkaJsClient implements Client {
             throw new Error('Producer cannot be null.');
         }
         return producer;
+    }
+
+    public async consumer(config?: ConsumerConfig): Promise<Consumer> {
+        return (await this.getkafkaClient()).consumer(config);
     }
 
     canConnect(): boolean {
@@ -357,6 +379,17 @@ class KafkaJsClient implements Client {
             topics: deleteTopicRequest.topics,
             timeout: deleteTopicRequest.timeout
         });
+    }
+
+    async fetchTopicPartitions(topic: string): Promise<number[]> {
+        // returns the topics partitions
+        const partitionMetadata = await (await this.getkafkaAdminClient()).fetchTopicMetadata({ topics: [topic] });
+        return partitionMetadata?.topics[0].partitions.map(m => m.partitionId) || [0];
+    }
+
+    async fetchTopicOffsets(topic: string):  Promise<Array<SeekEntry & { high: string; low: string }>> {
+        // returns the topics partitions
+        return (await this.getkafkaAdminClient()).fetchTopicOffsets(topic);
     }
 
     dispose() {

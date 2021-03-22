@@ -18,7 +18,8 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 - Fix bad highlighting when declaring json messages with fakerjs placeholders. See [#132](https://github.com/jlandersen/vscode-kafka/issues/132).
 - Fix .kafka comments which breaks syntax coloration in producers and consumers. See [#161](https://github.com/jlandersen/vscode-kafka/issues/161).
 - Fix .kafka comments snippet to insert `--` instead of `---`. See [#163](https://github.com/jlandersen/vscode-kafka/pull/163).
- 
+- Use kafka clients pooling for starting consumer. See [#138](https://github.com/jlandersen/vscode-kafka/issues/138).
+
 ## [0.11.0] - 2021-03-08
 ### Added
 - Newly created topic or cluster is automatically selected in the Kafka Explorer. See [#61](https://github.com/jlandersen/vscode-kafka/issues/61).
