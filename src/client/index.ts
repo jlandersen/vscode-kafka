@@ -15,7 +15,7 @@ export class ClientAccessor implements Disposable {
     }
 
     public get(clusterId: string): Client {
-        if (!this.clientsById.hasOwnProperty(clusterId)) {
+        if (!this.has(clusterId)) {
             const cluster = this.clusterSettings.get(clusterId);
 
             if (!cluster) {
@@ -26,6 +26,10 @@ export class ClientAccessor implements Disposable {
         }
 
         return this.clientsById[clusterId];
+    }
+
+    public has(clusterId: string): boolean {
+        return this.clientsById.hasOwnProperty(clusterId);
     }
 
     public getSelectedClusterClient(): Client | undefined {
@@ -39,7 +43,7 @@ export class ClientAccessor implements Disposable {
     }
 
     public remove(clusterId: string): void {
-        if (!this.clientsById.hasOwnProperty(clusterId)) {
+        if (!this.has(clusterId)) {
             return;
         }
 
