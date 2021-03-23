@@ -387,3 +387,21 @@ export const createDefaultKafkaConfig = (connectionOptions: ConnectionOptions): 
         ssl: connectionOptions.ssl
     };
 };
+
+const sleep = (m: number) => new Promise(r => setTimeout(r, m));
+
+export class Timer {
+    private start: number;
+
+    constructor(private waitFor: number) {
+        this.start = Date.now();
+    }
+
+    async wait() : Promise<unknown> {
+        const end = Date.now();
+        const ms = this.waitFor - (end - this.start);
+        if (ms > 0) {
+            return sleep(ms);
+        }
+    }
+}

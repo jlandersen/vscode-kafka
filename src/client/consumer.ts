@@ -2,7 +2,7 @@ import { Kafka, Consumer as KafkaJsConsumer, PartitionAssigner, Assignment, Part
 import { URLSearchParams } from "url";
 import * as vscode from "vscode";
 import { getWorkspaceSettings, InitialConsumerOffset, ClusterSettings } from "../settings";
-import { ConnectionOptions, createKafka } from "./client";
+import { ConnectionOptions, createKafka, Timer } from "./client";
 import { deserialize, MessageFormat, SerializationdResult } from "./serialization";
 
 interface ConsumerOptions extends ConnectionOptions {
@@ -232,6 +232,8 @@ export class ConsumerCollection implements vscode.Disposable {
      * Creates a new consumer for a provided uri.
      */
     async create(uri: vscode.Uri): Promise<Consumer> {
+        const timer = new Timer(1000);
+
         // Create the consumer
         const consumer = new Consumer(uri, this.clusterSettings);
         this.consumers[uri.toString()] = consumer;
@@ -243,25 +245,30 @@ export class ConsumerCollection implements vscode.Disposable {
         });
 
         // Start the consumer
-        await consumer.start()
-            .then(() => consumer.state = ConsumerLaunchState.started)
-            .catch(e => {
-                delete this.consumers[uri.toString()];
-                consumer.state = ConsumerLaunchState.none;
-                consumer.error = e;
-                throw e;
-            })
-            .finally(() => {
-                // Fire an event to notify that consumer state changed
-                // with a delay because when start is done quickly
-                // the trace 'Consumer: started' is not displayed.
-                setTimeout(() => {
-                    this.onDidChangeCollectionEmitter.fire({
-                        consumers: [consumer]
-                    });
-                }, 200);
+        try {
+            await consumer.start();
+        }
+        catch (e) {
+            delete this.consumers[uri.toString()];
+            consumer.state = ConsumerLaunchState.none;
+            consumer.error = e;
+            this.onDidChangeCollectionEmitter.fire({
+                consumers: [consumer]
             });
+            throw e;
+        }
 
+        // Fire an event to notify that consumer state changed
+        // with a delay because when start is done quickly
+        // 1. the trace 'Consumer: started' is not displayed.
+        // 2. codelens doesn't display Starting... status
+        await timer.wait();
+        if (!consumer.error) {
+            consumer.state = ConsumerLaunchState.started;
+        }
+        this.onDidChangeCollectionEmitter.fire({
+            consumers: [consumer]
+        });
         return consumer;
     }
 
@@ -311,20 +318,28 @@ export class ConsumerCollection implements vscode.Disposable {
             return;
         }
 
+        const timer = new Timer(1000);
         // Fire an event to notify that consumer is closing
         consumer.state = ConsumerLaunchState.closing;
         this.onDidChangeCollectionEmitter.fire({
             consumers: [consumer]
         });
 
-        consumer.dispose();
-        delete this.consumers[uri.toString()];
+        try {
+            consumer.dispose();
+        }
+        finally {
+            // Fire an event to notify that consumer state changed
+            // with a delay because when close is done quickly
+            // codelens doesn't display Stopping... status
+            await timer.wait();
 
-        // Fire an event to notify that consumer is closed
-        consumer.state = ConsumerLaunchState.closed;
-        this.onDidChangeCollectionEmitter.fire({
-            consumers: [consumer]
-        });
+            consumer.state = ConsumerLaunchState.closed;
+            this.onDidChangeCollectionEmitter.fire({
+                consumers: [consumer]
+            });
+            delete this.consumers[uri.toString()];
+        }
     }
 
     /**
