@@ -33,10 +33,10 @@ import { SelectedClusterStatusBarItem } from "./views/selectedClusterStatusBarIt
 import { NodeBase } from "./explorer/models/nodeBase";
 import * as path from 'path';
 import { markdownPreviewProvider } from "./docs/markdownPreviewProvider";
-import { KafkaFileCodeLensProvider } from "./kafka-file";
 import { getDefaultKafkaExtensionParticipant } from "./kafka-extensions/registry";
 import { KafkaExtensionParticipant } from "./kafka-extensions/api";
 import { ProducerCollection } from "./client/producer";
+import { startLanguageClient } from "./kafka-file/kafkaFileClient";
 
 export function activate(context: vscode.ExtensionContext): KafkaExtensionParticipant {
     Context.register(context);
@@ -137,17 +137,14 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     registerVSCodeKafkaDocumentationCommands(context);
 
     // .kafka file related
-    const documentSelector = [
-        { language: "kafka", scheme: "file" },
-        { language: "kafka", scheme: "untitled" },
-        { language: "kafka", scheme: "kafka" },
-    ];
+    context.subscriptions.push(
+        startLanguageClient(clusterSettings, producerCollection, consumerCollection, context)
+    );
 
     context.subscriptions.push(
-        vscode.languages.registerCodeLensProvider(documentSelector, new KafkaFileCodeLensProvider(clusterSettings, producerCollection, consumerCollection)));
-
-    context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider(
-        ConsumerVirtualTextDocumentProvider.SCHEME, consumerVirtualTextDocumentProvider));
+        vscode.workspace.registerTextDocumentContentProvider(
+            ConsumerVirtualTextDocumentProvider.SCHEME, consumerVirtualTextDocumentProvider)
+    );
 
     return getDefaultKafkaExtensionParticipant();
 }

@@ -78,7 +78,7 @@
         },
         "kafka.producer": {
             "begin": "(?i)^(producer)\\s*([\\S\\s]*)?$",
-            "end": "(?=^###$)",
+            "end": "(?=^###)",
             "name": "meta.producer.kafka",
             "beginCaptures": {
                 "1": {
@@ -126,7 +126,7 @@
         },
         "kafka.producer.body": {
             "begin": "(?=.)",
-            "while": "^(?!###)",
+            "while": "^(?!###.*)",
             "name": "meta.producer.body.kafka",
             "patterns": [
                 {
@@ -170,7 +170,7 @@
             "patterns": [
                 {
                     "name": "keyword.other.separator",
-                    "match": "^###$"
+                    "match": "^###.*$"
                 }
             ]
         },
