@@ -3,7 +3,6 @@ import * as vscode from "vscode";
 import { addQueryParameter, ClientAccessor } from ".";
 import { Producer as KafkaJSProducer } from "kafkajs";
 
-
 export enum ProducerLaunchState {
     idle,
     connecting,
@@ -11,7 +10,6 @@ export enum ProducerLaunchState {
     sending,
     sent
 }
-
 export interface ProducerCollectionChangedEvent {
     producers: Producer[];
 }
