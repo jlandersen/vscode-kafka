@@ -1,6 +1,6 @@
-# Kafka Documentation
+# Tools for Apache Kafka® Documentation
 
-Welcome to the [vscode-kafka](https://github.com/jlandersen/vscode-kafka) documentation.
+Welcome to the [Tools for Apache Kafka®](https://github.com/jlandersen/vscode-kafka) documentation.
 
 * [Kafka Explorer](Explorer.md#explorer)
 * [Kafka file](KafkaFile.md#kafkafile)

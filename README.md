@@ -1,10 +1,10 @@
-# Apache Kafka® extension for Visual Studio Code
+# Tools for Apache Kafka®
 
 [![CI](https://img.shields.io/github/workflow/status/jlandersen/vscode-kafka/CI/master)](https://github.com/jlandersen/vscode-kafka/actions?query=workflow%3ACI+branch%3Amaster)
 [![Latest version](https://img.shields.io/visual-studio-marketplace/v/jeppeandersen.vscode-kafka?color=brightgreen)](https://marketplace.visualstudio.com/items?itemName=jeppeandersen.vscode-kafka)
 [![Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/jeppeandersen.vscode-kafka?logo=Installs)](https://marketplace.visualstudio.com/items?itemName=jeppeandersen.vscode-kafka)
 
-Work with Apache Kafka® directly in Visual Studio Code. Kafka clusters running version 0.11 or higher are supported.
+Work with Apache Kafka® directly in Visual Studio Code-based editors. Kafka clusters running version 0.11 or higher are supported.
 
 Features:
 - Connect to multiple clusters
@@ -15,10 +15,11 @@ Features:
 - Produce (randomized) messages
 - Consume messages
 - SASL/PLAIN, SASL/SCRAM-256, SASL/SCRAM-512 Authentication (Kafka 0.10+)
+- Clusters can be contributed by 3rd party extensions
 
 Planned features in no particular order:
 - More administration features
-- Make vscode-kafka extensible
+- More extensibility
 - Improve consumer DSL
 - Update configs
 
@@ -69,13 +70,13 @@ partitions: 0
 from: 1
 ```
 
-![Start Consumer with Kafka file](docs/assets/start-consumer-from-kafkafile.png)
+![Start Consumer with a .kafka file](docs/assets/start-consumer-from-kafkafile.png)
 
 See [Consuming messages](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Consuming.md) section for more information.
 
 ## CI Builds
 
-vscode-kafka is built using Github Actions. Here's how to download and install the latest successful build:
+_Tools for Apache Kafka®_ is built using Github Actions. Here's how to download and install the latest successful build:
 - Go to the [CI Workflow page](https://github.com/jlandersen/vscode-kafka/actions?query=workflow%3ACI+is%3Asuccess+branch%3Amaster)
 - Click on the most recent run,
 - Locate the vscode-kafka artifact down the page and download it,
@@ -85,4 +86,4 @@ vscode-kafka is built using Github Actions. Here's how to download and install t
 ## License
 MIT License. See [LICENSE](LICENSE) file.
 
-Apache, Apache Kafka, Kafka and associated logos are trademarks of the Apache Software Foundation (ASF). vscode-kafka is not affiliated with, endorsed by, or otherwise associated with the Apache Software Foundation or any of its projects.
+Apache, Apache Kafka®, Kafka® and associated logos are trademarks of the Apache Software Foundation (ASF). _Tools for Apache Kafka®_ is not affiliated with, endorsed by, or otherwise associated with the Apache Software Foundation or any of its projects.
