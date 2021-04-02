@@ -5,7 +5,7 @@ import { LaunchConsumerCommand, ProduceRecordCommand, ProduceRecordCommandHandle
 import { ProducerLaunchStateProvider, ConsumerLaunchStateProvider, SelectedClusterProvider } from "../kafkaFileLanguageService";
 import { Block, BlockType, ConsumerBlock, KafkaFileDocument, ProducerBlock } from "../parser/kafkaFileParser";
 
-export class KafkaFileDocumentCodeLenses {
+export class KafkaFileCodeLenses {
 
     constructor(private producerLaunchStateProvider: ProducerLaunchStateProvider, private consumerLaunchStateProvider: ConsumerLaunchStateProvider, private selectedClusterProvider: SelectedClusterProvider) {
 

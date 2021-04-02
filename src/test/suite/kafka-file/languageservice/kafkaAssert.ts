@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { CodeLens, Position, Range, Command, Uri, workspace } from "vscode";
+import { CodeLens, Position, Range, Command, Uri, workspace, CompletionList, SnippetString } from "vscode";
 import { ConsumerLaunchState } from "../../../../client";
 import { ProducerLaunchState } from "../../../../client/producer";
 import { ConsumerLaunchStateProvider, getLanguageService, LanguageService, ProducerLaunchStateProvider, SelectedClusterProvider } from "../../../../kafka-file/languageservice/kafkaFileLanguageService";
@@ -67,17 +67,55 @@ export function position(startLine: number, startCharacter: number): Position {
     return new Position(startLine, startCharacter);
 }
 
+export function range(start: Position, end: Position): Range {
+    return new Range(start, end);
+}
+
 // Code Lens assert
 
 export function codeLens(start: Position, end: Position, command: Command): CodeLens {
-    const range = new Range(start, end);
-    return new CodeLens(range, command);
+    const r = range(start, end);
+    return new CodeLens(r, command);
 }
 export async function assertCodeLens(content: string, expected: Array<CodeLens>, languageService: LanguageService) {
     let document = await getDocument(content);
     let ast = languageService.parseKafkaFileDocument(document);
     const actual = languageService.getCodeLenses(document, ast);
     assert.deepStrictEqual(actual, expected);
+}
+
+// Completion assert
+
+export async function testCompletion(value: string, expected: CompletionList) {
+    const offset = value.indexOf('|');
+    value = value.substr(0, offset) + value.substr(offset + 1);
+
+    let document = await getDocument(value);
+    const position = document.positionAt(offset);
+    let ast = languageService.parseKafkaFileDocument(document);
+    const list = languageService.doComplete(document, ast, position);
+    const items = list?.items;
+
+    // no duplicate labels
+    const labels = items?.map(i => i.label).sort();
+    let previous = null;
+    if (labels) {
+        for (const label of labels) {
+            assert.ok(previous !== label, `Duplicate label ${label} in ${labels.join(',')}`);
+            previous = label;
+        }
+    }
+
+    if (items) {
+        assert.deepStrictEqual(items.length, expected.items.length);
+        expected.items.forEach((expectedItem, i) => {
+            const actualItem = items[i];
+            assert.deepStrictEqual(actualItem.label, expectedItem.label);
+            assert.deepStrictEqual(actualItem.kind, expectedItem.kind);
+            assert.deepStrictEqual((<SnippetString>actualItem.insertText)?.value, expectedItem.insertText);
+            assert.deepStrictEqual(actualItem.range, expectedItem.range);
+        });
+    }
 }
 
 // Kafka parser assert

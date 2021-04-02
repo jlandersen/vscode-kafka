@@ -6,7 +6,7 @@ import { ClusterSettings } from "../settings/clusters";
 import { getLanguageModelCache, LanguageModelCache } from './languageModelCache';
 import { KafkaFileDocument } from "./languageservice/parser/kafkaFileParser";
 import { ConsumerLaunchStateProvider, getLanguageService, LanguageService, ProducerLaunchStateProvider, SelectedClusterProvider } from "./languageservice/kafkaFileLanguageService";
-import { runSafeAsync } from "./runner";
+import { runSafeAsync } from "./utils/runner";
 
 export function startLanguageClient(
     clusterSettings: ClusterSettings,
@@ -41,7 +41,7 @@ export function startLanguageClient(
         { language: "kafka", scheme: "untitled" },
         { language: "kafka", scheme: "kafka" },
     ];
-    
+
     // Code Lenses
     const codeLensProvider = new KafkaFileCodeLensProvider(kafkaFileDocuments, languageService);
     context.subscriptions.push(
@@ -60,6 +60,10 @@ export function startLanguageClient(
     clusterSettings.onDidChangeSelected((e) => {
         codeLensProvider.refresh();
     });
+
+    // Completion
+    context.subscriptions.push(
+        vscode.languages.registerCompletionItemProvider(documentSelector, new KafkaFileCompletionItemProvider(kafkaFileDocuments, languageService)));
 
     return {
         dispose() {
@@ -103,7 +107,7 @@ class AbstractKafkaFileFeature {
     constructor(
         private kafkaFileDocuments: LanguageModelCache<KafkaFileDocument>,
         protected readonly languageService: LanguageService
-    ) {}
+    ) { }
 
     getKafkaFileDocument(document: vscode.TextDocument): KafkaFileDocument {
         return this.kafkaFileDocuments.get(document);
@@ -134,3 +138,22 @@ class KafkaFileCodeLensProvider extends AbstractKafkaFileFeature implements vsco
         this._onDidChangeCodeLenses.fire();
     }
 }
+
+class KafkaFileCompletionItemProvider extends AbstractKafkaFileFeature implements vscode.CompletionItemProvider {
+
+    constructor(
+        kafkaFileDocuments: LanguageModelCache<KafkaFileDocument>,
+        languageService: LanguageService
+    ) {
+        super(kafkaFileDocuments, languageService);
+    }
+
+    provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList> {
+        return runSafeAsync(async () => {
+            const kafkaFileDocument = this.getKafkaFileDocument(document);
+            return this.languageService.doComplete(document, kafkaFileDocument, position);
+        }, new vscode.CompletionList(), `Error while computing code lenses for ${document.uri}`, token);
+    }
+
+}
+
