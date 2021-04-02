@@ -8,6 +8,7 @@ All notable changes to Kafka extension will be documented in this file.
 - declare key/value formats for PRODUCER in kafka file. See [#113](https://github.com/jlandersen/vscode-kafka/issues/113).
 
 ### Changed
+- Renamed extension as `Tools for Apache Kafka®`
 - Improved the "New topic" wizard: the replication factor is now read from the broker configuration. Input will be skipped if value can't be higher than 1. See [#64](https://github.com/jlandersen/vscode-kafka/issues/64).
 - The "Kafka Producer Log" output view is no longer shown automatically when producing messages. See [#134](https://github.com/jlandersen/vscode-kafka/issues/134).
 - a progress notification is displayed when producing messages. See [#117](https://github.com/jlandersen/vscode-kafka/issues/117).

@@ -18,8 +18,7 @@ export async function addClusterWizard(clusterSettings: ClusterSettings, explore
     async function pickClusterProvider(): Promise<ClusterProvider | undefined> {
         const providers = getClusterProviders();
         if (providers.length === 1) {
-            // By default, it exists the default cluster provider 'Manual' from vscode-kafka
-            // to fill a cluster with a wizard, return it.
+            // If only the default cluster provider ('Configure manually') is present, return it.
             return providers[0];
         }
 
