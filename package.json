@@ -436,7 +436,7 @@
         "test": "node ./out/test/runTest.js"
     },
     "dependencies": {
-        "faker": "^5.1.0",
+        "faker": "^5.5.2",
         "fs-extra": "^8.1.0",
         "glob": "^7.1.6",
         "js-yaml": "^3.14.0",
