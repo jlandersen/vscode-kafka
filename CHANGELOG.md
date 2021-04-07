@@ -1,18 +1,18 @@
 # Change Log
-All notable changes to Kafka extension will be documented in this file.
+All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [0.12.0]
 ### Added
 - Extension API to contribute clusters. See [#123](https://github.com/jlandersen/vscode-kafka/issues/123).
-- declare key/value formats for CONSUMER in kafka file. See [#112](https://github.com/jlandersen/vscode-kafka/issues/112).
-- declare key/value formats for PRODUCER in kafka file. See [#113](https://github.com/jlandersen/vscode-kafka/issues/113).
- - completion support for property names, values of CONSUMER and PRODUCER block. See [#146](https://github.com/jlandersen/vscode-kafka/issues/146).
+- Declare key/value formats for CONSUMER in kafka file. See [#112](https://github.com/jlandersen/vscode-kafka/issues/112).
+- Declare key/value formats for PRODUCER in kafka file. See [#113](https://github.com/jlandersen/vscode-kafka/issues/113).
+- Completion support for property names and values of CONSUMER and PRODUCER blocks. See [#146](https://github.com/jlandersen/vscode-kafka/issues/146).
 
 ### Changed
 - Renamed extension as `Tools for Apache Kafka®`
 - Improved the "New topic" wizard: the replication factor is now read from the broker configuration. Input will be skipped if value can't be higher than 1. See [#64](https://github.com/jlandersen/vscode-kafka/issues/64).
 - The "Kafka Producer Log" output view is no longer shown automatically when producing messages. See [#134](https://github.com/jlandersen/vscode-kafka/issues/134).
-- a progress notification is displayed when producing messages. See [#117](https://github.com/jlandersen/vscode-kafka/issues/117).
+- A progress notification is displayed when producing messages. See [#117](https://github.com/jlandersen/vscode-kafka/issues/117).
 
 ## [0.11.0] - 2021-03-08
 ### Added
