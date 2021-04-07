@@ -63,7 +63,9 @@ export function startLanguageClient(
 
     // Completion
     context.subscriptions.push(
-        vscode.languages.registerCompletionItemProvider(documentSelector, new KafkaFileCompletionItemProvider(kafkaFileDocuments, languageService)));
+        vscode.languages.registerCompletionItemProvider(documentSelector,
+            new KafkaFileCompletionItemProvider(kafkaFileDocuments, languageService),
+            ':', '{', '.'));
 
     return {
         dispose() {

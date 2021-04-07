@@ -43,6 +43,26 @@ The serializers can have the following value:
    * `long`: similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.LongSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/LongSerializer.java).
    * `short`: similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.ShortSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/ShortSerializer.java). 
 
+### Completion
+
+Completion snippets can help you quickly bootstrap new `PRODUCER` blocks:
+
+![Producer snippets](assets/kafka-file-producer-snippet.png)
+
+Completion is available for 
+
+ * property name:
+
+![Property name completion](assets/kafka-file-producer-property-name-completion.png)
+
+ * property value:
+
+![Property value completion](assets/kafka-file-producer-property-value-completion.png)
+
+ * randomized content (see following section)
+ 
+![FakerJS completion](assets/kafka-file-producer-fakerjs-completion.png)
+
 ## Randomized content
 
 Record content can be randomized by injecting mustache-like placeholders of [faker.js properties](https://github.com/Marak/faker.js#api-methods), like ``{{name.lastName}}`` or ``{{random.number}}``. Some randomized properties can be localized via the `kafka.producers.fakerjs.locale` setting.

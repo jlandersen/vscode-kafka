@@ -95,16 +95,16 @@ export class KafkaFileCodeLenses {
         block.properties.forEach(property => {
             switch (property.propertyName) {
                 case 'topic':
-                    topicId = property.value?.content;
+                    topicId = property.propertyValue;
                     break;
                 case 'key':
-                    key = property.value?.content;
+                    key = property.propertyValue;
                     break;
                 case 'key-format':
-                    keyFormat = property.value?.content;
+                    keyFormat = property.propertyValue;
                     break;
                 case 'value-format':
-                    valueFormat = property.value?.content;
+                    valueFormat = property.propertyValue;
                     break;
             }
         });
@@ -178,19 +178,19 @@ export class KafkaFileCodeLenses {
         block.properties.forEach(property => {
             switch (property. propertyName) {
                 case 'topic':
-                    topicId = property.value?.content;
+                    topicId = property.propertyValue;
                     break;
                 case 'from':
-                    offset = property.value?.content;
+                    offset = property.propertyValue;
                     break;
                 case 'partitions':
-                    partitions = property.value?.content;
+                    partitions = property.propertyValue;
                     break;
                 case 'key-format':
-                    keyFormat = property.value?.content;
+                    keyFormat = property.propertyValue;
                     break;
                 case 'value-format':
-                    valueFormat = property.value?.content;
+                    valueFormat = property.propertyValue;
                     break;
             }
         });

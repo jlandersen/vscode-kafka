@@ -86,7 +86,7 @@ export async function assertCodeLens(content: string, expected: Array<CodeLens>,
 
 // Completion assert
 
-export async function testCompletion(value: string, expected: CompletionList) {
+export async function testCompletion(value: string, expected: CompletionList, partial = false) {
     const offset = value.indexOf('|');
     value = value.substr(0, offset) + value.substr(offset + 1);
 
@@ -107,7 +107,9 @@ export async function testCompletion(value: string, expected: CompletionList) {
     }
 
     if (items) {
-        assert.deepStrictEqual(items.length, expected.items.length);
+        if (!partial) {
+            assert.deepStrictEqual(items.length, expected.items.length);
+        }
         expected.items.forEach((expectedItem, i) => {
             const actualItem = items[i];
             assert.deepStrictEqual(actualItem.label, expectedItem.label);

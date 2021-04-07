@@ -75,6 +75,16 @@ Completion snippets can help you quickly bootstrap new `CONSUMER` blocks:
 
 ![Consumer snippets](assets/kafka-file-consumer-snippet.png)
 
+Completion is available for 
+
+ * property name:
+
+![Property name completion](assets/kafka-file-consumer-property-name-completion.png)
+
+ * property value:
+
+![Property value completion](assets/kafka-file-consumer-property-value-completion.png)
+
 ### Start Consumer command
 
 ![Start Consumer from command palette](assets/start-consumer-from-command.png)
