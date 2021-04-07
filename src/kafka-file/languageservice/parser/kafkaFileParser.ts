@@ -9,8 +9,9 @@ export enum NodeKind {
     consumerGroupId,
     property,
     propertyKey,
-    separator,
+    propertyAssigner,
     propertyValue,
+    mustacheExpression
 }
 export interface Node {
     start: Position;
@@ -86,7 +87,7 @@ export class Chunk extends BaseNode {
 
 export class Property extends BaseNode {
 
-    constructor(public readonly key?: Chunk, public readonly separatorCharacter?: number, public readonly value?: Chunk) {
+    constructor(public readonly key?: Chunk, public readonly assignerCharacter?: number, public readonly value?: Chunk) {
         super(key?.start || value?.start || new Position(0, 0,), value?.end || key?.end || new Position(0, 0,), NodeKind.property);
         if (key) {
             key.parent = this;
@@ -97,7 +98,11 @@ export class Property extends BaseNode {
     }
 
     public get propertyName(): string | undefined {
-        return this.key?.content;
+        return this.key?.content.trim();
+    }
+
+    public get propertyValue(): string | undefined {
+        return this.value?.content.trim();
     }
 
     public get propertyRange(): Range {
@@ -106,24 +111,24 @@ export class Property extends BaseNode {
         return new Range(start, end);
     }
 
-    public get propertyKeyRange() : Range {
+    public get propertyKeyRange(): Range {
         const start = this.start;
-        const end = this.separatorCharacter ? new Position(this.start.line, this.separatorCharacter) : this.end;
+        const end = this.assignerCharacter ? new Position(this.start.line, this.assignerCharacter) : this.end;
         return new Range(start, end);
     }
 
-    public get propertyValueRange() : Range | undefined {
-        if (!this.separatorCharacter) {
+    public get propertyValueRange(): Range | undefined {
+        if (!this.assignerCharacter) {
             return;
         }
-        const start = new Position(this.start.line, this.separatorCharacter + 1);
+        const start = new Position(this.start.line, this.assignerCharacter + 1);
         const end = this.end;
         return new Range(start, end);
     }
 
-    isBeforeSeparator(position: Position): boolean {
-        if (this.separatorCharacter) {
-            return position.character <= this.separatorCharacter;
+    isBeforeAssigner(position: Position): boolean {
+        if (this.assignerCharacter) {
+            return position.character <= this.assignerCharacter;
         }
         return true;
     }
@@ -157,8 +162,6 @@ export class ProducerBlock extends Block {
     constructor(start: Position, end: Position) {
         super(BlockType.producer, start, end);
     }
-
-
 }
 
 export class ConsumerBlock extends Block {
@@ -168,6 +171,28 @@ export class ConsumerBlock extends Block {
     constructor(start: Position, end: Position) {
         super(BlockType.consumer, start, end);
     }
+}
+
+export class DynamicChunk extends ChildrenNode<MustacheExpression> {
+
+    constructor(public readonly content: string, start: Position, end: Position, kind: NodeKind) {
+        super(start, end, kind);
+        parseMustacheExpressions(this);
+    }
+}
+
+export class MustacheExpression extends BaseNode {
+
+    constructor(start: Position, public readonly opened: boolean, end: Position, public readonly closed: boolean) {
+        super(start, end, NodeKind.mustacheExpression);
+    }
+
+    public get expressionRange(): Range {
+        const start = new Position(this.start.line, this.start.character + 2);
+        const end = new Position(this.end.line, this.end.character - 2);
+        return new Range(start, end);
+    }
+
 }
 
 export enum BlockType {
@@ -231,7 +256,7 @@ function getBlockType(lineText: string): BlockType | undefined {
 function isEndBlock(lineText: string, blockType: BlockType): boolean {
     if (blockType === BlockType.consumer) {
         return isSeparator(lineText) || getBlockType(lineText) !== undefined;
-    }0
+    }
     return isSeparator(lineText);
 }
 
@@ -271,7 +296,7 @@ function parseProducerBlock(block: ProducerBlock, document: TextDocument) {
         const startValue = new Position(currentLine, 0);
         const endValue = new Position(block.end.line + 1, 0);
         const contentValue = document.getText(new Range(startValue, endValue)).trim();
-        block.value = new Chunk(contentValue, startValue, endValue, NodeKind.producerValue);
+        block.value = new DynamicChunk(contentValue, startValue, endValue, NodeKind.producerValue);
         block.addChild(block.value);
         break;
     }
@@ -329,7 +354,7 @@ function createProperty(lineText: string, lineNumber: number, parent: Block): Pr
             if (!withinValue) {
                 if (start !== -1) {
                     const end = i;
-                    const content = lineText.substr(start, end );
+                    const content = lineText.substr(start, end);
                     propertyKey = new Chunk(content, new Position(lineNumber, start), new Position(lineNumber, end), NodeKind.propertyKey);
                 }
                 separatorCharacter = i;
@@ -344,12 +369,70 @@ function createProperty(lineText: string, lineNumber: number, parent: Block): Pr
     }
     if (start !== -1) {
         const end = lineText.length;
-        const content = lineText.substr(start, end).trim();
+        const content = lineText.substr(start, end);
         if (withinValue) {
-            propertyValue = new Chunk(content, new Position(lineNumber, start), new Position(lineNumber, end), NodeKind.propertyValue);
+            const propertyName = propertyKey?.content.trim();
+            if (propertyName === 'key') {
+                propertyValue = new DynamicChunk(content, new Position(lineNumber, start), new Position(lineNumber, end), NodeKind.propertyValue);
+            } else {
+                propertyValue = new Chunk(content, new Position(lineNumber, start), new Position(lineNumber, end), NodeKind.propertyValue);
+            }
         } else {
             propertyKey = new Chunk(content, new Position(lineNumber, start), new Position(lineNumber, end), NodeKind.propertyKey);
         }
     }
     return new Property(propertyKey, separatorCharacter, propertyValue);
 }
+
+function parseMustacheExpressions(parent: DynamicChunk) {
+    const content = parent.content;
+    let currentLine = parent.start.line;
+    let currentCharacter = parent.start.character;
+    let last: string | undefined;
+    let startExpression: Position | undefined;
+    let endExpression: Position | undefined;
+    let expression: MustacheExpression | undefined;
+    for (let i = 0; i < content.length; i++) {
+        const current = content[i];
+        switch (current) {
+            case '\r':
+                currentLine++;
+                currentCharacter = 0;
+                break;
+            case '\n': {
+                if (last !== '\r') {
+                    currentLine++;
+                    currentCharacter = 0;
+                }
+                break;
+            }
+            case '{': {
+                if (last === '{') {
+                    // Start mustache expression
+                    if (!startExpression) {
+                        startExpression = new Position(currentLine, currentCharacter - 1);
+                    }
+                }
+                break;
+            }
+            case '}': {
+                if (last === '}') {
+                    // End mustache expression
+                    endExpression = new Position(currentLine, currentCharacter + 1);
+                    if (startExpression) {
+                        expression = new MustacheExpression(startExpression, true, endExpression, true);
+                        parent.addChild(expression);
+                        startExpression = undefined;
+                        endExpression = undefined;
+                    }
+                }
+                break;
+            }
+        }
+        if (current !== '\r' && current !== '\n') {
+            currentCharacter++;
+        }
+        last = current;
+    }
+}
+

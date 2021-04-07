@@ -1,6 +1,6 @@
 import { TextDocument, Position, CompletionList, CompletionItem, SnippetString, MarkdownString, CompletionItemKind, Range } from "vscode";
-import { consumerProperties, ModelDefinition, producerProperties } from "../model";
-import { Block, BlockType, Chunk, ConsumerBlock, KafkaFileDocument, NodeKind, ProducerBlock, Property } from "../parser/kafkaFileParser";
+import { consumerProperties, fakerjsAPI, ModelDefinition, producerProperties } from "../model";
+import { Block, BlockType, Chunk, ConsumerBlock, KafkaFileDocument, MustacheExpression, NodeKind, ProducerBlock, Property } from "../parser/kafkaFileParser";
 
 export class KafkaFileCompletion {
 
@@ -19,8 +19,8 @@ export class KafkaFileCompletion {
                     const lineRange = document.lineAt(position.line).range;
                     this.collectConsumerPropertyNames(undefined, lineRange, <ConsumerBlock>node, items);
                 }
-            }
                 break;
+            }
             case NodeKind.producerBlock: {
                 if (node.start.line !== position.line) {
                     // PRODUCER
@@ -28,19 +28,19 @@ export class KafkaFileCompletion {
                     const lineRange = document.lineAt(position.line).range;
                     this.collectProducerPropertyNames(undefined, lineRange, <ProducerBlock>node, items);
                 }
-            }
                 break;
+            }
             case NodeKind.producerValue: {
                 // Check if previous line is a property
                 const previous = new Position(position.line - 1, 1);
-                const node = kafkaFileDocument.findNodeBefore(previous);
-                if (node && node.kind !== NodeKind.producerValue) {
+                const previousNode = kafkaFileDocument.findNodeBefore(previous);
+                if (previousNode && previousNode.kind !== NodeKind.producerValue) {
                     const lineRange = document.lineAt(position.line).range;
-                    const block = (node.kind === NodeKind.producerBlock) ? <ProducerBlock>node : <ProducerBlock>node.parent;
+                    const block = (previousNode.kind === NodeKind.producerBlock) ? <ProducerBlock>previousNode : <ProducerBlock>previousNode.parent;
                     this.collectProducerPropertyNames(undefined, lineRange, block, items);
                 }
-            }
                 break;
+            }
             case NodeKind.propertyKey: {
                 const propertyKey = <Chunk>node;
                 const block = <Block>propertyKey.parent;
@@ -51,6 +51,7 @@ export class KafkaFileCompletion {
                 } else {
                     this.collectProducerPropertyNames(propertyName, lineRange, <ProducerBlock>block, items);
                 }
+                break;
             }
             case NodeKind.propertyValue: {
                 const propertyValue = <Chunk>node;
@@ -61,11 +62,12 @@ export class KafkaFileCompletion {
                 } else {
                     this.collectProducerPropertyValues(propertyValue, property, <ProducerBlock>block, items);
                 }
+                break;
             }
             case NodeKind.property: {
                 const property = <Property>node;
                 const block = <Block>property.parent;
-                if (property.isBeforeSeparator(position)) {
+                if (property.isBeforeAssigner(position)) {
                     const propertyName = position.line === property.start.line ? property.propertyName : undefined;
                     const lineRange = document.lineAt(position.line).range;
                     if (block.type === BlockType.consumer) {
@@ -75,15 +77,25 @@ export class KafkaFileCompletion {
                     }
                 } else {
                     const propertyValue = property.value;
-                    const block = <Block>property.parent;
-                    if (block.type === BlockType.consumer) {
-                        this.collectConsumerPropertyValues(propertyValue, property, <ConsumerBlock>block, items);
+                    const expression = propertyValue?.findNodeBefore(position);
+                    if (expression && expression.kind === NodeKind.mustacheExpression) {
+                        this.collectFakerJSExpression(<MustacheExpression>expression, items);
                     } else {
-                        this.collectProducerPropertyValues(propertyValue, property, <ProducerBlock>block, items);
+                        const block = <Block>property.parent;
+                        if (block.type === BlockType.consumer) {
+                            this.collectConsumerPropertyValues(propertyValue, property, <ConsumerBlock>block, items);
+                        } else {
+                            this.collectProducerPropertyValues(propertyValue, property, <ProducerBlock>block, items);
+                        }
                     }
                 }
-            }
                 break;
+            }
+            case NodeKind.mustacheExpression: {
+                const expression = <MustacheExpression>node;
+                this.collectFakerJSExpression(expression, items);
+                break;
+            }
         }
         return new CompletionList(items, true);
     }
@@ -92,11 +104,11 @@ export class KafkaFileCompletion {
         this.collectPropertyNames(propertyName, lineRange, block, consumerProperties, items);
     }
 
-    collectProducerPropertyNames(propertyName: string | undefined,lineRange: Range,block: ProducerBlock, items: Array<CompletionItem>) {
+    collectProducerPropertyNames(propertyName: string | undefined, lineRange: Range, block: ProducerBlock, items: Array<CompletionItem>) {
         this.collectPropertyNames(propertyName, lineRange, block, producerProperties, items);
     }
 
-    collectPropertyNames(propertyName: string | undefined, lineRange : Range,  block: Block, metadata: ModelDefinition[], items: Array<CompletionItem>) {
+    collectPropertyNames(propertyName: string | undefined, lineRange: Range, block: Block, metadata: ModelDefinition[], items: Array<CompletionItem>) {
         const existingProperties = block.properties
             .filter(property => property.key)
             .map(property => property.key?.content);
@@ -154,6 +166,7 @@ export class KafkaFileCompletion {
             return;
         }
 
+        const valueRange = property.propertyValueRange;
         definition.enum.forEach((definition) => {
             const value = definition.name;
             const item = new CompletionItem(value);
@@ -165,7 +178,24 @@ export class KafkaFileCompletion {
             const insertText = new SnippetString(' ');
             insertText.appendText(value);
             item.insertText = insertText;
-            item.range = property.propertyValueRange;
+            item.range = valueRange;
+            items.push(item);
+        });
+    }
+
+    collectFakerJSExpression(expression: MustacheExpression, items: CompletionItem[]) {
+        const expressionRange = expression.expressionRange;
+        fakerjsAPI.forEach((definition) => {
+            const value = definition.name;
+            const item = new CompletionItem(value);
+            item.kind = CompletionItemKind.Variable;
+            if (definition.description) {
+                item.documentation = new MarkdownString(definition.description);
+            }
+            const insertText = new SnippetString('');
+            insertText.appendText(value);
+            item.insertText = insertText;
+            item.range = expressionRange;
             items.push(item);
         });
     }
