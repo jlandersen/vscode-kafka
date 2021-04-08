@@ -6,8 +6,8 @@
     ],
     "scopeName": "source.kafka",
     "injections": {
-        "L:support.type.property-name.json, L:string.quoted.double.json": {
-            "comment": "Mustache patterns to inject the support.type.property-name.json and string.quoted.double.json scopes",
+        "L:support.type.property-name.json, L:string.quoted.double.json, L:meta.structure.dictionary.value.json": {
+            "comment": "Mustache patterns to inject the support.type.property-name.json, string.quoted.double.json and meta.structure.dictionary.value.json scopes",
             "patterns": [
                 {
                     "include": "source.kafka#kafka.value.mustache.variables"
@@ -141,15 +141,15 @@
             "comment": "Syntax coloration for Mustache tag variables used by fakerjs (ex : {{random.uuid}} )",
             "patterns": [
                 {
-                    "begin": "\\s*(?:(\\{\\{))",
-                    "end": "\\s*(?=(\\}\\}))",
+                    "begin": "\\s*\\{\\{",
+                    "end": "\\s*\\}\\}",
                     "beginCaptures": {
-                        "1": {
+                        "0": {
                             "name": "punctuation.definition.tag.variables.begin.mustache"
                         }
                     },
                     "endCaptures": {
-                        "1": {
+                        "0": {
                             "name": "punctuation.definition.tag.variables.end.mustache"
                         }
                     },
