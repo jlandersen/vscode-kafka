@@ -61,10 +61,16 @@ export class ClusterItem extends NodeBase implements Disposable {
     }
 
     async findTopictemByName(topicName: string): Promise<NodeBase | TopicItem | undefined> {
-        const topics = (await this.getTopicGroupItem()).getChildren();
-        return topics
-            .then(t =>
-                t.find(child => (<TopicItem>child).topic.id === topicName));
+        const topics = await this.getTopics();
+        return topics.find(child => (<TopicItem>child).topic.id === topicName);
+    }
+
+    /**
+     * Returns the topics of the cluster.
+     * @returns the topics of the cluster.
+     */
+    async getTopics() {
+        return (await this.getTopicGroupItem()).getChildren();
     }
 
     private async getTopicGroupItem(): Promise<NodeBase> {
@@ -72,3 +78,5 @@ export class ClusterItem extends NodeBase implements Disposable {
     }
 
 }
+
+

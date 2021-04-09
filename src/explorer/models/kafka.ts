@@ -4,6 +4,10 @@ import { ClusterSettings } from "../../settings";
 import { ClusterItem } from "./cluster";
 import { NodeBase } from "./nodeBase";
 
+export interface KafkaModelProvider {
+    getDataModel(): KafkaModel;
+}
+
 export class KafkaModel extends NodeBase implements Disposable {
 
     public contextValue = "";
@@ -33,10 +37,8 @@ export class KafkaModel extends NodeBase implements Disposable {
             );
     }
 
-    async findClusterItemById(clusterId: string): Promise<NodeBase | ClusterItem | undefined> {
-        return this.getChildren()
-            .then(clusters =>
-                clusters.find(child => (<ClusterItem>child).cluster.id === clusterId)
-            );
+    async findClusterItemById(clusterId: string): Promise<ClusterItem | undefined> {
+        const clusters = await this.getChildren();
+        return <ClusterItem>clusters.find(child => (<ClusterItem>child).cluster.id === clusterId);
     }
 }

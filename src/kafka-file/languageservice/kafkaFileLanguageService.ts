@@ -26,6 +26,19 @@ export interface SelectedClusterProvider {
     getSelectedCluster(): { clusterId?: string, clusterName?: string };
 }
 
+export interface TopicDetail {
+    id: string;
+    partitionCount: number;
+    replicationFactor: number;
+}
+
+/**
+ * Provider API which gets topics from  given cluster id.
+ */
+export interface TopicProvider {
+    getTopics(clusterid: string): Promise<TopicDetail[]>;
+}
+
 /**
  * Kafka language service API.
  *
@@ -52,12 +65,12 @@ export interface LanguageService {
 
     /**
      * Returns the completion result for the given text document and parsed AST at given position.
-     * 
+     *
      * @param document the text document.
      * @param kafkaFileDocument the parsed AST.
      * @param position the position where the completion was triggered.
      */
-    doComplete(document: TextDocument, kafkaFileDocument: KafkaFileDocument, position: Position): CompletionList | undefined
+    doComplete(document: TextDocument, kafkaFileDocument: KafkaFileDocument, position: Position): Promise<CompletionList | undefined>
 }
 
 /**
@@ -66,11 +79,12 @@ export interface LanguageService {
  * @param producerLaunchStateProvider the provider which gets the state for a given producer.
  * @param consumerLaunchStateProvider the provider which gets the state for a given consumer.
  * @param selectedClusterProvider the provider which gets the selected cluster id and name.
+ * @param topicProvider the provider which returns topics from a given cluster id.
  */
-export function getLanguageService(producerLaunchStateProvider: ProducerLaunchStateProvider, consumerLaunchStateProvider: ConsumerLaunchStateProvider, selectedClusterProvider: SelectedClusterProvider): LanguageService {
+export function getLanguageService(producerLaunchStateProvider: ProducerLaunchStateProvider, consumerLaunchStateProvider: ConsumerLaunchStateProvider, selectedClusterProvider: SelectedClusterProvider, topicProvider: TopicProvider): LanguageService {
 
     const kafkaFileCodeLenses = new KafkaFileCodeLenses(producerLaunchStateProvider, consumerLaunchStateProvider, selectedClusterProvider);
-    const kafkaFileCompletion = new KafkaFileCompletion();
+    const kafkaFileCompletion = new KafkaFileCompletion(selectedClusterProvider, topicProvider);
     return {
         parseKafkaFileDocument: (document: TextDocument) => parseKafkaFile(document),
         getCodeLenses: kafkaFileCodeLenses.getCodeLenses.bind(kafkaFileCodeLenses),

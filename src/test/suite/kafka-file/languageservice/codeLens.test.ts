@@ -6,7 +6,7 @@ suite("Kafka File CodeLens Test Suite", () => {
 
     test("Empty blocks", async () => {
         const languageServiceConfig = new LanguageServiceConfig();
-        const languageService = getLanguageService(languageServiceConfig, languageServiceConfig, languageServiceConfig);
+        const languageService = getLanguageService(languageServiceConfig, languageServiceConfig, languageServiceConfig, languageServiceConfig);
 
         await assertCodeLens('', [], languageService);
         await assertCodeLens('   ', [], languageService);
@@ -21,7 +21,7 @@ suite("Kafka File PRODUCER CodeLens Test Suite", () => {
     test("PRODUCER without cluster selection", async () => {
 
         const languageServiceConfig = new LanguageServiceConfig();
-        const languageService = getLanguageService(languageServiceConfig, languageServiceConfig, languageServiceConfig);
+        const languageService = getLanguageService(languageServiceConfig, languageServiceConfig, languageServiceConfig, languageServiceConfig);
 
         await assertCodeLens('PRODUCER', [
             codeLens(position(0, 0), position(0, 0), {
@@ -45,27 +45,27 @@ suite("Kafka File PRODUCER CodeLens Test Suite", () => {
                 })
             ], languageService);
 
-            await assertCodeLens(
-                'PRODUCER\n' +
-                '###    XXXXXXXXXXXXXXXXXXXXXXXX\n' +
-                'PRODUCER',
-                [
-                    codeLens(position(0, 0), position(0, 0), {
-                        command: 'vscode-kafka.explorer.selectcluster',
-                        title: 'Select a cluster'
-                    }),
-                    codeLens(position(2, 0), position(2, 0), {
-                        command: 'vscode-kafka.explorer.selectcluster',
-                        title: 'Select a cluster'
-                    })
-                ], languageService);            
+        await assertCodeLens(
+            'PRODUCER\n' +
+            '###    XXXXXXXXXXXXXXXXXXXXXXXX\n' +
+            'PRODUCER',
+            [
+                codeLens(position(0, 0), position(0, 0), {
+                    command: 'vscode-kafka.explorer.selectcluster',
+                    title: 'Select a cluster'
+                }),
+                codeLens(position(2, 0), position(2, 0), {
+                    command: 'vscode-kafka.explorer.selectcluster',
+                    title: 'Select a cluster'
+                })
+            ], languageService);
     });
 
     test("PRODUCER with cluster selection", async () => {
 
         const languageServiceConfig = new LanguageServiceConfig();
         languageServiceConfig.setSelectedCluster({ clusterId: 'cluster1', clusterName: 'CLUSTER_1' });
-        const languageService = getLanguageService(languageServiceConfig, languageServiceConfig, languageServiceConfig);
+        const languageService = getLanguageService(languageServiceConfig, languageServiceConfig, languageServiceConfig, languageServiceConfig);
 
         await assertCodeLens('PRODUCER', [
             codeLens(position(0, 0), position(0, 0), {
@@ -109,8 +109,8 @@ suite("Kafka File PRODUCER CodeLens Test Suite", () => {
             'key: a-key\n' +
             'topic: abcd\n' +
             'key-format: long\n' +
-            'value-format: string\n' + 
-            'ABCD\n' + 
+            'value-format: string\n' +
+            'ABCD\n' +
             'EFGH', [
             codeLens(position(0, 0), position(0, 0), {
                 command: 'vscode-kafka.producer.produce',
@@ -158,7 +158,7 @@ suite("Kafka File CONSUMER CodeLens Test Suite", () => {
     test("CONSUMER without cluster selection", async () => {
 
         const languageServiceConfig = new LanguageServiceConfig();
-        const languageService = getLanguageService(languageServiceConfig, languageServiceConfig, languageServiceConfig);
+        const languageService = getLanguageService(languageServiceConfig, languageServiceConfig, languageServiceConfig, languageServiceConfig);
 
         await assertCodeLens('CONSUMER group-1', [
             codeLens(position(0, 0), position(0, 0), {
@@ -187,7 +187,7 @@ suite("Kafka File CONSUMER CodeLens Test Suite", () => {
         const languageServiceConfig = new LanguageServiceConfig();
         languageServiceConfig.setSelectedCluster({ clusterId: 'cluster1', clusterName: 'CLUSTER_1' });
         languageServiceConfig.setConsumerLaunchState('cluster1', 'group-1', ConsumerLaunchState.started);
-        const languageService = getLanguageService(languageServiceConfig, languageServiceConfig, languageServiceConfig);
+        const languageService = getLanguageService(languageServiceConfig, languageServiceConfig, languageServiceConfig, languageServiceConfig);
 
         await assertCodeLens('CONSUMER group-1', [
             codeLens(position(0, 0), position(0, 0), {

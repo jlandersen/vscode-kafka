@@ -138,7 +138,7 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
 
     // .kafka file related
     context.subscriptions.push(
-        startLanguageClient(clusterSettings, producerCollection, consumerCollection, context)
+        startLanguageClient(clusterSettings, producerCollection, consumerCollection, explorer, context)
     );
 
     context.subscriptions.push(

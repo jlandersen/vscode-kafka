@@ -2,10 +2,10 @@ import * as assert from "assert";
 import { CodeLens, Position, Range, Command, Uri, workspace, CompletionList, SnippetString } from "vscode";
 import { ConsumerLaunchState } from "../../../../client";
 import { ProducerLaunchState } from "../../../../client/producer";
-import { ConsumerLaunchStateProvider, getLanguageService, LanguageService, ProducerLaunchStateProvider, SelectedClusterProvider } from "../../../../kafka-file/languageservice/kafkaFileLanguageService";
+import { ConsumerLaunchStateProvider, getLanguageService, LanguageService, ProducerLaunchStateProvider, SelectedClusterProvider, TopicDetail, TopicProvider } from "../../../../kafka-file/languageservice/kafkaFileLanguageService";
 import { BlockType, ProducerBlock } from "../../../../kafka-file/languageservice/parser/kafkaFileParser";
 
-export class LanguageServiceConfig implements ProducerLaunchStateProvider, ConsumerLaunchStateProvider, SelectedClusterProvider {
+export class LanguageServiceConfig implements ProducerLaunchStateProvider, ConsumerLaunchStateProvider, SelectedClusterProvider, TopicProvider {
 
     private producerLaunchStates = new Map<string, ProducerLaunchState>();
 
@@ -13,6 +13,7 @@ export class LanguageServiceConfig implements ProducerLaunchStateProvider, Consu
 
     private selectedCluster: { clusterId?: string, clusterName?: string } | undefined;
 
+    private topicsCache = new Map<string, TopicDetail[]>();
     getProducerLaunchState(uri: Uri): ProducerLaunchState {
         const key = uri.toString();
         const state = this.producerLaunchStates.get(key);
@@ -49,10 +50,16 @@ export class LanguageServiceConfig implements ProducerLaunchStateProvider, Consu
         this.selectedCluster = selectedCluster;
     }
 
+    public setTopics(clusterId: string, topics: TopicDetail[]) {
+        this.topicsCache.set(clusterId, topics);
+    }
+    async getTopics(clusterId: string): Promise<TopicDetail[]> {
+        return this.topicsCache.get(clusterId) || [];
+    }
 }
 
 const languageServiceConfig = new LanguageServiceConfig();
-const languageService = getLanguageService(languageServiceConfig, languageServiceConfig, languageServiceConfig);
+const languageService = getLanguageService(languageServiceConfig, languageServiceConfig, languageServiceConfig, languageServiceConfig);
 
 export function getSimpleLanguageService() {
     return languageService;
@@ -85,15 +92,14 @@ export async function assertCodeLens(content: string, expected: Array<CodeLens>,
 }
 
 // Completion assert
-
-export async function testCompletion(value: string, expected: CompletionList, partial = false) {
+export async function testCompletion(value: string, expected: CompletionList, partial = false, ls = languageService) {
     const offset = value.indexOf('|');
     value = value.substr(0, offset) + value.substr(offset + 1);
 
     let document = await getDocument(value);
     const position = document.positionAt(offset);
-    let ast = languageService.parseKafkaFileDocument(document);
-    const list = languageService.doComplete(document, ast, position);
+    let ast = ls.parseKafkaFileDocument(document);
+    const list = await ls.doComplete(document, ast, position);
     const items = list?.items;
 
     // no duplicate labels
@@ -112,10 +118,10 @@ export async function testCompletion(value: string, expected: CompletionList, pa
         }
         expected.items.forEach((expectedItem, i) => {
             const actualItem = items[i];
-            assert.deepStrictEqual(actualItem.label, expectedItem.label);
-            assert.deepStrictEqual(actualItem.kind, expectedItem.kind);
-            assert.deepStrictEqual((<SnippetString>actualItem.insertText)?.value, expectedItem.insertText);
-            assert.deepStrictEqual(actualItem.range, expectedItem.range);
+            assert.deepStrictEqual(actualItem?.label, expectedItem.label);
+            assert.deepStrictEqual(actualItem?.kind, expectedItem.kind);
+            assert.deepStrictEqual((<SnippetString>actualItem?.insertText)?.value, expectedItem.insertText);
+            assert.deepStrictEqual(actualItem?.range, expectedItem.range);
         });
     }
 }
