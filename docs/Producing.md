@@ -59,9 +59,13 @@ Completion is available for
 
 ![Property value completion](assets/kafka-file-producer-property-value-completion.png)
 
- * randomized content (see following section)
+ * randomized content (see following section):
  
 ![FakerJS completion](assets/kafka-file-producer-fakerjs-completion.png)
+
+ * topic:
+ 
+![Topic completion](assets/kafka-file-producer-topic-completion.png)
 
 ## Randomized content
 

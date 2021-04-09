@@ -85,6 +85,10 @@ Completion is available for
 
 ![Property value completion](assets/kafka-file-consumer-property-value-completion.png)
 
+ * topic:
+
+![Topic completion](assets/kafka-file-consumer-topic-completion.png)
+
 ### Start Consumer command
 
 ![Start Consumer from command palette](assets/start-consumer-from-command.png)

@@ -4,7 +4,7 @@ import { ClientAccessor } from "../client";
 import { WorkspaceSettings, ClusterSettings } from "../settings";
 import { NodeBase } from "./models/nodeBase";
 import { TreeView } from "vscode";
-import { KafkaModel } from "./models/kafka";
+import { KafkaModel, KafkaModelProvider } from "./models/kafka";
 import { ClusterItem } from "./models/cluster";
 import { EOL } from 'os';
 import { TopicItem } from "./models/topics";
@@ -17,7 +17,7 @@ const TREEVIEW_ID = 'kafkaExplorer';
 /**
  * Kafka explorer to show in a tree clusters, topics.
  */
-export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider<NodeBase> {
+export class KafkaExplorer implements KafkaModelProvider, vscode.Disposable, vscode.TreeDataProvider<NodeBase> {
 
     private onDidChangeTreeDataEvent: vscode.EventEmitter<NodeBase | undefined>
         = new vscode.EventEmitter<NodeBase | undefined>();
@@ -63,10 +63,7 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
 
     async getChildren(element?: NodeBase): Promise<NodeBase[]> {
         if (!element) {
-            if (!this.root) {
-                this.root = new KafkaModel(this.clusterSettings, this.clientAccessor);
-            }
-            element = this.root;
+            element = this.getDataModel();
         }
         return element.getChildren();
     }
@@ -178,6 +175,19 @@ export class KafkaExplorer implements vscode.Disposable, vscode.TreeDataProvider
         if (clusterItem !== undefined) {
             this.onDidChangeTreeDataEvent.fire(clusterItem);
         }
+    }
+
+
+    /**
+     * Returns the kafka data model.
+     *
+     * @returns  the kafka data model.
+     */
+    public getDataModel(): KafkaModel {
+        if (!this.root) {
+            this.root = new KafkaModel(this.clusterSettings, this.clientAccessor);
+        }
+        return this.root;
     }
 
 }

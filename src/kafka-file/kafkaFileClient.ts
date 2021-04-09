@@ -5,13 +5,16 @@ import { ClusterSettings } from "../settings/clusters";
 
 import { getLanguageModelCache, LanguageModelCache } from './languageModelCache';
 import { KafkaFileDocument } from "./languageservice/parser/kafkaFileParser";
-import { ConsumerLaunchStateProvider, getLanguageService, LanguageService, ProducerLaunchStateProvider, SelectedClusterProvider } from "./languageservice/kafkaFileLanguageService";
+import { ConsumerLaunchStateProvider, getLanguageService, LanguageService, ProducerLaunchStateProvider, SelectedClusterProvider, TopicDetail, TopicProvider } from "./languageservice/kafkaFileLanguageService";
 import { runSafeAsync } from "./utils/runner";
+import { TopicItem } from "../explorer";
+import { KafkaModelProvider } from "../explorer/models/kafka";
 
 export function startLanguageClient(
     clusterSettings: ClusterSettings,
     producerCollection: ProducerCollection,
     consumerCollection: ConsumerCollection,
+    modelProvider: KafkaModelProvider,
     context: vscode.ExtensionContext
 ): vscode.Disposable {
 
@@ -20,7 +23,7 @@ export function startLanguageClient(
     const kafkaFileDocuments = getLanguageModelCache<KafkaFileDocument>(10, 60, document => languageService.parseKafkaFileDocument(document));
 
     // Create the Kafka file language service.
-    const languageService = createLanguageService(clusterSettings, producerCollection, consumerCollection);
+    const languageService = createLanguageService(clusterSettings, producerCollection, consumerCollection, modelProvider);
 
     // Open / Close document
     context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(e => {
@@ -74,7 +77,7 @@ export function startLanguageClient(
     };
 }
 
-function createLanguageService(clusterSettings: ClusterSettings, producerCollection: ProducerCollection, consumerCollection: ConsumerCollection): LanguageService {
+function createLanguageService(clusterSettings: ClusterSettings, producerCollection: ProducerCollection, consumerCollection: ConsumerCollection, modelProvider: KafkaModelProvider): LanguageService {
     const producerLaunchStateProvider = {
         getProducerLaunchState(uri: vscode.Uri): ProducerLaunchState {
             const producer = producerCollection.get(uri);
@@ -90,7 +93,6 @@ function createLanguageService(clusterSettings: ClusterSettings, producerCollect
     } as ConsumerLaunchStateProvider;
 
     const selectedClusterProvider = {
-
         getSelectedCluster() {
             const selected = clusterSettings.selected;
             return {
@@ -98,10 +100,22 @@ function createLanguageService(clusterSettings: ClusterSettings, producerCollect
                 clusterName: selected?.name,
             };
         }
-
     } as SelectedClusterProvider;
 
-    return getLanguageService(producerLaunchStateProvider, consumerLaunchStateProvider, selectedClusterProvider);
+    const topicProvider = {
+        async getTopics(clusterId: string): Promise<TopicDetail[]> {
+            // Retrieve the proper cluster item from the explorer
+            const model = modelProvider.getDataModel();
+            const cluster = await model.findClusterItemById(clusterId);
+            if (!cluster) {
+                return [];
+            }
+            // Returns topics from the cluster
+            return (await cluster.getTopics()).map(child => (<TopicItem>child).topic);
+        }
+    } as TopicProvider;
+
+    return getLanguageService(producerLaunchStateProvider, consumerLaunchStateProvider, selectedClusterProvider, topicProvider);
 }
 
 class AbstractKafkaFileFeature {
