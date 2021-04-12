@@ -10,6 +10,8 @@ import { pickClient } from "./common";
 import { MessageFormat, serialize } from "../client/serialization";
 import { createProducerUri, ProducerCollection, ProducerInfoUri, ProducerLaunchState } from "../client/producer";
 import { ProducerRecord } from "kafkajs";
+import { ProducerValidator } from "../validators/producer";
+import { getErrorMessage } from "../errors";
 
 export interface ProduceRecordCommand extends ProducerInfoUri {
     messageKeyFormat?: MessageFormat;
@@ -35,47 +37,54 @@ export class ProduceRecordCommandHandler {
             return;
         }
 
-        const { topicId, key, value } = command;
-        const channel = this.channelProvider.getChannel("Kafka Producer Log");
-        if (topicId === undefined) {
-            channel.appendLine("No topic");
-            return;
-        }
-        if (this.settings.producerFakerJSEnabled) {
-            faker.setLocale(this.settings.producerFakerJSLocale);
-        }
+        try {
+            ProducerValidator.validate(command);
 
-        const messages = [...Array(times).keys()].map(() => {
+            const { topicId, key, value } = command;
+            const channel = this.channelProvider.getChannel("Kafka Producer Log");
+            if (topicId === undefined) {
+                channel.appendLine("No topic");
+                return;
+            }
             if (this.settings.producerFakerJSEnabled) {
-                //Use same seed for key and value so we can generate content like
-                // key: customer-{{random.uuid}} // same value as in id
-                // {"id": "{{random.uuid}}"}  // same value as in key
-                const seed = Math.floor(Math.random() * 1000000);
-                faker.seed(seed);
-                const randomizedKey = (key) ? faker.fake(key) : key;
-                faker.seed(seed);
-                const randomizedValue = faker.fake(value);
-                return {
-                    key: serialize(randomizedKey, command.messageKeyFormat),
-                    value: serialize(randomizedValue, command.messageValueFormat)
-                };
+                faker.setLocale(this.settings.producerFakerJSLocale);
             }
 
-            // Return key/value message as-is
-            return {
-                key: serialize(key, command.messageKeyFormat),
-                value: serialize(value, command.messageValueFormat)
-            };
-        });
+            const messages = [...Array(times).keys()].map(() => {
+                if (this.settings.producerFakerJSEnabled) {
+                    //Use same seed for key and value so we can generate content like
+                    // key: customer-{{random.uuid}} // same value as in id
+                    // {"id": "{{random.uuid}}"}  // same value as in key
+                    const seed = Math.floor(Math.random() * 1000000);
+                    faker.seed(seed);
+                    const randomizedKey = (key) ? faker.fake(key) : key;
+                    faker.seed(seed);
+                    const randomizedValue = faker.fake(value);
+                    return {
+                        key: serialize(randomizedKey, command.messageKeyFormat),
+                        value: serialize(randomizedValue, command.messageValueFormat)
+                    };
+                }
 
-        command.clusterId = client.cluster.id;
-        const producerUri = createProducerUri(command);
-        const record = {
-            topic: topicId,
-            messages: messages,
-        };
-        // Start the producer
-        await startProducerWithProgress(producerUri, record, this.producerCollection, channel, times, this.explorer);
+                // Return key/value message as-is
+                return {
+                    key: serialize(key, command.messageKeyFormat),
+                    value: serialize(value, command.messageValueFormat)
+                };
+            });
+
+            command.clusterId = client.cluster.id;
+            const producerUri = createProducerUri(command);
+            const record = {
+                topic: topicId,
+                messages: messages,
+            };
+            // Start the producer
+            await startProducerWithProgress(producerUri, record, this.producerCollection, channel, times, this.explorer);
+        }
+        catch (e) {
+            vscode.window.showErrorMessage(`Error while producing: ${getErrorMessage(e)}`);
+        }
     }
 }
 

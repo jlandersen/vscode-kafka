@@ -1,6 +1,6 @@
 import { TextDocument, Position, CompletionList, CompletionItem, SnippetString, MarkdownString, CompletionItemKind, Range } from "vscode";
 import { SelectedClusterProvider, TopicDetail, TopicProvider } from "../kafkaFileLanguageService";
-import { consumerProperties, fakerjsAPI, ModelDefinition, producerProperties } from "../model";
+import { consumerModel, fakerjsAPIModel, Model, ModelDefinition, producerModel } from "../model";
 import { Block, BlockType, Chunk, ConsumerBlock, KafkaFileDocument, MustacheExpression, NodeKind, ProducerBlock, Property } from "../parser/kafkaFileParser";
 
 /**
@@ -117,18 +117,18 @@ export class KafkaFileCompletion {
     }
 
     async collectConsumerPropertyNames(propertyName: string | undefined, lineRange: Range, block: ConsumerBlock, items: Array<CompletionItem>) {
-        await this.collectPropertyNames(propertyName, lineRange, block, consumerProperties, items);
+        await this.collectPropertyNames(propertyName, lineRange, block, consumerModel, items);
     }
 
     async collectProducerPropertyNames(propertyName: string | undefined, lineRange: Range, block: ProducerBlock, items: Array<CompletionItem>) {
-        await this.collectPropertyNames(propertyName, lineRange, block, producerProperties, items);
+        await this.collectPropertyNames(propertyName, lineRange, block, producerModel, items);
     }
 
-    async collectPropertyNames(propertyName: string | undefined, lineRange: Range, block: Block, metadata: ModelDefinition[], items: Array<CompletionItem>) {
+    async collectPropertyNames(propertyName: string | undefined, lineRange: Range, block: Block, metadata: Model, items: Array<CompletionItem>) {
         const existingProperties = block.properties
             .filter(property => property.key)
             .map(property => property.key?.content);
-        for (const definition of metadata) {
+        for (const definition of metadata.definitions) {
             const currentName = definition.name;
             if (existingProperties.indexOf(currentName) === -1 || propertyName === currentName) {
                 const item = new CompletionItem(currentName);
@@ -161,7 +161,7 @@ export class KafkaFileCompletion {
             default:
                 // CONSUMER
                 // key-format: |
-                this.collectPropertyValues(propertyValue, property, block, consumerProperties, items);
+                this.collectPropertyValues(propertyValue, property, block, consumerModel, items);
                 break;
         }
     }
@@ -177,14 +177,17 @@ export class KafkaFileCompletion {
             default:
                 // PRODUCER
                 // key-format: |
-                this.collectPropertyValues(propertyValue, property, block, producerProperties, items);
+                this.collectPropertyValues(propertyValue, property, block, producerModel, items);
                 break;
         }
     }
 
-    collectPropertyValues(propertyValue: Chunk | undefined, property: Property, block: Block, metadata: ModelDefinition[], items: Array<CompletionItem>) {
+    collectPropertyValues(propertyValue: Chunk | undefined, property: Property, block: Block, metadata: Model, items: Array<CompletionItem>) {
         const propertyName = property.propertyName;
-        const definition = metadata.find(definition => definition.name === propertyName);
+        if (!propertyName) {
+            return;
+        }
+        const definition = metadata.getDefinition(propertyName);
         if (!definition || !definition.enum) {
             return;
         }
@@ -207,6 +210,7 @@ export class KafkaFileCompletion {
 
     collectFakerJSExpressions(expression: MustacheExpression, items: CompletionItem[]) {
         const expressionRange = expression.expressionRange;
+        const fakerjsAPI = fakerjsAPIModel.definitions;
         fakerjsAPI.forEach((definition) => {
             const value = definition.name;
             const item = new CompletionItem(value);

@@ -1,5 +1,6 @@
 import { Position, Range, TextDocument } from "vscode";
 import { findFirst } from "../../utils/arrays";
+import { consumerModel, Model, producerModel } from "../model";
 
 export enum NodeKind {
     document,
@@ -126,6 +127,32 @@ export class Property extends BaseNode {
         return new Range(start, end);
     }
 
+    public get propertyTrimmedValueRange(): Range | undefined {
+        if (!this.assignerCharacter) {
+            return;
+        }
+        const value = this.value?.content;
+        if (!value) {
+            return;
+        }
+        let startChar = 0;
+        for (startChar = 0; startChar < value.length; startChar++) {
+            if (value.charAt(startChar) !== ' ') {
+                break;
+            }
+        }
+        let endChar = value.length;
+        for (endChar = value.length - 1; endChar >= 0; endChar--) {
+            if (value.charAt(endChar) !== ' ') {
+                endChar++;
+                break;
+            }
+        }
+        const start = new Position(this.start.line, startChar + this.assignerCharacter + 1);
+        const end = new Position(this.end.line, endChar + this.assignerCharacter + 1);
+        return new Range(start, end);
+    }
+
     isBeforeAssigner(position: Position): boolean {
         if (this.assignerCharacter) {
             return position.character <= this.assignerCharacter;
@@ -136,7 +163,7 @@ export class Property extends BaseNode {
 
 export abstract class Block extends ChildrenNode<Property | Chunk> {
 
-    constructor(public readonly type: BlockType, start: Position, end: Position) {
+    constructor(start: Position, end: Position, public readonly type: BlockType, public readonly model: Model) {
         super(start, end, type === BlockType.consumer ? NodeKind.consumerBlock : NodeKind.producerBlock);
     }
 
@@ -157,11 +184,13 @@ export abstract class Block extends ChildrenNode<Property | Chunk> {
 }
 
 export class ProducerBlock extends Block {
+
     public value: Chunk | undefined;
 
     constructor(start: Position, end: Position) {
-        super(BlockType.producer, start, end);
+        super(start, end, BlockType.producer, producerModel);
     }
+
 }
 
 export class ConsumerBlock extends Block {
@@ -169,7 +198,7 @@ export class ConsumerBlock extends Block {
     public consumerGroupId: Chunk | undefined;
 
     constructor(start: Position, end: Position) {
-        super(BlockType.consumer, start, end);
+        super(start, end, BlockType.consumer, consumerModel);
     }
 }
 
@@ -286,7 +315,7 @@ function parseProducerBlock(block: ProducerBlock, document: TextDocument) {
             continue;
         }
 
-        if (startsWith(lineText, ["topic:", "key:", "key-format:", "value-format:"])) {
+        if (isPropertyLine(lineText, block.model)) {
             // Known properties
             block.addChild(createProperty(lineText, currentLine, block));
             continue;
@@ -302,13 +331,13 @@ function parseProducerBlock(block: ProducerBlock, document: TextDocument) {
     }
 }
 
-function startsWith(lineText: string, searchStrings: string[]): boolean {
-    for (let i = 0; i < searchStrings.length; i++) {
-        if (lineText.startsWith(searchStrings[i])) {
-            return true;
-        }
+function isPropertyLine(lineText: string, model: Model): boolean {
+    const index = lineText.indexOf(':');
+    if (index === -1) {
+        return false;
     }
-    return false;
+    const propertyName = lineText.substring(0, index);
+    return model.hasDefinition(propertyName);
 }
 
 function isIgnoreLine(lineText: string): boolean {

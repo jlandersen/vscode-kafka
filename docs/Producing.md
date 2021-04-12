@@ -67,6 +67,14 @@ Completion is available for
  
 ![Topic completion](assets/kafka-file-producer-topic-completion.png)
 
+### Validation
+
+Validation will help you write valid producers in .kafka files.
+
+Here is an example of value validation:
+
+![Empty value](assets/kafka-file-producer-empty-value-validation.png)
+
 ## Randomized content
 
 Record content can be randomized by injecting mustache-like placeholders of [faker.js properties](https://github.com/Marak/faker.js#api-methods), like ``{{name.lastName}}`` or ``{{random.number}}``. Some randomized properties can be localized via the `kafka.producers.fakerjs.locale` setting.

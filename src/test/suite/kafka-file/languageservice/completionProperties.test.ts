@@ -38,7 +38,7 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                     },
                     {
                         label: 'from', kind: CompletionItemKind.Property,
-                        insertText: 'from: ${1|earliest,last,0|}',
+                        insertText: 'from: ${1|earliest,latest,0|}',
                         range: range(position(1, 0), position(1, 0))
                     },
                     {
@@ -74,7 +74,7 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                     },
                     {
                         label: 'from', kind: CompletionItemKind.Property,
-                        insertText: 'from: ${1|earliest,last,0|}',
+                        insertText: 'from: ${1|earliest,latest,0|}',
                         range: range(position(1, 0), position(1, 1))
                     },
                     {
@@ -109,7 +109,7 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                     },
                     {
                         label: 'from', kind: CompletionItemKind.Property,
-                        insertText: 'from: ${1|earliest,last,0|}',
+                        insertText: 'from: ${1|earliest,latest,0|}',
                         range: range(position(1, 0), position(1, 5))
                     },
                     {
@@ -144,7 +144,7 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                     },
                     {
                         label: 'from', kind: CompletionItemKind.Property,
-                        insertText: 'from: ${1|earliest,last,0|}',
+                        insertText: 'from: ${1|earliest,latest,0|}',
                         range: range(position(1, 0), position(1, 6))
                     },
                     {
@@ -179,7 +179,7 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                     },
                     {
                         label: 'from', kind: CompletionItemKind.Property,
-                        insertText: 'from: ${1|earliest,last,0|}',
+                        insertText: 'from: ${1|earliest,latest,0|}',
                         range: range(position(1, 0), position(1, 6))
                     },
                     {
@@ -214,7 +214,7 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                     },
                     {
                         label: 'from', kind: CompletionItemKind.Property,
-                        insertText: 'from: ${1|earliest,last,0|}',
+                        insertText: 'from: ${1|earliest,latest,0|}',
                         range: range(position(1, 0), position(1, 11))
                     },
                     {
@@ -251,7 +251,7 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                     /* 'from' is removed from completion because it is declared in the CONSUMER
                     {
                         label: 'from', kind: CompletionItemKind.Property,
-                        insertText: 'from: ${1|earliest,last,0|}',
+                        insertText: 'from: ${1|earliest,latest,0|}',
                         range: range(position(2, 0), position(2, 5))
                     },*/
                     {
@@ -285,8 +285,8 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                         range: range(position(1, 5), position(1, 5))
                     },
                     {
-                        label: 'last', kind: CompletionItemKind.Value,
-                        insertText: ' last',
+                        label: 'latest', kind: CompletionItemKind.Value,
+                        insertText: ' latest',
                         range: range(position(1, 5), position(1, 5))
                     },
                     {
@@ -310,8 +310,8 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                         range: range(position(1, 5), position(1, 7))
                     },
                     {
-                        label: 'last', kind: CompletionItemKind.Value,
-                        insertText: ' last',
+                        label: 'latest', kind: CompletionItemKind.Value,
+                        insertText: ' latest',
                         range: range(position(1, 5), position(1, 7))
                     },
                     {
@@ -336,8 +336,8 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                         range: range(position(2, 5), position(2, 7))
                     },
                     {
-                        label: 'last', kind: CompletionItemKind.Value,
-                        insertText: ' last',
+                        label: 'latest', kind: CompletionItemKind.Value,
+                        insertText: ' latest',
                         range: range(position(2, 5), position(2, 7))
                     },
                     {
@@ -363,8 +363,8 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                         range: range(position(2, 5), position(2, 7))
                     },
                     {
-                        label: 'last', kind: CompletionItemKind.Value,
-                        insertText: ' last',
+                        label: 'latest', kind: CompletionItemKind.Value,
+                        insertText: ' latest',
                         range: range(position(2, 5), position(2, 7))
                     },
                     {
