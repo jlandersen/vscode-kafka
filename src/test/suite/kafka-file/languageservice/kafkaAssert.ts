@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { CodeLens, Position, Range, Command, Uri, workspace, CompletionList, SnippetString } from "vscode";
+import { CodeLens, Position, Range, Command, Uri, workspace, CompletionList, SnippetString, Diagnostic, DiagnosticSeverity } from "vscode";
 import { ConsumerLaunchState } from "../../../../client";
 import { ProducerLaunchState } from "../../../../client/producer";
 import { ConsumerLaunchStateProvider, getLanguageService, LanguageService, ProducerLaunchStateProvider, SelectedClusterProvider, TopicDetail, TopicProvider } from "../../../../kafka-file/languageservice/kafkaFileLanguageService";
@@ -124,6 +124,21 @@ export async function testCompletion(value: string, expected: CompletionList, pa
             assert.deepStrictEqual(actualItem?.range, expectedItem.range);
         });
     }
+}
+
+
+// Diagnostics assert
+
+export function diagnostic(start: Position, end: Position, message: string, severity: DiagnosticSeverity): Diagnostic {
+    const r = range(start, end);
+    return new Diagnostic(r, message, severity);
+}
+
+export async function assertDiagnostics(content: string, expected: Array<Diagnostic>, ls = languageService) {
+    let document = await getDocument(content);
+    let ast = ls.parseKafkaFileDocument(document);
+    const actual = ls.doDiagnostics(document, ast);
+    assert.deepStrictEqual(actual, expected);
 }
 
 // Kafka parser assert

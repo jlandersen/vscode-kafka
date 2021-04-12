@@ -89,6 +89,14 @@ Completion is available for
 
 ![Topic completion](assets/kafka-file-consumer-topic-completion.png)
 
+#### Validation
+
+Validation will help you write valid consumers in .kafka files.
+
+Here is an example of topic validation:
+
+![Topic syntax validation](assets/kafka-file-consumer-topic-syntax-validation.png)
+
 ### Start Consumer command
 
 ![Start Consumer from command palette](assets/start-consumer-from-command.png)

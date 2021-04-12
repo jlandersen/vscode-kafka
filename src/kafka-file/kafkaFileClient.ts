@@ -9,6 +9,7 @@ import { ConsumerLaunchStateProvider, getLanguageService, LanguageService, Produ
 import { runSafeAsync } from "./utils/runner";
 import { TopicItem } from "../explorer";
 import { KafkaModelProvider } from "../explorer/models/kafka";
+import { ThrottledDelayer } from "./utils/async";
 
 export function startLanguageClient(
     clusterSettings: ClusterSettings,
@@ -24,20 +25,6 @@ export function startLanguageClient(
 
     // Create the Kafka file language service.
     const languageService = createLanguageService(clusterSettings, producerCollection, consumerCollection, modelProvider);
-
-    // Open / Close document
-    context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(e => {
-        if (e.languageId === 'kafka') {
-            openedDocuments.set(e.uri.toString(), e);
-        }
-    }));
-
-    context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(e => {
-        if (e.languageId === 'kafka') {
-            openedDocuments.delete(e.uri.toString());
-            kafkaFileDocuments.onDocumentRemoved(e);
-        }
-    }));
 
     const documentSelector = [
         { language: "kafka", scheme: "file" },
@@ -69,6 +56,32 @@ export function startLanguageClient(
         vscode.languages.registerCompletionItemProvider(documentSelector,
             new KafkaFileCompletionItemProvider(kafkaFileDocuments, languageService),
             ':', '{', '.'));
+
+    // Validation
+    const diagnostics = new KafkaFileDiagnostics(kafkaFileDocuments, languageService);
+    context.subscriptions.push(diagnostics);
+
+    // Open / Close document
+    context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(e => {
+        if (e.languageId === 'kafka') {
+            openedDocuments.set(e.uri.toString(), e);
+            diagnostics.triggerValidate(e);
+        }
+    }));
+
+    context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(e => {
+        if (e.document.languageId === 'kafka') {
+            diagnostics.triggerValidate(e.document);
+        }
+    }));
+
+    context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(e => {
+        if (e.languageId === 'kafka') {
+            openedDocuments.delete(e.uri.toString());
+            kafkaFileDocuments.onDocumentRemoved(e);
+            diagnostics.delete(e);
+        }
+    }));
 
     return {
         dispose() {
@@ -173,3 +186,47 @@ class KafkaFileCompletionItemProvider extends AbstractKafkaFileFeature implement
 
 }
 
+class KafkaFileDiagnostics extends AbstractKafkaFileFeature implements vscode.Disposable {
+
+    private diagnosticCollection: vscode.DiagnosticCollection;
+    private delayers?: { [key: string]: ThrottledDelayer<void> };
+
+    constructor(
+        kafkaFileDocuments: LanguageModelCache<KafkaFileDocument>,
+        languageService: LanguageService
+    ) {
+        super(kafkaFileDocuments, languageService);
+        this.diagnosticCollection = vscode.languages.createDiagnosticCollection('kafka');
+        this.delayers = Object.create(null);
+    }
+
+    delete(textDocument: vscode.TextDocument) {
+        this.diagnosticCollection.delete(textDocument.uri);
+    }
+
+    public triggerValidate(textDocument: vscode.TextDocument): void {
+        let trigger = () => {
+            let key = textDocument.uri.toString();
+            let delayer = this.delayers![key];
+            if (!delayer) {
+                delayer = new ThrottledDelayer<void>(250);
+                this.delayers![key] = delayer;
+            }
+            delayer.trigger(() => this.doValidate(textDocument));
+        };
+        trigger();
+    }
+
+    private doValidate(document: vscode.TextDocument): Promise<void> {
+        return new Promise<void>((resolve) => {
+            const kafkaFileDocument = this.getKafkaFileDocument(document);
+            const diagnostics = this.languageService.doDiagnostics(document, kafkaFileDocument);
+            this.diagnosticCollection!.set(document.uri, diagnostics);
+            resolve();
+        });
+    }
+    dispose(): void {
+        this.diagnosticCollection.clear();
+        this.diagnosticCollection.dispose();
+    }
+}

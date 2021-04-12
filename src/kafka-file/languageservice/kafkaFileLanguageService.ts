@@ -1,9 +1,10 @@
-import { CodeLens, CompletionList, Position, TextDocument, Uri } from "vscode";
+import { CodeLens, CompletionList, Diagnostic, Position, TextDocument, Uri } from "vscode";
 import { ConsumerLaunchState } from "../../client";
 import { ProducerLaunchState } from "../../client/producer";
 import { KafkaFileDocument, parseKafkaFile } from "./parser/kafkaFileParser";
 import { KafkaFileCodeLenses } from "./services/codeLensProvider";
 import { KafkaFileCompletion } from "./services/completion";
+import { KafkaFileDiagnostics } from "./services/diagnostics";
 
 /**
  * Provider API which gets the state for a given producer.
@@ -70,7 +71,15 @@ export interface LanguageService {
      * @param kafkaFileDocument the parsed AST.
      * @param position the position where the completion was triggered.
      */
-    doComplete(document: TextDocument, kafkaFileDocument: KafkaFileDocument, position: Position): Promise<CompletionList | undefined>
+    doComplete(document: TextDocument, kafkaFileDocument: KafkaFileDocument, position: Position): Promise<CompletionList | undefined>;
+
+    /**
+     * Returns the diagnostics result for the given text document and parsed AST.
+     *
+     * @param document the text document.
+     * @param kafkaFileDocument the parsed AST.
+     */
+    doDiagnostics(document: TextDocument, kafkaFileDocument: KafkaFileDocument): Diagnostic[];
 }
 
 /**
@@ -83,11 +92,13 @@ export interface LanguageService {
  */
 export function getLanguageService(producerLaunchStateProvider: ProducerLaunchStateProvider, consumerLaunchStateProvider: ConsumerLaunchStateProvider, selectedClusterProvider: SelectedClusterProvider, topicProvider: TopicProvider): LanguageService {
 
-    const kafkaFileCodeLenses = new KafkaFileCodeLenses(producerLaunchStateProvider, consumerLaunchStateProvider, selectedClusterProvider);
-    const kafkaFileCompletion = new KafkaFileCompletion(selectedClusterProvider, topicProvider);
+    const codeLenses = new KafkaFileCodeLenses(producerLaunchStateProvider, consumerLaunchStateProvider, selectedClusterProvider);
+    const completion = new KafkaFileCompletion(selectedClusterProvider, topicProvider);
+    const diagnostics = new KafkaFileDiagnostics();
     return {
         parseKafkaFileDocument: (document: TextDocument) => parseKafkaFile(document),
-        getCodeLenses: kafkaFileCodeLenses.getCodeLenses.bind(kafkaFileCodeLenses),
-        doComplete: kafkaFileCompletion.doComplete.bind(kafkaFileCompletion)
+        getCodeLenses: codeLenses.getCodeLenses.bind(codeLenses),
+        doComplete: completion.doComplete.bind(completion),
+        doDiagnostics: diagnostics.doDiagnostics.bind(diagnostics)
     };
 }

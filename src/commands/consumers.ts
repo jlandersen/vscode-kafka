@@ -1,11 +1,12 @@
 import * as vscode from "vscode";
 
 import { pickClient, pickConsumerGroupId, pickTopic } from "./common";
-import { ConsumerCollection, ClientAccessor, createConsumerUri, ConsumerInfoUri, parsePartitions, ConsumerLaunchState } from "../client";
+import { ConsumerCollection, ClientAccessor, createConsumerUri, ConsumerInfoUri, ConsumerLaunchState } from "../client";
 import { KafkaExplorer } from "../explorer";
 import { ConsumerVirtualTextDocumentProvider } from "../providers";
 import { ProgressLocation, window } from "vscode";
 import { getErrorMessage } from "../errors";
+import { ConsumerValidator } from "../validators/consumer";
 
 export interface LaunchConsumerCommand extends ConsumerInfoUri {
 
@@ -63,8 +64,7 @@ abstract class LaunchConsumerCommandHandler {
                 }
 
                 // Validate start command
-                validatePartitions(command.partitions);
-                validateOffset(command.fromOffset);
+                ConsumerValidator.validate(command);
 
                 //  Open the document which tracks consumer messages.
                 const consumeUri = createConsumerUri(command);
@@ -109,23 +109,6 @@ export class StopConsumerCommandHandler extends LaunchConsumerCommandHandler {
         explorer: KafkaExplorer
     ) {
         super(clientAccessor, consumerCollection, explorer, false);
-    }
-}
-
-function validatePartitions(partitions?: string) {
-    if (!partitions) {
-        return;
-    }
-    parsePartitions(partitions);
-}
-
-function validateOffset(offset?: string) {
-    if (!offset || offset === 'earliest' || offset === 'latest') {
-        return;
-    }
-    const valueAsNumber = parseInt(offset, 10);
-    if (isNaN(valueAsNumber) || valueAsNumber < 0) {
-        throw new Error(`from must be a positive number or equal to 'earliest' or 'latest'.`);
     }
 }
 

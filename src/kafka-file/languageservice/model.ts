@@ -1,10 +1,43 @@
+export class Model {
+
+    private cache = new Map<string, ModelDefinition>();
+
+    constructor(public readonly definitions: ModelDefinition[]) {
+        definitions.forEach(definition => {
+            this.cache.set(definition.name, definition);
+        });
+    }
+    public getDefinition(name: string): ModelDefinition | undefined {
+        return this.cache.get(name);
+    }
+
+    public hasDefinition(name: string): boolean {
+        return this.cache.has(name);
+    }
+
+    public hasDefinitionEnum(name: string, value: string): boolean {
+        const definition = this.getDefinition(name);
+        if (!definition) {
+            return false;
+        }
+        if (definition.enum) {
+            for (const item of definition.enum) {
+                if (item.name === value) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+}
+
 export interface ModelDefinition {
     name: string;
     description: string;
     enum?: ModelDefinition[];
 }
 
-export const consumerProperties = [
+const consumerProperties = [
     {
         name: "topic",
         description: "The topic id *[required]*"
@@ -17,7 +50,7 @@ export const consumerProperties = [
                 name: "earliest"
             },
             {
-                name: "last"
+                name: "latest"
             },
             {
                 name: "0"
@@ -102,8 +135,9 @@ export const consumerProperties = [
         ]
     }
 ] as ModelDefinition[];
+export const consumerModel = new Model(consumerProperties);
 
-export const producerProperties = [
+const producerProperties = [
     {
         name: "topic",
         description: "The topic id *[required]*"
@@ -174,7 +208,9 @@ export const producerProperties = [
     }
 ] as ModelDefinition[];
 
-export const fakerjsAPI = [
+export const producerModel = new Model(producerProperties);
+
+const fakerjsAPI = [
     { name: "address.zipCode" },
     { name: "address.zipCodeByState" },
     { name: "address.city" },
@@ -343,3 +379,5 @@ export const fakerjsAPI = [
     { name: "vehicle.vrm" },
     { name: "vehicle.bicycle" }
 ] as ModelDefinition[];
+
+export const fakerjsAPIModel = new Model(fakerjsAPI);
