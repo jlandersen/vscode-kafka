@@ -3,7 +3,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [0.12.0]
 ### Added
-- Extension API to contribute clusters. See [#123](https://github.com/jlandersen/vscode-kafka/issues/123).
+- Extension API to contribute clusters. See [#123](https://github.com/jlandersen/vscode-kafka/issues/123) and [#160](https://github.com/jlandersen/vscode-kafka/pull/160).
 - Declare key/value formats for CONSUMER in kafka file. See [#112](https://github.com/jlandersen/vscode-kafka/issues/112).
 - Declare key/value formats for PRODUCER in kafka file. See [#113](https://github.com/jlandersen/vscode-kafka/issues/113).
 - Completion support for property names and values of CONSUMER and PRODUCER blocks. See [#146](https://github.com/jlandersen/vscode-kafka/issues/146).
