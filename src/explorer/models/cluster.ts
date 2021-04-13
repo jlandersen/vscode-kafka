@@ -43,12 +43,17 @@ export class ClusterItem extends NodeBase implements Disposable {
         // because we change the label according if cluster is selected or not.
         treeItem.id = this.cluster.name;
         // update label and contextValue (used by contextual menu) according the selection state
+        let clusterContext: string;
         if (this.selected) {
-            treeItem.contextValue = 'selectedCluster';
+            clusterContext = 'selectedCluster';
             treeItem.label = GlyphChars.Check + ' ' + treeItem.label;
         } else {
-            treeItem.contextValue = 'cluster';
+            clusterContext = 'cluster';
         }
+        if (this.cluster.clusterProviderId) {
+            clusterContext = clusterContext +'-'+this.cluster.clusterProviderId;
+        }
+        treeItem.contextValue = clusterContext;
         return treeItem;
     }
 

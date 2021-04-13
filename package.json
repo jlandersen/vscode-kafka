@@ -354,7 +354,7 @@
                 },
                 {
                     "command": "vscode-kafka.explorer.selectcluster",
-                    "when": "view == kafkaExplorer && viewItem == cluster && !listMultiSelection",
+                    "when": "view == kafkaExplorer && viewItem =~ /^cluster.*$/ && !listMultiSelection",
                     "group": "1_kafka"
                 },
                 {
@@ -364,12 +364,12 @@
                 },
                 {
                     "command": "vscode-kafka.explorer.deleteselected",
-                    "when": "view == kafkaExplorer && viewItem =~ /^cluster$|^selectedCluster$|^topic$|^consumergroupitem$/ && !listMultiSelection",
+                    "when": "view == kafkaExplorer && viewItem =~ /^cluster.*$|^selectedCluster.*$|^topic$|^consumergroupitem$/ && !listMultiSelection",
                     "group": "inline"
                 },
                 {
                     "command": "vscode-kafka.explorer.deleteselected",
-                    "when": "view == kafkaExplorer && viewItem =~ /^cluster$|^selectedCluster$|^topic$|^consumergroupitem$/ && !listMultiSelection",
+                    "when": "view == kafkaExplorer && viewItem =~ /^cluster.*$|^selectedCluster.*$|^topic$|^consumergroupitem$/ && !listMultiSelection",
                     "group": "3_modification"
                 }
             ],
