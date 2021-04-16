@@ -185,7 +185,7 @@ export abstract class Block extends ChildrenNode<Property | Chunk> {
 
 export class ProducerBlock extends Block {
 
-    public value: Chunk | undefined;
+    public value: DynamicChunk | undefined;
 
     constructor(start: Position, end: Position) {
         super(start, end, BlockType.producer, producerModel);
@@ -208,20 +208,52 @@ export class DynamicChunk extends ChildrenNode<MustacheExpression> {
         super(start, end, kind);
         parseMustacheExpressions(this);
     }
-}
 
-export class MustacheExpression extends BaseNode {
-
-    constructor(start: Position, public readonly opened: boolean, end: Position, public readonly closed: boolean) {
-        super(start, end, NodeKind.mustacheExpression);
+    public get expressions(): Array<MustacheExpression> {
+        return <Array<MustacheExpression>>(
+            this.children
+                .filter(node => node.kind === NodeKind.mustacheExpression));
     }
 
-    public get expressionRange(): Range {
-        const start = new Position(this.start.line, this.start.character + 2);
-        const end = new Position(this.end.line, this.end.character - 2);
+}
+
+/**
+ * Mustache expression AST (ex : {{random.words}})
+ */
+export class MustacheExpression extends Chunk {
+
+    // Unexpected start edges '{{' inside the expression (ex : {{random.w{{ords}})
+    public readonly unexpectedEdges: Array<ExpressionEdge> = [];
+
+    constructor(content: string, start: Position, public readonly opened: boolean, end: Position, public readonly closed: boolean) {
+        super(content, start, end, NodeKind.mustacheExpression);
+    }
+
+    /**
+     * Returns the range of the enclosed expression 
+     * 
+     * For example for {{random.words}}, it will return ranges of random.words.
+     */
+    public get enclosedExpressionRange(): Range {
+        const start = new Position(this.start.line, this.start.character + ((this.opened) ? 2 : 0));
+        const end = new Position(this.end.line, this.end.character - ((this.closed) ? 2 : 0));
         return new Range(start, end);
     }
 
+    /**
+     * Return true if the given position is after an unexpected edge (ex : {{random.w{{| and false otherwise.
+     * 
+     * @param position the position to check.
+     * 
+     * @returns true if the given position is after an unexpected edge (ex : {{random.w{{| and false otherwise.
+     */
+    public isAfterAnUnexpectedEdge(position: Position): boolean {
+        if (this.unexpectedEdges.length < 1) {
+            return false;
+        }
+        const pos = this.unexpectedEdges[0];
+        return position.isAfterOrEqual(pos.position);
+    }
 }
 
 export enum BlockType {
@@ -282,6 +314,7 @@ function getBlockType(lineText: string): BlockType | undefined {
     }
     return undefined;
 }
+
 function isEndBlock(lineText: string, blockType: BlockType): boolean {
     if (blockType === BlockType.consumer) {
         return isSeparator(lineText) || getBlockType(lineText) !== undefined;
@@ -413,55 +446,117 @@ function createProperty(lineText: string, lineNumber: number, parent: Block): Pr
     return new Property(propertyKey, separatorCharacter, propertyValue);
 }
 
+/**
+ * Position and offset of mustache expression edge :
+ *  - start '{{'
+ *  -  end '}}' .
+ */
+export class ExpressionEdge {
+
+    constructor(readonly position: Position, readonly offset: number, readonly open: boolean) {
+
+    }
+}
+
 function parseMustacheExpressions(parent: DynamicChunk) {
     const content = parent.content;
-    let currentLine = parent.start.line;
-    let currentCharacter = parent.start.character;
-    let last: string | undefined;
-    let startExpression: Position | undefined;
-    let endExpression: Position | undefined;
-    let expression: MustacheExpression | undefined;
-    for (let i = 0; i < content.length; i++) {
-        const current = content[i];
-        switch (current) {
+    let startLine = parent.start.line;
+    let startColumn = parent.start.character;
+    let currentLine = startLine;
+    let currentColumn = startColumn;
+    let previousChar: string | undefined;
+
+    // 1. Collect start/end expression edges position and offset
+    const edges: Array<ExpressionEdge> = [];
+    let currentOffset = 0;
+    for (currentOffset = 0; currentOffset < content.length; currentOffset++) {
+        const currentChar = content[currentOffset];
+        switch (currentChar) {
             case '\r':
+                // compute line, column position
                 currentLine++;
-                currentCharacter = 0;
+                currentColumn = 0;
                 break;
             case '\n': {
-                if (last !== '\r') {
+                if (previousChar !== '\r') {
+                    // compute line, column position
                     currentLine++;
-                    currentCharacter = 0;
+                    currentColumn = 0;
                 }
                 break;
             }
             case '{': {
-                if (last === '{') {
+                if (previousChar === '{') {
                     // Start mustache expression
-                    if (!startExpression) {
-                        startExpression = new Position(currentLine, currentCharacter - 1);
-                    }
+                    edges.push(new ExpressionEdge(new Position(currentLine, currentColumn - 1), currentOffset - 1, true));
                 }
                 break;
             }
             case '}': {
-                if (last === '}') {
-                    // End mustache expression
-                    endExpression = new Position(currentLine, currentCharacter + 1);
-                    if (startExpression) {
-                        expression = new MustacheExpression(startExpression, true, endExpression, true);
-                        parent.addChild(expression);
-                        startExpression = undefined;
-                        endExpression = undefined;
-                    }
+                if (previousChar === '}') {
+                    // End mustache expression                    
+                    edges.push(new ExpressionEdge(new Position(currentLine, currentColumn + 1), currentOffset + 1, false));
                 }
                 break;
             }
         }
-        if (current !== '\r' && current !== '\n') {
-            currentCharacter++;
+        if (currentChar !== '\r' && currentChar !== '\n') {
+            currentColumn++;
         }
-        last = current;
+        previousChar = currentChar;
     }
+
+    // 2. create mustache expression AST by visiting collected edges
+    
+    let previousEdge = new ExpressionEdge(new Position(startLine, startColumn), 0, true);
+    const endOfValueEdge = new ExpressionEdge(new Position(currentLine, currentColumn), currentOffset, false);
+    for (let i = 0; i < edges.length; i++) {
+        const currentEdge = edges[i];
+        if (currentEdge.open) {
+            // '{{' edge encountered            
+            // Try to get the next '}}' edge
+            let matchingClosedEdge: ExpressionEdge | undefined;
+            const j = getBestIndexForClosingExpression(edges, i + 1);
+            if (j < edges.length) {
+                matchingClosedEdge = edges[j];
+            }
+
+            const openedEdge = currentEdge;
+            let closedEdge = endOfValueEdge;
+            let closed  = false;
+            if (matchingClosedEdge) {
+                // '}}' has been found
+                closed = true;
+                closedEdge = matchingClosedEdge;
+            }
+
+            const expressionContent = content.substring(openedEdge.offset + 2, closedEdge.offset - (closed ? 2 : 0));
+            const expression = new MustacheExpression(expressionContent, openedEdge.position, true, closedEdge.position, closed);
+            // Update unexepcted edges
+            for (let index = i + 1; index < j; index++) {
+                expression.unexpectedEdges.push(edges[index]);
+            }
+            parent.addChild(expression);
+            i = j;
+            previousEdge = closedEdge;
+        } else {
+            // '}}' edge encountered
+            const closedEdge = currentEdge;
+            const openedEdge = previousEdge;
+            const expressionContent = content.substring(openedEdge.offset, closedEdge.offset - 2);
+            const expression = new MustacheExpression(expressionContent, openedEdge.position, false, closedEdge.position, true);
+            parent.addChild(expression);
+        }
+    }
+}
+
+function getBestIndexForClosingExpression(edges: ExpressionEdge[], start: number): number {
+    for (let i = start; i < edges.length; i++) {
+        const currentPos = edges[i];
+        if (!currentPos.open) {
+            return i;
+        }
+    }
+    return edges.length;
 }
 

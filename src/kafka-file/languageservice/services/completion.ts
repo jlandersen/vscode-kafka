@@ -11,7 +11,7 @@ export class KafkaFileCompletion {
     constructor(private selectedClusterProvider: SelectedClusterProvider, private topicProvider: TopicProvider) {
 
     }
-    async doComplete(document: TextDocument, kafkaFileDocument: KafkaFileDocument, position: Position): Promise<CompletionList | undefined> {
+    async doComplete(document: TextDocument, kafkaFileDocument: KafkaFileDocument, producerFakerJSEnabled: boolean, position: Position): Promise<CompletionList | undefined> {
         // Get the AST node before the position where complation was triggered
         const node = kafkaFileDocument.findNodeBefore(position);
         if (!node) {
@@ -86,7 +86,7 @@ export class KafkaFileCompletion {
 
                         // PRODUCER
                         // key: abcd-{{|}}
-                        this.collectFakerJSExpressions(<MustacheExpression>expression, items);
+                        this.collectFakerJSExpressions(<MustacheExpression>expression, producerFakerJSEnabled, position, items);
                     } else {
                         const block = <Block>property.parent;
                         if (block.type === BlockType.consumer) {
@@ -109,7 +109,7 @@ export class KafkaFileCompletion {
                 // topic: abcd
                 // {{|}}
                 const expression = <MustacheExpression>node;
-                this.collectFakerJSExpressions(expression, items);
+                this.collectFakerJSExpressions(expression, producerFakerJSEnabled, position, items);
                 break;
             }
         }
@@ -208,8 +208,11 @@ export class KafkaFileCompletion {
         });
     }
 
-    collectFakerJSExpressions(expression: MustacheExpression, items: CompletionItem[]) {
-        const expressionRange = expression.expressionRange;
+    collectFakerJSExpressions(expression: MustacheExpression, producerFakerJSEnabled: boolean, position: Position, items: CompletionItem[]) {
+        if (!producerFakerJSEnabled || expression.isAfterAnUnexpectedEdge(position)) {
+            return;
+        }
+        const expressionRange = expression.enclosedExpressionRange;
         const fakerjsAPI = fakerjsAPIModel.definitions;
         fakerjsAPI.forEach((definition) => {
             const value = definition.name;

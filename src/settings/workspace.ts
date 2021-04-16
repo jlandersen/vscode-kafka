@@ -21,8 +21,11 @@ const DEFAULT_CONSUMER_FILTER:string[] = [];
 export interface WorkspaceSettings extends vscode.Disposable {
     consumerOffset: InitialConsumerOffset;
     topicSortOption: TopicSortOption;
+    topicFilters : string[];
+    consumerFilters : string[];
     producerFakerJSEnabled: boolean;
     producerFakerJSLocale: string;
+    onDidChangeSettings: vscode.Event<undefined>;
 }
 
 class VsCodeWorkspaceSettings implements WorkspaceSettings {
@@ -69,7 +72,7 @@ class VsCodeWorkspaceSettings implements WorkspaceSettings {
         this.configurationChangeHandlerDisposable.dispose();
     }
 
-    static getInstance(): VsCodeWorkspaceSettings {
+    static getInstance(): WorkspaceSettings {
         if (!VsCodeWorkspaceSettings.instance) {
             VsCodeWorkspaceSettings.instance = new VsCodeWorkspaceSettings();
         }
@@ -78,4 +81,4 @@ class VsCodeWorkspaceSettings implements WorkspaceSettings {
     }
 }
 
-export const getWorkspaceSettings = (): VsCodeWorkspaceSettings => VsCodeWorkspaceSettings.getInstance();
+export const getWorkspaceSettings = (): WorkspaceSettings => VsCodeWorkspaceSettings.getInstance();

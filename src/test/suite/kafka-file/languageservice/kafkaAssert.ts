@@ -99,7 +99,7 @@ export async function testCompletion(value: string, expected: CompletionList, pa
     let document = await getDocument(value);
     const position = document.positionAt(offset);
     let ast = ls.parseKafkaFileDocument(document);
-    const list = await ls.doComplete(document, ast, position);
+    const list = await ls.doComplete(document, ast, true, position);
     const items = list?.items;
 
     // no duplicate labels
@@ -137,7 +137,7 @@ export function diagnostic(start: Position, end: Position, message: string, seve
 export async function assertDiagnostics(content: string, expected: Array<Diagnostic>, ls = languageService) {
     let document = await getDocument(content);
     let ast = ls.parseKafkaFileDocument(document);
-    const actual = ls.doDiagnostics(document, ast);
+    const actual = ls.doDiagnostics(document, ast,true);
     assert.deepStrictEqual(actual, expected);
 }
 
