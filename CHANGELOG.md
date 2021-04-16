@@ -16,7 +16,8 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 - The "Kafka Producer Log" output view is no longer shown automatically when producing messages. See [#134](https://github.com/jlandersen/vscode-kafka/issues/134).
 - A progress notification is displayed when producing messages. See [#117](https://github.com/jlandersen/vscode-kafka/issues/117).
 -Fix bad highlighting when declaring json messages with fakerjs placeholders. See [#132](https://github.com/jlandersen/vscode-kafka/issues/132).
-
+- Fix .kafka comments which breaks syntax coloration in producers and consumers. See [#161](https://github.com/jlandersen/vscode-kafka/issues/161).
+ 
 ## [0.11.0] - 2021-03-08
 ### Added
 - Newly created topic or cluster is automatically selected in the Kafka Explorer. See [#61](https://github.com/jlandersen/vscode-kafka/issues/61).
