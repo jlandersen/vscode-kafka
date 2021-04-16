@@ -69,9 +69,10 @@ export interface LanguageService {
      *
      * @param document the text document.
      * @param kafkaFileDocument the parsed AST.
+     * @param producerFakerJSEnabled true if FakerJS is enabled and false otherwise.
      * @param position the position where the completion was triggered.
      */
-    doComplete(document: TextDocument, kafkaFileDocument: KafkaFileDocument, position: Position): Promise<CompletionList | undefined>;
+    doComplete(document: TextDocument, kafkaFileDocument: KafkaFileDocument, producerFakerJSEnabled: boolean, position: Position): Promise<CompletionList | undefined>;
 
     /**
      * Returns the diagnostics result for the given text document and parsed AST.
@@ -79,7 +80,7 @@ export interface LanguageService {
      * @param document the text document.
      * @param kafkaFileDocument the parsed AST.
      */
-    doDiagnostics(document: TextDocument, kafkaFileDocument: KafkaFileDocument): Diagnostic[];
+    doDiagnostics(document: TextDocument, kafkaFileDocument: KafkaFileDocument, producerFakerJSEnabled : boolean): Diagnostic[];
 }
 
 /**

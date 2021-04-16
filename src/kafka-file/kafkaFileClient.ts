@@ -10,9 +10,11 @@ import { runSafeAsync } from "./utils/runner";
 import { TopicItem } from "../explorer";
 import { KafkaModelProvider } from "../explorer/models/kafka";
 import { ThrottledDelayer } from "./utils/async";
+import { WorkspaceSettings } from "../settings";
 
 export function startLanguageClient(
     clusterSettings: ClusterSettings,
+    workspaceSettings: WorkspaceSettings,
     producerCollection: ProducerCollection,
     consumerCollection: ConsumerCollection,
     modelProvider: KafkaModelProvider,
@@ -52,13 +54,13 @@ export function startLanguageClient(
     });
 
     // Completion
+    const completion = new KafkaFileCompletionItemProvider(kafkaFileDocuments, languageService, workspaceSettings);
     context.subscriptions.push(
-        vscode.languages.registerCompletionItemProvider(documentSelector,
-            new KafkaFileCompletionItemProvider(kafkaFileDocuments, languageService),
-            ':', '{', '.'));
+        vscode.languages.registerCompletionItemProvider(documentSelector, completion, ':', '{', '.')
+    );
 
     // Validation
-    const diagnostics = new KafkaFileDiagnostics(kafkaFileDocuments, languageService);
+    const diagnostics = new KafkaFileDiagnostics(kafkaFileDocuments, languageService, workspaceSettings);
     context.subscriptions.push(diagnostics);
 
     // Open / Close document
@@ -172,7 +174,8 @@ class KafkaFileCompletionItemProvider extends AbstractKafkaFileFeature implement
 
     constructor(
         kafkaFileDocuments: LanguageModelCache<KafkaFileDocument>,
-        languageService: LanguageService
+        languageService: LanguageService,
+        private workspaceSettings: WorkspaceSettings
     ) {
         super(kafkaFileDocuments, languageService);
     }
@@ -180,7 +183,7 @@ class KafkaFileCompletionItemProvider extends AbstractKafkaFileFeature implement
     provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList> {
         return runSafeAsync(async () => {
             const kafkaFileDocument = this.getKafkaFileDocument(document);
-            return this.languageService.doComplete(document, kafkaFileDocument, position);
+            return this.languageService.doComplete(document, kafkaFileDocument, this.workspaceSettings.producerFakerJSEnabled, position);
         }, new vscode.CompletionList(), `Error while computing code lenses for ${document.uri}`, token);
     }
 
@@ -190,14 +193,32 @@ class KafkaFileDiagnostics extends AbstractKafkaFileFeature implements vscode.Di
 
     private diagnosticCollection: vscode.DiagnosticCollection;
     private delayers?: { [key: string]: ThrottledDelayer<void> };
+    producerFakerJSEnabled: boolean;
 
     constructor(
         kafkaFileDocuments: LanguageModelCache<KafkaFileDocument>,
-        languageService: LanguageService
+        languageService: LanguageService,
+        settings: WorkspaceSettings
     ) {
         super(kafkaFileDocuments, languageService);
         this.diagnosticCollection = vscode.languages.createDiagnosticCollection('kafka');
         this.delayers = Object.create(null);
+        this.producerFakerJSEnabled = settings.producerFakerJSEnabled;
+        settings.onDidChangeSettings(() => {
+            if (this.producerFakerJSEnabled !== settings.producerFakerJSEnabled) {
+                this.validateAll();
+                this.producerFakerJSEnabled = settings.producerFakerJSEnabled;
+            }
+        });
+        // Validate all opened kafka files when vscode is started
+        this.validateAll();
+    }
+
+    /**
+     * Validate all opened kafka files.
+     */
+    public validateAll() {
+        vscode.workspace.textDocuments.forEach(this.triggerValidate, this);
     }
 
     delete(textDocument: vscode.TextDocument) {
@@ -220,7 +241,7 @@ class KafkaFileDiagnostics extends AbstractKafkaFileFeature implements vscode.Di
     private doValidate(document: vscode.TextDocument): Promise<void> {
         return new Promise<void>((resolve) => {
             const kafkaFileDocument = this.getKafkaFileDocument(document);
-            const diagnostics = this.languageService.doDiagnostics(document, kafkaFileDocument);
+            const diagnostics = this.languageService.doDiagnostics(document, kafkaFileDocument, this.producerFakerJSEnabled);
             this.diagnosticCollection!.set(document.uri, diagnostics);
             resolve();
         });

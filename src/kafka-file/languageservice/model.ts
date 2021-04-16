@@ -380,4 +380,45 @@ const fakerjsAPI = [
     { name: "vehicle.bicycle" }
 ] as ModelDefinition[];
 
-export const fakerjsAPIModel = new Model(fakerjsAPI);
+export interface PartModelProvider {
+    getPart(name: string) : PartModelProvider | undefined;
+}
+
+class PartModel implements PartModelProvider{
+
+    private cache = new Map<string, PartModelProvider>();
+
+    getPart(name: string) : PartModelProvider | undefined {
+        return this.cache.get(name);
+    }
+
+    getOrCreate(name: string) : PartModelProvider {
+        let part = this.getPart(name);
+        if (!part) {
+            part = new PartModel();
+            this.cache.set(name, part);
+        }
+        return part;
+    }
+}
+
+class FakerJSModel extends Model implements PartModelProvider {
+
+    private root = new PartModel();
+    constructor(definitions: ModelDefinition[]) {
+        super(definitions);
+        definitions.forEach(definition => {
+            const parts = definition.name.split('.');
+            let partModel = this.root;
+            parts.forEach(part => {
+                partModel = <PartModel> partModel.getOrCreate(part);
+            });
+        });
+    }
+
+    getPart(name: string) : PartModelProvider | undefined {
+        return this.root.getPart(name);
+    }
+}
+
+export const fakerjsAPIModel = new FakerJSModel(fakerjsAPI);

@@ -8,8 +8,10 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 - Declare key/value formats for CONSUMER in kafka file. See [#112](https://github.com/jlandersen/vscode-kafka/issues/112).
 - Declare key/value formats for PRODUCER in kafka file. See [#113](https://github.com/jlandersen/vscode-kafka/issues/113).
 - Completion support for property names and values of CONSUMER and PRODUCER blocks. See [#146](https://github.com/jlandersen/vscode-kafka/issues/146).
-- Completion support for fakerJS PRODUCER key and value. See [#152](https://github.com/jlandersen/vscode-kafka/issues/152).
+- Completion support for FakerJS PRODUCER key and value. See [#152](https://github.com/jlandersen/vscode-kafka/issues/152).
 - Completion support for available topics for CONSUMER and PRODUCER blocks. See [#150](https://github.com/jlandersen/vscode-kafka/issues/150).
+- Validation support for property names and values of CONSUMER and PRODUCER blocks. See [#152](https://github.com/jlandersen/vscode-kafka/issues/152).
+- Validation support for FakerJS PRODUCER key and value. See [#154](https://github.com/jlandersen/vscode-kafka/issues/154).
 
 ### Changed
 - Renamed extension as `Tools for Apache Kafka®`

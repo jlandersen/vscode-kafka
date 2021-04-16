@@ -95,23 +95,32 @@ suite("Kafka File PRODUCER bad expression FakerJS Completion Test Suite", () => 
             'PRODUCER a\n' +
             'key: {{|'
             , {
-                items: []
-            });
-    });
-
-    test("PRODUCER FakerJS Completion (expression in expression)", async () => {
-        await testCompletion(
-            'PRODUCER a\n' +
-            'key: {{abcd{{|}}efgh}}'
-            , {
                 items: [
                     {
                         label: 'address.zipCode', kind: CompletionItemKind.Variable,
                         insertText: 'address.zipCode',
-                        range: range(position(1, 7), position(1, 13))
+                        range: range(position(1, 7), position(1, 7))
                     }
                 ]
             }, true);
+    });
+
+    test("PRODUCER FakerJS Completion (expression in expression) in key", async () => {
+        await testCompletion(
+            'PRODUCER a\n' +
+            'key: {{abcd{{|}}efgh}}'
+            , {
+                items: []
+            });
+    });
+
+    test("PRODUCER FakerJS Completion (expression in expression) in value", async () => {
+        await testCompletion(
+            'PRODUCER a\n' +
+            '{{abcd{{|}}efgh}}'
+            , {
+                items: []
+            });
     });
 });
 
