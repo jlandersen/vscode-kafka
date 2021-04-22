@@ -32,6 +32,19 @@ Multiple delete is not supported for the moment. See [issue 107](https://github.
 
 To delete a consumer group, it first must be stopped, else the `Delete` action will report an error.
 
+## Discover new cluster providers
+
+You can search for extensions contributing cluster providers in the extension gallery, by clicking on the `Discover Cluster Providers` button (also available via the command palette):
+
+![Discover Cluster Providers](assets/kafka-explorer-discover-providers.png)
+
+Those extensions must have the `kafka-provider` keyword in their `package.json`, eg.
+```json
+"keywords": [
+		"kafka-provider"
+],
+```
+
 ## Preferences
 
 ### `kafka.explorer.topics.sort`

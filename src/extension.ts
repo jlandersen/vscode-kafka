@@ -133,6 +133,11 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
         handleErrors((command: DeleteConsumerGroupCommand) => deleteConsumerGroupCommandHandler.execute(command))));
     context.subscriptions.push(vscode.commands.registerCommand(ProduceRecordCommandHandler.commandId,
         handleErrors((command: ProduceRecordCommand, times: number) => produceRecordCommandHandler.execute(command, times))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        "vscode-kafka.discover.clusterproviders", () => {
+            return vscode.commands.executeCommand("workbench.extensions.search", "@tag:kafka-provider");
+        }
+    ));
 
     registerVSCodeKafkaDocumentationCommands(context);
 
