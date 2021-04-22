@@ -43,6 +43,7 @@
         "onCommand:vscode-kafka.consumer.toggle",
         "onCommand:vscode-kafka.consumer.clear",
         "onCommand:vscode-kafa.consumer.deletegroup",
+        "onCommand:vscode-kafka.discover.clusterproviders",
         "onView:kafkaExplorer",
         "onLanguage:kafka",
         "onDebug"
@@ -311,6 +312,12 @@
                 "command": "vscode-kafka.consumer.deletegroup",
                 "title": "Delete Consumer Group",
                 "category": "Kafka"
+            },
+            {
+                "command": "vscode-kafka.discover.clusterproviders",
+                "title": "Discover Cluster Providers",
+                "category": "Kafka",
+                "icon":"$(extensions)"
             }
         ],
         "menus": {
@@ -322,6 +329,11 @@
                 },
                 {
                     "command": "vscode-kafka.explorer.addcluster",
+                    "when": "view == kafkaExplorer",
+                    "group": "navigation"
+                },
+                {
+                    "command": "vscode-kafka.discover.clusterproviders",
                     "when": "view == kafkaExplorer",
                     "group": "navigation"
                 }
