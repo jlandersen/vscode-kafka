@@ -1,4 +1,4 @@
-import { CodeLens, CompletionList, Diagnostic, Position, TextDocument, Uri } from "vscode";
+import { CodeLens, CompletionList, Diagnostic, Hover, Position, TextDocument, Uri } from "vscode";
 import { ClientState, ConsumerLaunchState } from "../../client";
 import { BrokerConfigs } from "../../client/config";
 import { ProducerLaunchState } from "../../client/producer";
@@ -6,6 +6,7 @@ import { KafkaFileDocument, parseKafkaFile } from "./parser/kafkaFileParser";
 import { KafkaFileCodeLenses } from "./services/codeLensProvider";
 import { KafkaFileCompletion } from "./services/completion";
 import { KafkaFileDiagnostics } from "./services/diagnostics";
+import { KafkaFileHover } from "./services/hover";
 
 /**
  * Provider API which gets the state for a given producer.
@@ -49,6 +50,7 @@ export interface TopicProvider {
  *
  */
 export interface LanguageService {
+
     /**
      * Parse the given text document and returns an AST.
      *
@@ -85,6 +87,15 @@ export interface LanguageService {
      * @param kafkaFileDocument the parsed AST.
      */
     doDiagnostics(document: TextDocument, kafkaFileDocument: KafkaFileDocument, producerFakerJSEnabled: boolean): Promise<Diagnostic[]>;
+
+    /**
+     * Returns the hover result for the given text document and parsed AST at given position.
+     *
+     * @param document the text document.
+     * @param kafkaFileDocument the parsed AST.
+     * @param position the position where the hover was triggered.
+     */
+    doHover(document: TextDocument, kafkaFileDocument: KafkaFileDocument, position: Position): Promise<Hover | undefined>;
 }
 
 /**
@@ -100,10 +111,18 @@ export function getLanguageService(producerLaunchStateProvider: ProducerLaunchSt
     const codeLenses = new KafkaFileCodeLenses(producerLaunchStateProvider, consumerLaunchStateProvider, selectedClusterProvider);
     const completion = new KafkaFileCompletion(selectedClusterProvider, topicProvider);
     const diagnostics = new KafkaFileDiagnostics(selectedClusterProvider, topicProvider);
+    const hover = new KafkaFileHover(selectedClusterProvider, topicProvider);
     return {
         parseKafkaFileDocument: (document: TextDocument) => parseKafkaFile(document),
         getCodeLenses: codeLenses.getCodeLenses.bind(codeLenses),
         doComplete: completion.doComplete.bind(completion),
-        doDiagnostics: diagnostics.doDiagnostics.bind(diagnostics)
+        doDiagnostics: diagnostics.doDiagnostics.bind(diagnostics),
+        doHover: hover.doHover.bind(hover)
     };
+}
+
+export function createTopicDocumentation(topic: TopicDetail): string {
+    return `Topic \`${topic.id}\`\n` +
+        ` * partition count: \`${topic.partitionCount}\`\n` +
+        ` * replication factor: \`${topic.replicationFactor}\`\n`;
 }

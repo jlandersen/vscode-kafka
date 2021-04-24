@@ -1,3 +1,5 @@
+import { getDocumentationPageUri } from "../../docs/markdownPreviewProvider";
+
 export class Model {
 
     private cache = new Map<string, ModelDefinition>();
@@ -16,18 +18,22 @@ export class Model {
     }
 
     public hasDefinitionEnum(name: string, value: string): boolean {
+        return this.getDefinitionEnum(name, value) !== undefined;
+    }
+
+    public getDefinitionEnum(name: string, value: string): ModelDefinition | undefined {
         const definition = this.getDefinition(name);
         if (!definition) {
-            return false;
+            return undefined;
         }
         if (definition.enum) {
             for (const item of definition.enum) {
                 if (item.name === value) {
-                    return true;
+                    return item;
                 }
             }
         }
-        return false;
+        return undefined;
     }
 }
 
@@ -59,7 +65,7 @@ const consumerProperties = [
     },
     {
         name: "key-format",
-        description: "[Deserializer](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Consuming.md#Deserializer) to use for the key *[optional]*.",
+        description: `[Deserializer](${getDocumentationPageUri('Consuming', 'deserializer')}) to use for the key *[optional]*.`,
         enum: [
             {
                 name: "none",
@@ -93,7 +99,7 @@ const consumerProperties = [
     },
     {
         name: "value-format",
-        description: "[Deserializer](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Consuming.md#Deserializer) to use for the value *[optional]*.",
+        description: `[Deserializer](${getDocumentationPageUri('Consuming', 'deserializer')}) to use for the value *[optional]*.`,
         enum: [
             {
                 name: "none",
@@ -148,7 +154,7 @@ const producerProperties = [
     },
     {
         name: "key-format",
-        description: "[Serializer](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Producing.md#Serializer) to use for the key *[optional]*.",
+        description: `[Serializer](${getDocumentationPageUri('Producing', 'serializer')}) to use for the key *[optional]*.`,
         enum: [
             {
                 name: "string",
@@ -178,7 +184,7 @@ const producerProperties = [
     },
     {
         name: "value-format",
-        description: "[Serializer](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Producing.md#Serializer) to use for the value *[optional]*.",
+        description: `[Serializer](${getDocumentationPageUri('Producing', 'serializer')}) to use for the value *[optional]*.`,
         enum: [
             {
                 name: "string",
@@ -381,18 +387,18 @@ const fakerjsAPI = [
 ] as ModelDefinition[];
 
 export interface PartModelProvider {
-    getPart(name: string) : PartModelProvider | undefined;
+    getPart(name: string): PartModelProvider | undefined;
 }
 
-class PartModel implements PartModelProvider{
+class PartModel implements PartModelProvider {
 
     private cache = new Map<string, PartModelProvider>();
 
-    getPart(name: string) : PartModelProvider | undefined {
+    getPart(name: string): PartModelProvider | undefined {
         return this.cache.get(name);
     }
 
-    getOrCreate(name: string) : PartModelProvider {
+    getOrCreate(name: string): PartModelProvider {
         let part = this.getPart(name);
         if (!part) {
             part = new PartModel();
@@ -411,12 +417,12 @@ class FakerJSModel extends Model implements PartModelProvider {
             const parts = definition.name.split('.');
             let partModel = this.root;
             parts.forEach(part => {
-                partModel = <PartModel> partModel.getOrCreate(part);
+                partModel = <PartModel>partModel.getOrCreate(part);
             });
         });
     }
 
-    getPart(name: string) : PartModelProvider | undefined {
+    getPart(name: string): PartModelProvider | undefined {
         return this.root.getPart(name);
     }
 }

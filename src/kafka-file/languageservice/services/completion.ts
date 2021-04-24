@@ -1,5 +1,5 @@
 import { TextDocument, Position, CompletionList, CompletionItem, SnippetString, MarkdownString, CompletionItemKind, Range } from "vscode";
-import { SelectedClusterProvider, TopicDetail, TopicProvider } from "../kafkaFileLanguageService";
+import { createTopicDocumentation, SelectedClusterProvider, TopicProvider } from "../kafkaFileLanguageService";
 import { consumerModel, fakerjsAPIModel, Model, ModelDefinition, producerModel } from "../model";
 import { Block, BlockType, Chunk, ConsumerBlock, KafkaFileDocument, MustacheExpression, NodeKind, ProducerBlock, Property } from "../parser/kafkaFileParser";
 
@@ -134,7 +134,7 @@ export class KafkaFileCompletion {
                 const item = new CompletionItem(currentName);
                 item.kind = CompletionItemKind.Property;
                 if (definition.description) {
-                    item.documentation = new MarkdownString(definition.description);
+                    item.documentation = createMarkdownString(definition.description);
                 }
                 const insertText = new SnippetString(`${currentName}: `);
                 const values = await this.getValues(definition);
@@ -198,7 +198,7 @@ export class KafkaFileCompletion {
             const item = new CompletionItem(value);
             item.kind = CompletionItemKind.Value;
             if (definition.description) {
-                item.documentation = new MarkdownString(definition.description);
+                item.documentation = createMarkdownString(definition.description);
             }
             const insertText = new SnippetString(' ');
             insertText.appendText(value);
@@ -219,7 +219,7 @@ export class KafkaFileCompletion {
             const item = new CompletionItem(value);
             item.kind = CompletionItemKind.Variable;
             if (definition.description) {
-                item.documentation = new MarkdownString(definition.description);
+                item.documentation = createMarkdownString(definition.description);
             }
             const insertText = new SnippetString('');
             insertText.appendText(value);
@@ -235,11 +235,6 @@ export class KafkaFileCompletion {
             return;
         }
 
-        function createDocumentation(topic: TopicDetail): string {
-            return `Topic \`${topic.id}\`\n` +
-                ` * partition count: \`${topic.partitionCount}\`\n` +
-                ` * replication factor: \`${topic.replicationFactor}\`\n`;
-        }
         const valueRange = property.propertyValueRange;
         try {
             const topics = await this.topicProvider.getTopics(clusterId);
@@ -247,7 +242,7 @@ export class KafkaFileCompletion {
                 const value = topic.id;
                 const item = new CompletionItem(value);
                 item.kind = CompletionItemKind.Value;
-                item.documentation = new MarkdownString(createDocumentation(topic));
+                item.documentation = new MarkdownString(createTopicDocumentation(topic));
                 const insertText = new SnippetString(' ');
                 insertText.appendText(value);
                 item.insertText = insertText;
@@ -280,4 +275,10 @@ export class KafkaFileCompletion {
             }*/
         }
     }
+}
+
+function createMarkdownString(contents : string) {
+    const doc = new MarkdownString(contents);
+    doc.isTrusted = true;
+    return doc;
 }

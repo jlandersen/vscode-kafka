@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { CodeLens, Position, Range, Command, Uri, workspace, CompletionList, SnippetString, Diagnostic, DiagnosticSeverity } from "vscode";
+import { CodeLens, Position, Range, Command, Uri, workspace, CompletionList, SnippetString, Diagnostic, DiagnosticSeverity, Hover, MarkdownString } from "vscode";
 import { ClientState, ConsumerLaunchState } from "../../../../client";
 import { BrokerConfigs } from "../../../../client/config";
 import { ProducerLaunchState } from "../../../../client/producer";
@@ -12,7 +12,7 @@ export class LanguageServiceConfig implements ProducerLaunchStateProvider, Consu
 
     private consumerLaunchStates = new Map<string, ConsumerLaunchState>();
 
-    private selectedCluster: { clusterId?: string, clusterName?: string, clusterState? : ClientState } | undefined;
+    private selectedCluster: { clusterId?: string, clusterName?: string, clusterState?: ClientState } | undefined;
 
     private topicsCache = new Map<string, TopicDetail[]>();
 
@@ -50,7 +50,7 @@ export class LanguageServiceConfig implements ProducerLaunchStateProvider, Consu
         return {};
     }
 
-    public setSelectedCluster(selectedCluster: { clusterId?: string, clusterName?: string, clusterState? : ClientState }) {
+    public setSelectedCluster(selectedCluster: { clusterId?: string, clusterName?: string, clusterState?: ClientState }) {
         this.selectedCluster = selectedCluster;
     }
 
@@ -66,11 +66,11 @@ export class LanguageServiceConfig implements ProducerLaunchStateProvider, Consu
         return topics.find(topic => topic.id === topicId);
     }
 
-    
-    public setAutoCreateConfig(autoCreateConfig : BrokerConfigs.AutoCreateTopicResult) {
-        this.autoCreateConfig= autoCreateConfig;
+
+    public setAutoCreateConfig(autoCreateConfig: BrokerConfigs.AutoCreateTopicResult) {
+        this.autoCreateConfig = autoCreateConfig;
     }
-    
+
     async getAutoCreateTopicEnabled(clusterid: string): Promise<BrokerConfigs.AutoCreateTopicResult> {
         return this.autoCreateConfig;
     }
@@ -157,6 +157,29 @@ export async function assertDiagnostics(content: string, expected: Array<Diagnos
     let ast = ls.parseKafkaFileDocument(document);
     const actual = await ls.doDiagnostics(document, ast, true);
     assert.deepStrictEqual(actual, expected);
+}
+
+// Hover assert
+
+export function hover(contents: string, start: Position, end: Position): Hover {
+    const r = range(start, end);
+    const doc = new MarkdownString(contents);
+    doc.isTrusted = true;
+    return new Hover(doc, r);
+}
+
+export async function assertHover(value: string, expected?: Hover, ls = languageService) {
+    const offset = value.indexOf('|');
+    value = value.substr(0, offset) + value.substr(offset + 1);
+
+    let document = await getDocument(value);
+    const position = document.positionAt(offset);
+    let ast = ls.parseKafkaFileDocument(document);
+    const actual = await ls.doHover(document, ast, position);
+    assert.deepStrictEqual(actual, expected);
+    if (actual?.contents && expected?.contents) {
+        assert.deepStrictEqual((<MarkdownString>actual.contents[0]).value, (<MarkdownString>expected.contents[0]).value);
+    }
 }
 
 // Kafka parser assert
