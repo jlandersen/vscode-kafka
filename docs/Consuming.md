@@ -101,6 +101,13 @@ Existing topic validation is done only when cluster is `connected`. If the topic
 
 ![Existing topic validation](assets/kafka-file-consumer-topic-validation.png)
 
+#### Hover
+
+Hover for properties documentation and topic informations is available in .kafka files.
+
+Here is an example of hover on topic:
+
+![Existing topic validation](assets/kafka-file-consumer-topic-hover.png)
 
 ### Start Consumer command
 

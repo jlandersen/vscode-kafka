@@ -17,7 +17,9 @@ export enum NodeKind {
 export interface Node {
     start: Position;
     end: Position;
+    range(): Range;
     findNodeBefore(offset: Position): Node;
+    findNodeAt(offset: Position): Node;
     lastChild: Node | undefined;
     parent: Node | undefined;
     kind: NodeKind;
@@ -32,7 +34,17 @@ class BaseNode implements Node {
 
     }
 
+    public range(): Range {
+        const start = this.start;
+        const end = this.end;
+        return new Range(start, end);
+    }
+
     public findNodeBefore(offset: Position): Node {
+        return this;
+    }
+
+    public findNodeAt(offset: Position): Node {
         return this;
     }
 
@@ -65,6 +77,17 @@ class ChildrenNode<T extends Node> extends BaseNode {
         return this;
     }
 
+    public findNodeAt(offset: Position): Node {
+        const idx = findFirst(this.children, c => offset.isBeforeOrEqual(c.start)) - 1;
+        if (idx >= 0) {
+            const child = this.children[idx];
+            if (offset.isAfter(child.start) && offset.isBeforeOrEqual(child.end)) {
+                return child.findNodeAt(offset);
+            }
+        }
+        return this;
+    }
+
     public get lastChild(): Node | undefined { return this.children.length ? this.children[this.children.length - 1] : void 0; };
 }
 
@@ -84,6 +107,7 @@ export class Chunk extends BaseNode {
     constructor(public readonly content: string, start: Position, end: Position, kind: NodeKind) {
         super(start, end, kind);
     }
+
 }
 
 export class Property extends BaseNode {
@@ -104,12 +128,6 @@ export class Property extends BaseNode {
 
     public get propertyValue(): string | undefined {
         return this.value?.content.trim();
-    }
-
-    public get propertyRange(): Range {
-        const start = this.start;
-        const end = this.end;
-        return new Range(start, end);
     }
 
     public get propertyKeyRange(): Range {
@@ -159,6 +177,13 @@ export class Property extends BaseNode {
         }
         return true;
     }
+
+    findNodeAt(position : Position) : Node {
+        if (this.isBeforeAssigner(position)) {
+            return this.key?.findNodeAt(position) || this;
+        }
+        return this.value?.findNodeAt(position) || this;
+    }
 }
 
 export abstract class Block extends ChildrenNode<Property | Chunk> {
@@ -175,7 +200,7 @@ export abstract class Block extends ChildrenNode<Property | Chunk> {
 
     getPropertyValue(name: string): string | undefined {
         const property = this.getProperty(name);
-        return property?.value?.content;
+        return property?.propertyValue;
     }
 
     getProperty(name: string): Property | undefined {

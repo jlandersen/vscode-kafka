@@ -7,6 +7,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 - Hide internal [strimzi](https://strimzi.io/) topics/consumers by default. See [#176](https://github.com/jlandersen/vscode-kafka/pull/176).
 - Validation for available topics in `.kafka` files. See [#153](https://github.com/jlandersen/vscode-kafka/issues/153).
 - Simplify snippets. See [#180](https://github.com/jlandersen/vscode-kafka/pull/180).
+- Hover support in `.kafka` files. See [#149](https://github.com/jlandersen/vscode-kafka/issues/149).
 
 ## [0.12.0] - 2021-04-26
 ### Added

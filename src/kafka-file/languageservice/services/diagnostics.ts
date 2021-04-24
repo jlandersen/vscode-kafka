@@ -208,14 +208,14 @@ export class KafkaFileDiagnostics {
         const assigner = property.assignerCharacter;
         if (!assigner) {
             // Error => topic
-            const range = property.propertyRange;
+            const range = property.range();
             diagnostics.push(new Diagnostic(range, `Missing ':' sign after '${propertyName}'`, DiagnosticSeverity.Error));
             return;
         }
         // 1.2. property must declare a key
         if (!propertyName) {
             // Error => :string
-            const range = property.propertyRange;
+            const range = property.range();
             diagnostics.push(new Diagnostic(range, "Property must define a name before ':' sign", DiagnosticSeverity.Error));
             return;
         }
@@ -280,7 +280,7 @@ export class KafkaFileDiagnostics {
                     // The topic validation is done, only when the cluster is connected
                     if (!await this.topicProvider.getTopic(clusterId, topicId)) {
                         // The topic doesn't exist, report an error
-                        const range = topicProperty.propertyTrimmedValueRange || topicProperty.propertyRange;
+                        const range = topicProperty.propertyTrimmedValueRange || topicProperty.range();
                         const autoCreate = await this.topicProvider.getAutoCreateTopicEnabled(clusterId);
                         const errorMessage = getTopicErrorMessage(topicId, autoCreate, blockType);
                         const severity = getTopicErrorSeverity(autoCreate);

@@ -164,6 +164,12 @@ export function startLanguageClient(
     const diagnostics = new KafkaFileDiagnostics(kafkaFileDocuments, languageService, clusterSettings, clientAccessor, modelProvider, workspaceSettings);
     context.subscriptions.push(diagnostics);
 
+    // Hover
+    const hover = new KafkaFileHoverProvider(kafkaFileDocuments, languageService);
+    context.subscriptions.push(
+        vscode.languages.registerHoverProvider(documentSelector, hover)
+    );
+
     // Open / Close document
     context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(e => {
         if (e.languageId === 'kafka') {
@@ -277,7 +283,7 @@ class KafkaFileCompletionItemProvider extends AbstractKafkaFileFeature implement
         return runSafeAsync(async () => {
             const kafkaFileDocument = this.getKafkaFileDocument(document);
             return this.languageService.doComplete(document, kafkaFileDocument, this.workspaceSettings.producerFakerJSEnabled, position);
-        }, new vscode.CompletionList(), `Error while computing code lenses for ${document.uri}`, token);
+        }, new vscode.CompletionList(), `Error while computing completion for ${document.uri}`, token);
     }
 
 }
@@ -358,4 +364,14 @@ class KafkaFileDiagnostics extends AbstractKafkaFileFeature implements vscode.Di
         this.diagnosticCollection.clear();
         this.diagnosticCollection.dispose();
     }
+}
+
+class KafkaFileHoverProvider extends AbstractKafkaFileFeature implements vscode.HoverProvider {
+    provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): vscode.ProviderResult<vscode.Hover> {
+        return runSafeAsync(async () => {
+            const kafkaFileDocument = this.getKafkaFileDocument(document);
+            return this.languageService.doHover(document, kafkaFileDocument, position);
+        }, null, `Error while computing hover for ${document.uri}`, token);       
+    }
+
 }

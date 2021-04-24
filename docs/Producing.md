@@ -83,6 +83,14 @@ Validation will help you write valid producers in .kafka files.
 
 ![Existing topic validation](assets/kafka-file-producer-topic-validation.png)
  
+### Hover
+ 
+Hover for properties documentation and topic informations is available in .kafka files.
+
+Here is an example of hover on topic:
+
+![Existing topic validation](assets/kafka-file-producer-topic-hover.png)
+
 ## Randomized content
 
 Record content can be randomized by injecting mustache-like placeholders of [faker.js properties](https://github.com/Marak/faker.js#api-methods), like ``{{name.lastName}}`` or ``{{random.number}}``. Some randomized properties can be localized via the `kafka.producers.fakerjs.locale` setting.

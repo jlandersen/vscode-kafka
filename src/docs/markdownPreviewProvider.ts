@@ -62,7 +62,7 @@ class MarkdownPreviewProvider implements Disposable {
                     return `<a href="command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22${page}%22%2C%22section%22%3A%22${section}%22%7D%5D">${linkText}</a>`;
                 });
             body = await commands.executeCommand(MARKDOWN_API_RENDER, markdownString);
-            if(body !== undefined) {
+            if (body !== undefined) {
                 this.documentCache.set(markdownFilePath, body);
             }
         }
@@ -120,3 +120,15 @@ class MarkdownPreviewProvider implements Disposable {
 }
 
 export const markdownPreviewProvider: MarkdownPreviewProvider = new MarkdownPreviewProvider();
+
+export type EmbeddedPage = "Consuming" | "Producing";
+
+type ConsumingSection = "deserializer" | "kafka-file";
+
+type ProducingSection = "serializer" | "kafka-file" | "randomized-content";
+
+export type EmbeddedSection = ConsumingSection | ProducingSection;
+
+export function getDocumentationPageUri(page: EmbeddedPage, section: EmbeddedSection) {
+    return `command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22${page}%22%2C%22section%22%3A%22${section}%22%7D%5D`;
+}
