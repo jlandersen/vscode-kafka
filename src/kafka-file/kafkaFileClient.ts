@@ -7,11 +7,108 @@ import { getLanguageModelCache, LanguageModelCache } from './languageModelCache'
 import { KafkaFileDocument } from "./languageservice/parser/kafkaFileParser";
 import { ConsumerLaunchStateProvider, getLanguageService, LanguageService, ProducerLaunchStateProvider, SelectedClusterProvider, TopicDetail, TopicProvider } from "./languageservice/kafkaFileLanguageService";
 import { runSafeAsync } from "./utils/runner";
-import { TopicItem } from "../explorer";
-import { KafkaModelProvider } from "../explorer/models/kafka";
 import { ThrottledDelayer } from "./utils/async";
 import { WorkspaceSettings } from "../settings";
 import { ClientAccessor } from "../client";
+import { BrokerConfigs } from "../client/config";
+import { KafkaModelProvider } from "../explorer/models/kafka";
+import { ClusterItem } from "../explorer/models/cluster";
+
+class ClusterInfo {
+
+    private topics?: TopicDetail[];
+
+    private autoCreateTopicEnabled?: BrokerConfigs.AutoCreateTopicResult;
+
+    constructor(public readonly cluster?: ClusterItem, public readonly error?: any) {
+    }
+
+    async getTopics(): Promise<TopicDetail[]> {
+        if (this.topics) {
+            return this.topics;
+        }
+        try {
+            this.topics = await this.loadTopics();
+        }
+        catch (e) {
+            this.topics = [];
+        }
+        return this.topics;
+    }
+
+    private async loadTopics(): Promise<TopicDetail[]> {
+        if (this.cluster) {
+            return (await this.cluster.getTopics())
+                .map(child => (child.topic));
+        }
+        return [];
+    }
+
+    async getTopic(topicId: string): Promise<TopicDetail | undefined> {
+        const topics = await this.getTopics();
+        return topics.find(topic => topic.id === topicId);
+    }
+
+    async getAutoCreateTopicEnabled(): Promise<BrokerConfigs.AutoCreateTopicResult> {
+        if (this.autoCreateTopicEnabled !== undefined) {
+            return this.autoCreateTopicEnabled;
+        }
+        this.autoCreateTopicEnabled = await this.loadAutoCreateTopicEnabled();
+        return this.autoCreateTopicEnabled;
+    }
+
+    private async loadAutoCreateTopicEnabled(): Promise<BrokerConfigs.AutoCreateTopicResult> {
+        if (this.cluster) {
+            return await BrokerConfigs.getAutoCreateTopicEnabled(this.cluster.client);
+        }
+        return {type : "unknown"};
+    }
+}
+
+class DataModelTopicProvider implements TopicProvider {
+
+    private cache = new Map<string /* cluster id */, ClusterInfo>();
+
+    constructor(private modelProvider: KafkaModelProvider) {
+        // evict the cache when Kafka explorer is refreshed
+        this.modelProvider.onDidChangeDataModel(() => this.cache.clear());
+    }
+    async getTopics(clusterId: string): Promise<TopicDetail[]> {
+        const info = await this.getClusterInfo(clusterId);
+        return info ? info.getTopics() : [];
+    }
+
+    async getTopic(clusterId: string, topicId: string): Promise<TopicDetail | undefined> {
+        const info = await this.getClusterInfo(clusterId);
+        return info?.getTopic(topicId);
+    }
+
+    async getAutoCreateTopicEnabled(clusterId: string): Promise<BrokerConfigs.AutoCreateTopicResult> {
+        const info = await this.getClusterInfo(clusterId);
+        return info ? info.getAutoCreateTopicEnabled() : { type: "unknown" };
+    }
+
+    private async getClusterInfo(clusterId: string): Promise<ClusterInfo | undefined> {
+        let info = this.cache.get(clusterId);
+        if (!info) {
+            try {
+                const model = this.modelProvider.getDataModel();
+                const cluster = await model.findClusterItemById(clusterId);
+                if (cluster) {
+                    info = new ClusterInfo(cluster);
+                    this.cache.set(clusterId, info);
+                    return info;
+                }
+            }
+            catch (e) {
+                info = new ClusterInfo(e);
+                this.cache.set(clusterId, info);
+                return info;
+            }
+        }
+        return info;
+    }
+}
 
 export function startLanguageClient(
     clusterSettings: ClusterSettings,
@@ -54,7 +151,7 @@ export function startLanguageClient(
     clusterSettings.onDidChangeSelected((e) => {
         codeLensProvider.refresh();
     });
-    // 4.
+    // 4. a kafka client state changed (disconnected, connected, invalid)
     clientAccessor.onDidChangeClientState(() => codeLensProvider.refresh());
 
     // Completion
@@ -64,7 +161,7 @@ export function startLanguageClient(
     );
 
     // Validation
-    const diagnostics = new KafkaFileDiagnostics(kafkaFileDocuments, languageService, workspaceSettings);
+    const diagnostics = new KafkaFileDiagnostics(kafkaFileDocuments, languageService, clusterSettings, clientAccessor, modelProvider, workspaceSettings);
     context.subscriptions.push(diagnostics);
 
     // Open / Close document
@@ -124,18 +221,7 @@ function createLanguageService(clusterSettings: ClusterSettings, clientAccessor 
         }
     } as SelectedClusterProvider;
 
-    const topicProvider = {
-        async getTopics(clusterId: string): Promise<TopicDetail[]> {
-            // Retrieve the proper cluster item from the explorer
-            const model = modelProvider.getDataModel();
-            const cluster = await model.findClusterItemById(clusterId);
-            if (!cluster) {
-                return [];
-            }
-            // Returns topics from the cluster
-            return (await cluster.getTopics()).map(child => (<TopicItem>child).topic);
-        }
-    } as TopicProvider;
+    const topicProvider = new DataModelTopicProvider(modelProvider);
 
     return getLanguageService(producerLaunchStateProvider, consumerLaunchStateProvider, selectedClusterProvider, topicProvider);
 }
@@ -205,19 +291,32 @@ class KafkaFileDiagnostics extends AbstractKafkaFileFeature implements vscode.Di
     constructor(
         kafkaFileDocuments: LanguageModelCache<KafkaFileDocument>,
         languageService: LanguageService,
+        clusterSettings: ClusterSettings,
+        clientAccessor : ClientAccessor,
+        modelProvider: KafkaModelProvider,
         settings: WorkspaceSettings
     ) {
         super(kafkaFileDocuments, languageService);
         this.diagnosticCollection = vscode.languages.createDiagnosticCollection('kafka');
         this.delayers = Object.create(null);
         this.producerFakerJSEnabled = settings.producerFakerJSEnabled;
+        // Validation refresh for opened kafka files must occured when:
+
+        // 1) the 'producerFakerJSEnabled' settings changed to revalidate FakerJS expressions
         settings.onDidChangeSettings(() => {
             if (this.producerFakerJSEnabled !== settings.producerFakerJSEnabled) {
                 this.validateAll();
                 this.producerFakerJSEnabled = settings.producerFakerJSEnabled;
             }
         });
-        // Validate all opened kafka files when vscode is started
+        // 2) kafka explorer is refreshed to revalidate existing topics
+        modelProvider.onDidChangeDataModel(() => this.validateAll());
+        // 3) cluster selection changed to revalidate existing topics
+        clusterSettings.onDidChangeSelected(() => this.validateAll());
+        // 4) kafka client state changed to revalidate existing topics
+        clientAccessor.onDidChangeClientState(() => this.validateAll());
+
+        // 4) when vscode is started
         this.validateAll();
     }
 
@@ -248,9 +347,11 @@ class KafkaFileDiagnostics extends AbstractKafkaFileFeature implements vscode.Di
     private doValidate(document: vscode.TextDocument): Promise<void> {
         return new Promise<void>((resolve) => {
             const kafkaFileDocument = this.getKafkaFileDocument(document);
-            const diagnostics = this.languageService.doDiagnostics(document, kafkaFileDocument, this.producerFakerJSEnabled);
-            this.diagnosticCollection!.set(document.uri, diagnostics);
-            resolve();
+            this.languageService.doDiagnostics(document, kafkaFileDocument, this.producerFakerJSEnabled)
+                .then(diagnostics => {
+                    this.diagnosticCollection!.set(document.uri, diagnostics);
+                    resolve();
+                });
         });
     }
     dispose(): void {

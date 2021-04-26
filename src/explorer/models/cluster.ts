@@ -51,7 +51,7 @@ export class ClusterItem extends NodeBase implements Disposable {
             clusterContext = 'cluster';
         }
         if (this.cluster.clusterProviderId) {
-            clusterContext = clusterContext +'-'+this.cluster.clusterProviderId;
+            clusterContext = clusterContext + '-' + this.cluster.clusterProviderId;
         }
         treeItem.contextValue = clusterContext;
         return treeItem;
@@ -71,17 +71,18 @@ export class ClusterItem extends NodeBase implements Disposable {
     }
 
     /**
-     * Returns the topics of the cluster.
-     * @returns the topics of the cluster.
+     * Returns the topic items of the cluster.
+     * 
+     * @returns the topic items of the cluster.
      */
-    async getTopics() {
-        return (await this.getTopicGroupItem()).getChildren();
+    async getTopics(): Promise<TopicItem[]> {
+        const children = await (await this.getTopicGroupItem()).getChildren();
+        return children.map(child => (<TopicItem>child));
     }
 
     private async getTopicGroupItem(): Promise<NodeBase> {
         return (await this.getChildren())[TOPIC_INDEX];
     }
-
 }
 
 

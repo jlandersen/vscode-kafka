@@ -1,5 +1,6 @@
 import { CodeLens, CompletionList, Diagnostic, Position, TextDocument, Uri } from "vscode";
 import { ClientState, ConsumerLaunchState } from "../../client";
+import { BrokerConfigs } from "../../client/config";
 import { ProducerLaunchState } from "../../client/producer";
 import { KafkaFileDocument, parseKafkaFile } from "./parser/kafkaFileParser";
 import { KafkaFileCodeLenses } from "./services/codeLensProvider";
@@ -37,6 +38,9 @@ export interface TopicDetail {
  * Provider API which gets topics from  given cluster id.
  */
 export interface TopicProvider {
+
+    getAutoCreateTopicEnabled(clusterid: string): Promise<BrokerConfigs.AutoCreateTopicResult>;
+    getTopic(clusterId: string, topicId: string): Promise<TopicDetail | undefined>
     getTopics(clusterid: string): Promise<TopicDetail[]>;
 }
 
@@ -80,7 +84,7 @@ export interface LanguageService {
      * @param document the text document.
      * @param kafkaFileDocument the parsed AST.
      */
-    doDiagnostics(document: TextDocument, kafkaFileDocument: KafkaFileDocument, producerFakerJSEnabled : boolean): Diagnostic[];
+    doDiagnostics(document: TextDocument, kafkaFileDocument: KafkaFileDocument, producerFakerJSEnabled: boolean): Promise<Diagnostic[]>;
 }
 
 /**
@@ -95,7 +99,7 @@ export function getLanguageService(producerLaunchStateProvider: ProducerLaunchSt
 
     const codeLenses = new KafkaFileCodeLenses(producerLaunchStateProvider, consumerLaunchStateProvider, selectedClusterProvider);
     const completion = new KafkaFileCompletion(selectedClusterProvider, topicProvider);
-    const diagnostics = new KafkaFileDiagnostics();
+    const diagnostics = new KafkaFileDiagnostics(selectedClusterProvider, topicProvider);
     return {
         parseKafkaFileDocument: (document: TextDocument) => parseKafkaFile(document),
         getCodeLenses: codeLenses.getCodeLenses.bind(codeLenses),

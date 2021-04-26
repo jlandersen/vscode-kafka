@@ -78,6 +78,10 @@ Validation will help you write valid producers in .kafka files.
  * here is an example with FakerJS validation:
  
 ![FakerJS validation](assets/kafka-file-producer-fakerjs-validation.png)
+
+ * Existing topic validation is done only when cluster is `connected`. If the topic doesn't already exist, an error will be reported if the broker configuration is accessible and `auto.create.topics.enable=false`.
+
+![Existing topic validation](assets/kafka-file-producer-topic-validation.png)
  
 ## Randomized content
 
