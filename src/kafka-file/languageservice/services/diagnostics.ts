@@ -1,5 +1,5 @@
 import { Diagnostic, DiagnosticSeverity, Position, Range, TextDocument } from "vscode";
-import { Block, BlockType, ConsumerBlock, DynamicChunk, KafkaFileDocument, ProducerBlock, Property } from "../parser/kafkaFileParser";
+import { Block, BlockType, ConsumerBlock, DynamicChunk, KafkaFileDocument, MustacheExpression, ProducerBlock, Property } from "../parser/kafkaFileParser";
 import { ConsumerValidator } from "../../../validators/consumer";
 import { ProducerValidator } from "../../../validators/producer";
 import { CommonsValidator } from "../../../validators/commons";
@@ -82,6 +82,12 @@ export class KafkaFileDiagnostics {
 
             // validate each parts of FakerJS expression (ex : {{random.words}})
             const parts = method.split('.');
+
+            // We should have 2 parts (module + '.' + method)
+            if (!this.validateFakerPartsLength(expression, parts, diagnostics)) {
+                return;
+            }
+
             let parentPartModel = <PartModelProvider>fakerjsAPIModel;
             let offset = 0;
             // loop for each parts (ex : random, words) and validate it
@@ -95,18 +101,47 @@ export class KafkaFileDiagnostics {
                 const partModel = parentPartModel.getPart(part);
                 if (!partModel) {
                     // The part doesn't exists, report an error.
-                    const expressionRange = expression.enclosedExpressionRange;
-                    const start = new Position(expressionRange.start.line, expressionRange.start.character + offset);
-                    const end = new Position(expressionRange.end.line, start.character + part.length);
-                    const range = new Range(start, end);
+                    const range = this.adjustExpressionRange(expression, offset, part.length);
                     diagnostics.push(new Diagnostic(range, `Invalid ${i === 0 ? 'module' : 'method'}: '${part}'`, DiagnosticSeverity.Error));
-                    break;
+                    return;
                 }
                 offset += part.length;
                 parentPartModel = partModel;
             }
         });
     }
+    validateFakerPartsLength(expression: MustacheExpression, parts: string[], diagnostics: Diagnostic[]): boolean {
+        if (parts.length === 2) {
+            return true;
+        }
+        const content = expression.content;
+        switch (parts.length) {
+            case 1: {
+                const range = expression.enclosedExpressionRange;
+                const message = content.trim().length === 0 ? `Required expression` : `Missing '.' after '${content}'`;
+                diagnostics.push(new Diagnostic(range, message, DiagnosticSeverity.Error));
+                break;
+            }
+            default: {
+                const validContent = parts.slice(0, 2).join('.');
+                const startColumn = validContent.length + 1;
+                const endColumn = content.length - startColumn;
+                const invalidContent = content.substring(startColumn, content.length);
+                const range = this.adjustExpressionRange(expression, startColumn, endColumn);
+                diagnostics.push(new Diagnostic(range, `Invalid content: '${invalidContent}'`, DiagnosticSeverity.Error));
+                break;
+            }
+        }
+        return false;
+    }
+
+    adjustExpressionRange(expression: MustacheExpression, startColumn: number, endColumn: number): Range {
+        const expressionRange = expression.enclosedExpressionRange;
+        const start = new Position(expressionRange.start.line, expressionRange.start.character + startColumn);
+        const end = new Position(expressionRange.end.line, start.character + endColumn);
+        return new Range(start, end);
+    }
+
     validateProperties(block: Block, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
         const existingProperties = new Map<string, Property[]>();
         let topicProperty: Property | undefined;
