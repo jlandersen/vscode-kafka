@@ -1,15 +1,15 @@
-import { Disposable, TreeItemCollapsibleState } from "vscode";
+import { Disposable, Event, TreeItemCollapsibleState } from "vscode";
 import { ClientAccessor } from "../../client";
 import { ClusterSettings } from "../../settings";
 import { ClusterItem } from "./cluster";
 import { NodeBase } from "./nodeBase";
-
 export interface KafkaModelProvider {
     getDataModel(): KafkaModel;
+
+    onDidChangeDataModel: Event<KafkaModel>;
 }
 
 export class KafkaModel extends NodeBase implements Disposable {
-
     public contextValue = "";
     public collapsibleState = TreeItemCollapsibleState.Collapsed;
 

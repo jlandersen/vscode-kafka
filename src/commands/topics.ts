@@ -68,21 +68,9 @@ export class DeleteTopicCommandHandler {
         }
 
         try {
-            const brokers = await client?.getBrokers();
-            let autoCreateTopicsEnabled = false;
-
-            if (brokers) {
-                for (let i = 0; i < brokers.length && !autoCreateTopicsEnabled; i++) {
-                    const configs = await client?.getBrokerConfigs(brokers[i].id);
-                    const config = configs?.find(ce => ce.configName === BrokerConfigs.AUTO_CREATE_TOPIC_ENABLE);
-                    if (config) {
-                        autoCreateTopicsEnabled = config.configValue === 'true';
-                    }
-                }
-            }
-
+            const autoCreateTopicsEnabled = await BrokerConfigs.getAutoCreateTopicEnabled(client);
             let warning = `Are you sure you want to delete topic '${topicToDelete.id}'?`;
-            if (autoCreateTopicsEnabled) {
+            if (autoCreateTopicsEnabled.type === "enabled") {
                 warning += ` The cluster is configured with '${BrokerConfigs.AUTO_CREATE_TOPIC_ENABLE}=true', so the topic might be recreated automatically.`;
             }
             const deleteConfirmation = await vscode.window.showWarningMessage(warning, 'Cancel', 'Delete');

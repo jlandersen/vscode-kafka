@@ -31,6 +31,9 @@ export class KafkaExplorer implements KafkaModelProvider, vscode.Disposable, vsc
 
     private root: KafkaModel | null;
 
+    private readonly onDidChangeDataModelEmitter = new vscode.EventEmitter<KafkaModel>();
+    public readonly onDidChangeDataModel = this.onDidChangeDataModelEmitter.event;
+
     constructor(
         settings: WorkspaceSettings,
         clusterSettings: ClusterSettings,
@@ -186,6 +189,7 @@ export class KafkaExplorer implements KafkaModelProvider, vscode.Disposable, vsc
     public getDataModel(): KafkaModel {
         if (!this.root) {
             this.root = new KafkaModel(this.clusterSettings, this.clientAccessor);
+            this.onDidChangeDataModelEmitter.fire(this.root);
         }
         return this.root;
     }

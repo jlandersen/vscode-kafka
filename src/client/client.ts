@@ -212,7 +212,7 @@ class KafkaJsClient implements Client {
 
     // Promise which returns the KafkaJsClient instance when it is ready.
     private kafkaPromise: Promise<KafkaJsClient>;
-
+    
     constructor(public readonly cluster: Cluster, workspaceSettings: WorkspaceSettings) {
         this.metadata = {
             brokers: [],
@@ -263,10 +263,6 @@ class KafkaJsClient implements Client {
 
     public async consumer(config?: ConsumerConfig): Promise<Consumer> {
         return (await this.getkafkaClient()).consumer(config);
-    }
-
-    canConnect(): boolean {
-        return this.kafkaAdminClient !== null;
     }
 
     async connect(): Promise<void> {
@@ -411,6 +407,7 @@ class KafkaJsClient implements Client {
             this.kafkaAdminClient.disconnect();
         }
     }
+    
 }
 
 export const createClient = (cluster: Cluster, workspaceSettings: WorkspaceSettings): Client => new EnsureConnectedDecorator(

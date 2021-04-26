@@ -97,6 +97,11 @@ Here is an example of topic validation:
 
 ![Topic syntax validation](assets/kafka-file-consumer-topic-syntax-validation.png)
 
+Existing topic validation is done only when cluster is `connected`. If the topic doesn't already exist, an error will be reported if the broker configuration is accessible and `auto.create.topics.enable=false`.
+
+![Existing topic validation](assets/kafka-file-consumer-topic-validation.png)
+
+
 ### Start Consumer command
 
 ![Start Consumer from command palette](assets/start-consumer-from-command.png)

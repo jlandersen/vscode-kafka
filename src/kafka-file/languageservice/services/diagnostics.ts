@@ -4,30 +4,37 @@ import { ConsumerValidator } from "../../../validators/consumer";
 import { ProducerValidator } from "../../../validators/producer";
 import { CommonsValidator } from "../../../validators/commons";
 import { fakerjsAPIModel, PartModelProvider } from "../model";
+import { SelectedClusterProvider, TopicProvider } from "../kafkaFileLanguageService";
+import { ClientState } from "../../../client";
+import { BrokerConfigs } from "../../../client/config";
 
 /**
  * Kafka file diagnostics support.
  */
 export class KafkaFileDiagnostics {
 
-    doDiagnostics(document: TextDocument, kafkaFileDocument: KafkaFileDocument, producerFakerJSEnabled: boolean): Diagnostic[] {
+    constructor(private selectedClusterProvider: SelectedClusterProvider, private topicProvider: TopicProvider) {
+
+    }
+
+    async doDiagnostics(document: TextDocument, kafkaFileDocument: KafkaFileDocument, producerFakerJSEnabled: boolean): Promise<Diagnostic[]> {
         const diagnostics: Diagnostic[] = [];
         for (const block of kafkaFileDocument.blocks) {
             if (block.type === BlockType.consumer) {
-                this.validateConsumerBlock(<ConsumerBlock>block, diagnostics);
+                await this.validateConsumerBlock(<ConsumerBlock>block, diagnostics);
             } else {
-                this.validateProducerBlock(<ProducerBlock>block, producerFakerJSEnabled, diagnostics);
+                await this.validateProducerBlock(<ProducerBlock>block, producerFakerJSEnabled, diagnostics);
             }
         }
         return diagnostics;
     }
 
-    validateConsumerBlock(block: ConsumerBlock, diagnostics: Diagnostic[]) {
-        this.validateProperties(block, false, diagnostics);
+    async validateConsumerBlock(block: ConsumerBlock, diagnostics: Diagnostic[]) {
+        await this.validateProperties(block, false, diagnostics);
     }
 
-    validateProducerBlock(block: ProducerBlock, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
-        this.validateProperties(block, producerFakerJSEnabled, diagnostics);
+    async validateProducerBlock(block: ProducerBlock, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
+        await this.validateProperties(block, producerFakerJSEnabled, diagnostics);
         this.validateProducerValue(block, producerFakerJSEnabled, diagnostics);
     }
 
@@ -110,6 +117,7 @@ export class KafkaFileDiagnostics {
             }
         });
     }
+
     validateFakerPartsLength(expression: MustacheExpression, parts: string[], diagnostics: Diagnostic[]): boolean {
         if (parts.length === 2) {
             return true;
@@ -142,7 +150,7 @@ export class KafkaFileDiagnostics {
         return new Range(start, end);
     }
 
-    validateProperties(block: Block, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
+    async validateProperties(block: Block, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
         const existingProperties = new Map<string, Property[]>();
         let topicProperty: Property | undefined;
         for (const property of block.properties) {
@@ -173,8 +181,11 @@ export class KafkaFileDiagnostics {
         if (!topicProperty) {
             const range = new Range(block.start, new Position(block.start.line, block.start.character + 8));
             diagnostics.push(new Diagnostic(range, `The ${block.type === BlockType.consumer ? 'consumer' : 'producer'} must declare the 'topic:' property.`, DiagnosticSeverity.Error));
+        } else {
+            await this.validateTopic(topicProperty, block.type, diagnostics);
         }
     }
+
     validateProperty(property: Property, block: Block, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
         const propertyName = property.propertyName;
         // 1. Validate property syntax
@@ -215,7 +226,7 @@ export class KafkaFileDiagnostics {
         diagnostics.push(new Diagnostic(range, `Unkwown property '${propertyName}'`, DiagnosticSeverity.Warning));
     }
 
-    validatePropertyValue(property: Property, type: BlockType, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
+    async validatePropertyValue(property: Property, type: BlockType, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
         const propertyName = property.propertyName;
         if (!propertyName) {
             return;
@@ -225,7 +236,7 @@ export class KafkaFileDiagnostics {
         if (!range) {
             return;
         }
-        const errorMessage = this.validateValue(propertyName, type, propertyValue);
+        const errorMessage = await this.validateValue(propertyName, type, propertyValue);
         if (errorMessage) {
             diagnostics.push(new Diagnostic(range, errorMessage, DiagnosticSeverity.Error));
         }
@@ -238,7 +249,7 @@ export class KafkaFileDiagnostics {
         }
     }
 
-    private validateValue(propertyName: string, type: BlockType, propertyValue?: string): string | undefined {
+    private async validateValue(propertyName: string, type: BlockType, propertyValue?: string): Promise<string | undefined> {
         switch (propertyName) {
             case 'topic':
                 return CommonsValidator.validateTopic(propertyValue);
@@ -252,5 +263,60 @@ export class KafkaFileDiagnostics {
                 return ConsumerValidator.validatePartitions(propertyValue);
             }
         }
+    }
+
+    async validateTopic(topicProperty: Property | undefined, blockType: BlockType, diagnostics: Diagnostic[]) {
+        if (!topicProperty) {
+            return;
+        }
+        const topicId = topicProperty.value?.content.trim();
+        if (!topicId || topicId.length < 1) {
+            return;
+        }
+        const { clusterId, clusterState } = this.selectedClusterProvider.getSelectedCluster();
+        if (clusterId) {
+            switch (clusterState) {
+                case ClientState.connected: {
+                    // The topic validation is done, only when the cluster is connected
+                    if (!await this.topicProvider.getTopic(clusterId, topicId)) {
+                        // The topic doesn't exist, report an error
+                        const range = topicProperty.propertyTrimmedValueRange || topicProperty.propertyRange;
+                        const autoCreate = await this.topicProvider.getAutoCreateTopicEnabled(clusterId);
+                        const errorMessage = getTopicErrorMessage(topicId, autoCreate, blockType);
+                        const severity = getTopicErrorSeverity(autoCreate);
+                        diagnostics.push(new Diagnostic(range, errorMessage, severity));
+                    }
+                    break;
+                }
+                case ClientState.disconnected: {
+                    // the cluster is disconnected, try to connect to the cluster, by trying retrieving the topic in async.
+                    // if kafka client can be connected, it will process the validation again.
+                    this.topicProvider.getTopic(clusterId, topicId);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+function getTopicErrorMessage(topicId: string, autoCreate: BrokerConfigs.AutoCreateTopicResult, blockType: BlockType): string {
+    switch (autoCreate.type) {
+        case "enabled":
+            return `Unknown topic '${topicId}'. Topic will be created automatically.`;
+        case "disabled":
+            return `Unknown topic '${topicId}'. Cluster does not support automatic topic creation.`;
+        default:
+            return `Unknown topic '${topicId}'. Cluster might not support automatic topic creation.`;
+    }
+}
+
+function getTopicErrorSeverity(autoCreate: BrokerConfigs.AutoCreateTopicResult): DiagnosticSeverity {
+    switch (autoCreate.type) {
+        case "enabled":
+            return DiagnosticSeverity.Information;
+        case "disabled":
+            return DiagnosticSeverity.Error;
+        default:
+            return DiagnosticSeverity.Warning;
     }
 }

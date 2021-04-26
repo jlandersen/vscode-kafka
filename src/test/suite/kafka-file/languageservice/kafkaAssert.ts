@@ -1,6 +1,7 @@
 import * as assert from "assert";
 import { CodeLens, Position, Range, Command, Uri, workspace, CompletionList, SnippetString, Diagnostic, DiagnosticSeverity } from "vscode";
-import { ConsumerLaunchState } from "../../../../client";
+import { ClientState, ConsumerLaunchState } from "../../../../client";
+import { BrokerConfigs } from "../../../../client/config";
 import { ProducerLaunchState } from "../../../../client/producer";
 import { ConsumerLaunchStateProvider, getLanguageService, LanguageService, ProducerLaunchStateProvider, SelectedClusterProvider, TopicDetail, TopicProvider } from "../../../../kafka-file/languageservice/kafkaFileLanguageService";
 import { BlockType, ProducerBlock } from "../../../../kafka-file/languageservice/parser/kafkaFileParser";
@@ -11,9 +12,12 @@ export class LanguageServiceConfig implements ProducerLaunchStateProvider, Consu
 
     private consumerLaunchStates = new Map<string, ConsumerLaunchState>();
 
-    private selectedCluster: { clusterId?: string, clusterName?: string } | undefined;
+    private selectedCluster: { clusterId?: string, clusterName?: string, clusterState? : ClientState } | undefined;
 
     private topicsCache = new Map<string, TopicDetail[]>();
+
+    private autoCreateConfig: BrokerConfigs.AutoCreateTopicResult = { type: "enabled" };
+
     getProducerLaunchState(uri: Uri): ProducerLaunchState {
         const key = uri.toString();
         const state = this.producerLaunchStates.get(key);
@@ -46,7 +50,7 @@ export class LanguageServiceConfig implements ProducerLaunchStateProvider, Consu
         return {};
     }
 
-    public setSelectedCluster(selectedCluster: { clusterId?: string, clusterName?: string }) {
+    public setSelectedCluster(selectedCluster: { clusterId?: string, clusterName?: string, clusterState? : ClientState }) {
         this.selectedCluster = selectedCluster;
     }
 
@@ -55,6 +59,20 @@ export class LanguageServiceConfig implements ProducerLaunchStateProvider, Consu
     }
     async getTopics(clusterId: string): Promise<TopicDetail[]> {
         return this.topicsCache.get(clusterId) || [];
+    }
+
+    async getTopic(clusterId: string, topicId: string): Promise<TopicDetail | undefined> {
+        const topics = await this.getTopics(clusterId);
+        return topics.find(topic => topic.id === topicId);
+    }
+
+    
+    public setAutoCreateConfig(autoCreateConfig : BrokerConfigs.AutoCreateTopicResult) {
+        this.autoCreateConfig= autoCreateConfig;
+    }
+    
+    async getAutoCreateTopicEnabled(clusterid: string): Promise<BrokerConfigs.AutoCreateTopicResult> {
+        return this.autoCreateConfig;
     }
 }
 
@@ -137,7 +155,7 @@ export function diagnostic(start: Position, end: Position, message: string, seve
 export async function assertDiagnostics(content: string, expected: Array<Diagnostic>, ls = languageService) {
     let document = await getDocument(content);
     let ast = ls.parseKafkaFileDocument(document);
-    const actual = ls.doDiagnostics(document, ast,true);
+    const actual = await ls.doDiagnostics(document, ast, true);
     assert.deepStrictEqual(actual, expected);
 }
 
