@@ -17,11 +17,11 @@ Features:
 - SASL/PLAIN, SASL/SCRAM-256, SASL/SCRAM-512 Authentication (Kafka 0.10+)
 - Clusters can be contributed by 3rd party extensions
 
-Planned features in no particular order:
+Planned features, in no particular order:
 - More administration features
-- More extensibility
-- Improve consumer DSL
-- Update configs
+- Improved new cluster wizard
+- Improved .kafka validation support
+- SSL support
 
 You might also find useful information in the [Online Documentation](https://github.com/jlandersen/vscode-kafka/blob/master/docs/README.md)
 or you can read this documentation inside your editor with the command `Open Documentation` available with `Ctrl+Shift+P`:
@@ -73,6 +73,19 @@ from: 1
 ![Start Consumer with a .kafka file](docs/assets/start-consumer-from-kafkafile.png)
 
 See [Consuming messages](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Consuming.md) section for more information.
+
+## Discover new cluster providers
+
+You can search for extensions contributing cluster providers in the extension gallery, by clicking on the `Discover Cluster Providers` button (also available via the command palette):
+
+![Discover Cluster Providers](docs/assets/kafka-explorer-discover-providers.png)
+
+Those extensions must have the `kafka-provider` keyword in their `package.json`, eg.
+```json
+"keywords": [
+		"kafka-provider"
+],
+```
 
 ## CI Builds
 
