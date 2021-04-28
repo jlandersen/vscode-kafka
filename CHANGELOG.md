@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
+## [0.13.0]
+### Added
+- Show cluster state in kafka file. See [#175](https://github.com/jlandersen/vscode-kafka/pull/175).
+
 ## [0.12.0] - 2021-04-26
 ### Added
 - Extension API to contribute clusters. See [#123](https://github.com/jlandersen/vscode-kafka/issues/123) and [#160](https://github.com/jlandersen/vscode-kafka/pull/160).

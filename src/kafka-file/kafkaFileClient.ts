@@ -11,9 +11,11 @@ import { TopicItem } from "../explorer";
 import { KafkaModelProvider } from "../explorer/models/kafka";
 import { ThrottledDelayer } from "./utils/async";
 import { WorkspaceSettings } from "../settings";
+import { ClientAccessor } from "../client";
 
 export function startLanguageClient(
     clusterSettings: ClusterSettings,
+    clientAccessor : ClientAccessor,
     workspaceSettings: WorkspaceSettings,
     producerCollection: ProducerCollection,
     consumerCollection: ConsumerCollection,
@@ -26,7 +28,7 @@ export function startLanguageClient(
     const kafkaFileDocuments = getLanguageModelCache<KafkaFileDocument>(10, 60, document => languageService.parseKafkaFileDocument(document));
 
     // Create the Kafka file language service.
-    const languageService = createLanguageService(clusterSettings, producerCollection, consumerCollection, modelProvider);
+    const languageService = createLanguageService(clusterSettings, clientAccessor, producerCollection, consumerCollection, modelProvider);
 
     const documentSelector = [
         { language: "kafka", scheme: "file" },
@@ -52,6 +54,8 @@ export function startLanguageClient(
     clusterSettings.onDidChangeSelected((e) => {
         codeLensProvider.refresh();
     });
+    // 4.
+    clientAccessor.onDidChangeClientState(() => codeLensProvider.refresh());
 
     // Completion
     const completion = new KafkaFileCompletionItemProvider(kafkaFileDocuments, languageService, workspaceSettings);
@@ -92,7 +96,7 @@ export function startLanguageClient(
     };
 }
 
-function createLanguageService(clusterSettings: ClusterSettings, producerCollection: ProducerCollection, consumerCollection: ConsumerCollection, modelProvider: KafkaModelProvider): LanguageService {
+function createLanguageService(clusterSettings: ClusterSettings, clientAccessor : ClientAccessor, producerCollection: ProducerCollection, consumerCollection: ConsumerCollection, modelProvider: KafkaModelProvider): LanguageService {
     const producerLaunchStateProvider = {
         getProducerLaunchState(uri: vscode.Uri): ProducerLaunchState {
             const producer = producerCollection.get(uri);
@@ -110,9 +114,12 @@ function createLanguageService(clusterSettings: ClusterSettings, producerCollect
     const selectedClusterProvider = {
         getSelectedCluster() {
             const selected = clusterSettings.selected;
+            const clusterId =  selected?.id;
+            const clusterState = clusterId ? clientAccessor.getState(clusterId) : undefined;
             return {
-                clusterId: selected?.id,
+                clusterId,
                 clusterName: selected?.name,
+                clusterState
             };
         }
     } as SelectedClusterProvider;

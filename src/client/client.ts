@@ -1,6 +1,7 @@
 import { Admin, ConfigResourceTypes, Consumer, ConsumerConfig, Kafka, KafkaConfig, Producer, SeekEntry } from "kafkajs";
 
 import { Disposable } from "vscode";
+import { ClientAccessor, ClientState } from ".";
 import { getClusterProvider } from "../kafka-extensions/registry";
 import { WorkspaceSettings } from "../settings";
 
@@ -81,6 +82,7 @@ export interface ConsumerGroupMember {
 }
 
 export interface Client extends Disposable {
+    state: ClientState;
     cluster: Cluster;
     producer(): Promise<Producer>;
     consumer(config?: ConsumerConfig): Promise<Consumer>;
@@ -95,10 +97,11 @@ export interface Client extends Disposable {
     createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]>;
     deleteTopic(deleteTopicRequest: DeleteTopicRequest): Promise<void>;
     fetchTopicPartitions(topic: string): Promise<number[]>;
-    fetchTopicOffsets(topic: string):  Promise<Array<SeekEntry & { high: string; low: string }>>;
+    fetchTopicOffsets(topic: string): Promise<Array<SeekEntry & { high: string; low: string }>>;
 }
 
 class EnsureConnectedDecorator implements Client {
+    public state = ClientState.disconnected;
 
     constructor(private client: Client) {
     }
@@ -107,12 +110,14 @@ class EnsureConnectedDecorator implements Client {
         return this.client.cluster;
     }
 
-    public producer(): Promise<Producer> {
-        return this.client.producer();
+    public async producer(): Promise<Producer> {
+        await this.waitUntilConnected();
+        return await this.client.producer();
     }
 
-    public consumer(config?: ConsumerConfig): Promise<Consumer> {
-        return this.client.consumer(config);
+    public async consumer(config?: ConsumerConfig): Promise<Consumer> {
+        await this.waitUntilConnected();
+        return await this.client.consumer(config);
     }
 
     public connect(): Promise<void> {
@@ -169,7 +174,7 @@ class EnsureConnectedDecorator implements Client {
         return await this.client.fetchTopicPartitions(topic);
     }
 
-    public async fetchTopicOffsets(topic: string):  Promise<Array<SeekEntry & { high: string; low: string }>> {
+    public async fetchTopicOffsets(topic: string): Promise<Array<SeekEntry & { high: string; low: string }>> {
         await this.waitUntilConnected();
         return await this.client.fetchTopicOffsets(topic);
     }
@@ -179,9 +184,13 @@ class EnsureConnectedDecorator implements Client {
     }
 
     private async waitUntilConnected(): Promise<void> {
+        const clientAccessor = ClientAccessor.getInstance();
         try {
+            clientAccessor.changeState(this, ClientState.connecting);
             await this.client.connect();
+            clientAccessor.changeState(this, ClientState.connected);
         } catch (error) {
+            clientAccessor.changeState(this, ClientState.invalid);
             if (error.message) {
                 throw new Error(`Failed operation - ${error.message}`);
             } else {
@@ -218,6 +227,11 @@ class KafkaJsClient implements Client {
                 this.kafkaProducer = this.kafkaJsClient.producer();
                 return this;
             });
+    }
+
+
+    public get state(): ClientState {
+        return ClientState.disconnected;
     }
 
     private async getkafkaClient(): Promise<Kafka> {
@@ -387,7 +401,7 @@ class KafkaJsClient implements Client {
         return partitionMetadata?.topics[0].partitions.map(m => m.partitionId) || [0];
     }
 
-    async fetchTopicOffsets(topic: string):  Promise<Array<SeekEntry & { high: string; low: string }>> {
+    async fetchTopicOffsets(topic: string): Promise<Array<SeekEntry & { high: string; low: string }>> {
         // returns the topics partitions
         return (await this.getkafkaAdminClient()).fetchTopicOffsets(topic);
     }
