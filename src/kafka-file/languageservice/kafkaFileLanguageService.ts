@@ -1,5 +1,5 @@
 import { CodeLens, CompletionList, Diagnostic, Position, TextDocument, Uri } from "vscode";
-import { ConsumerLaunchState } from "../../client";
+import { ClientState, ConsumerLaunchState } from "../../client";
 import { ProducerLaunchState } from "../../client/producer";
 import { KafkaFileDocument, parseKafkaFile } from "./parser/kafkaFileParser";
 import { KafkaFileCodeLenses } from "./services/codeLensProvider";
@@ -24,7 +24,7 @@ export interface ConsumerLaunchStateProvider {
  * Provider API which gets the selected cluster id and name.
  */
 export interface SelectedClusterProvider {
-    getSelectedCluster(): { clusterId?: string, clusterName?: string };
+    getSelectedCluster(): { clusterId?: string, clusterName?: string, clusterState?: ClientState };
 }
 
 export interface TopicDetail {

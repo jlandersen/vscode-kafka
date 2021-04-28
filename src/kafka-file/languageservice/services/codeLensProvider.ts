@@ -1,5 +1,5 @@
 import { TextDocument, CodeLens, Range } from "vscode";
-import { ConsumerLaunchState } from "../../../client";
+import { ClientState, ConsumerLaunchState } from "../../../client";
 import { createProducerUri, ProducerLaunchState } from "../../../client/producer";
 import { LaunchConsumerCommand, ProduceRecordCommand, ProduceRecordCommandHandler, SelectClusterCommandHandler, StartConsumerCommandHandler, StopConsumerCommandHandler } from "../../../commands";
 import { ProducerLaunchStateProvider, ConsumerLaunchStateProvider, SelectedClusterProvider } from "../kafkaFileLanguageService";
@@ -15,31 +15,47 @@ export class KafkaFileCodeLenses {
     }
     getCodeLenses(document: TextDocument, kafkaFileDocument: KafkaFileDocument): CodeLens[] {
         const lenses: CodeLens[] = [];
-        const { clusterName, clusterId } = this.selectedClusterProvider.getSelectedCluster();
+        const { clusterName, clusterId, clusterState } = this.selectedClusterProvider.getSelectedCluster();
         kafkaFileDocument.blocks.forEach(block => {
-            lenses.push(...this.createBlockLens(block, clusterName, clusterId));
+            lenses.push(...this.createBlockLens(block, clusterName, clusterId, clusterState));
         });
         return lenses;
     }
 
 
-    private createBlockLens(block: Block, clusterName: string | undefined, clusterId: string | undefined): CodeLens[] {
+    private createBlockLens(block: Block, clusterName: string | undefined, clusterId: string | undefined, clusterState: ClientState | undefined): CodeLens[] {
         const range = new Range(block.start, block.end);
         const lineRange = new Range(block.start, block.start);
         if (block.type === BlockType.consumer) {
-            return this.createConsumerLens(<ConsumerBlock>block, lineRange, range, clusterName, clusterId);
+            return this.createConsumerLens(<ConsumerBlock>block, lineRange, range, clusterName, clusterId, clusterState);
         }
-        return this.createProducerLens(<ProducerBlock> block, lineRange, range, clusterName, clusterId);
+        return this.createProducerLens(<ProducerBlock>block, lineRange, range, clusterName, clusterId, clusterState);
     }
 
-    createClusterLens(lineRange: Range, clusterName: string | undefined): CodeLens {
+    createClusterLens(lineRange: Range, clusterName: string | undefined, clusterState: ClientState | undefined): CodeLens {
+        const status = this.getClusterStatus(clusterState);
         return new CodeLens(lineRange, {
-            title: clusterName ? `${clusterName}` : 'Select a cluster',
+            title: clusterName ? `${status}${clusterName}` : 'Select a cluster',
             command: SelectClusterCommandHandler.commandId
         });
     }
 
-    private createProducerLens(block: ProducerBlock, lineRange: Range, range: Range, clusterName: string | undefined, clusterId: string | undefined): CodeLens[] {
+    getClusterStatus(state: ClientState | undefined) {
+        switch (state) {
+            case ClientState.disconnected:
+                return `$(eye-closed) `;            
+            case ClientState.connecting:
+                return `$(sync~spin) `;
+            case ClientState.connected:
+                return `$(eye) `;
+            case ClientState.invalid:
+                return `$(error) `;
+            default:
+                return '';
+        }
+    }
+
+    private createProducerLens(block: ProducerBlock, lineRange: Range, range: Range, clusterName: string | undefined, clusterId: string | undefined, clusterState: ClientState | undefined): CodeLens[] {
         const lenses: CodeLens[] = [];
         if (clusterId) {
             const produceRecordCommand = this.createProduceRecordCommand(block, range, clusterId);
@@ -70,7 +86,7 @@ export class KafkaFileCodeLenses {
             }
         }
         // Add cluster lens
-        lenses.push(this.createClusterLens(lineRange, clusterName));
+        lenses.push(this.createClusterLens(lineRange, clusterName, clusterState));
         return lenses;
     }
 
@@ -121,7 +137,7 @@ export class KafkaFileCodeLenses {
         } as ProduceRecordCommand;
     }
 
-    private createConsumerLens(block: ConsumerBlock, lineRange: Range, range: Range, clusterName: string | undefined, clusterId: string | undefined): CodeLens[] {
+    private createConsumerLens(block: ConsumerBlock, lineRange: Range, range: Range, clusterName: string | undefined, clusterId: string | undefined, clusterState: ClientState | undefined): CodeLens[] {
         const launchCommand = this.createLaunchConsumerCommand(block, range, clusterId);
         const lenses: CodeLens[] = [];
         if (clusterName) {
@@ -154,7 +170,7 @@ export class KafkaFileCodeLenses {
             }
         }
         // Add cluster lens
-        lenses.push(this.createClusterLens(lineRange, clusterName));
+        lenses.push(this.createClusterLens(lineRange, clusterName, clusterState));
         return lenses;
     }
 
@@ -179,7 +195,7 @@ export class KafkaFileCodeLenses {
         let keyFormat;
         let valueFormat;
         block.properties.forEach(property => {
-            switch (property. propertyName) {
+            switch (property.propertyName) {
                 case 'topic':
                     topicId = property.propertyValue;
                     break;

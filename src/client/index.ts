@@ -1,14 +1,30 @@
 import { createClient, Client } from "./client";
 import { getClusterSettings, ClusterSettings, getWorkspaceSettings } from "../settings";
-import { Disposable } from "vscode";
+import { Disposable, EventEmitter } from "vscode";
+
+export enum ClientState {
+    connecting,
+    connected,
+    invalid,
+    disconnecting,
+    disconnected
+}
+
+interface ClientStateEvent {
+    client: Client;
+}
 
 /**
  * Represents an accessor for retrieving the kafka client used for a cluster.
  */
 export class ClientAccessor implements Disposable {
+
     private static instance: ClientAccessor;
     private clientsById: { [id: string]: Client } = {};
     private clusterSettings: ClusterSettings;
+    private onDidChangeClientStateEmitter = new EventEmitter<ClientStateEvent>();
+
+    public onDidChangeClientState = this.onDidChangeClientStateEmitter.event;
 
     constructor(clusterSettings: ClusterSettings) {
         this.clusterSettings = clusterSettings;
@@ -30,6 +46,21 @@ export class ClientAccessor implements Disposable {
 
     public has(clusterId: string): boolean {
         return this.clientsById.hasOwnProperty(clusterId);
+    }
+
+    public getState(clusterId: string): ClientState {
+        if (!this.has(clusterId)) {
+            return ClientState.disconnected;
+        }
+        const client = this.get(clusterId);
+        return client.state;
+    }
+
+    changeState(client: Client, state: ClientState) {
+        client.state = state;
+        this.onDidChangeClientStateEmitter.fire({
+            client
+        });
     }
 
     public getSelectedClusterClient(): Client | undefined {

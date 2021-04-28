@@ -62,7 +62,7 @@ export class ClusterItem extends NodeBase implements Disposable {
     }
 
     public dispose(): void {
-        this.client.dispose();
+        this.clientAccessor.remove(this.cluster.id);
     }
 
     async findTopictemByName(topicName: string): Promise<NodeBase | TopicItem | undefined> {
