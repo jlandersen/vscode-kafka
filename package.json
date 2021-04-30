@@ -85,13 +85,16 @@
                     "default": [
                         "__consumer_offsets",
                         "__transaction_state",
-                        "_schemas"
+                        "_schemas",
+                        "__strimzi*"
                     ],
                     "markdownDescription": "Glob patterns filtering topics out of the Kafka explorer. `*` matches any string, `?` matches a single character. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Explorer%22%2C%22section%22%3A%22kafkaexplorertopicsfilter%22%7D%5D) for more information."
                 },
                 "kafka.explorer.consumers.filter": {
                     "type": "array",
-                    "default": [],
+                    "default": [
+                        "strimzi-canary*"
+                    ],
                     "markdownDescription": "Glob patterns filtering consumer groups out of the Kafka explorer. `*` matches any string, `?` matches a single character. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Explorer%22%2C%22section%22%3A%22kafkaexplorerconsumersfilter%22%7D%5D) for more information."
                 },
                 "kafka.producers.fakerjs.enabled": {
