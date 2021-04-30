@@ -4,6 +4,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 ## [0.13.0]
 ### Added
 - Show cluster state in kafka file. See [#175](https://github.com/jlandersen/vscode-kafka/pull/175).
+- Hide internal [strimzi](https://strimzi.io/) topics/consumers by default. See [#176](https://github.com/jlandersen/vscode-kafka/pull/176).
 
 ## [0.12.0] - 2021-04-26
 ### Added
