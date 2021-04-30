@@ -1,4 +1,3 @@
-
 {
     "producer": {
         "prefix": [
@@ -31,38 +30,6 @@
             ""
         ],
         "description": "A producer generating keyed JSON records"
-    },
-    "key-format-producer": {
-        "prefix": [
-            "producer"
-        ],
-        "body": [
-            "PRODUCER ${1:key-formatted-message}",
-            "topic: ${2:topic_name}",
-            "key: ${3:mykeyq}",
-            "key-format: ${3|string,double,float,integer,long,short|}",
-            "${4:{{random.words}}}",
-            "",
-            "###",
-            ""
-        ],
-        "description": "A producer generating formatted keyed records"
-    },
-    "value-format-producer": {
-        "prefix": [
-            "producer"
-        ],
-        "body": [
-            "PRODUCER ${1:formatted-message}",
-            "topic: ${2:topic_name}",
-            "key: ${3:mykeyq}",
-            "value-format: ${3|string,double,float,integer,long,short|}",
-            "${4:{{random.words}}}",
-            "",
-            "###",
-            ""
-        ],
-        "description": "A producer generating formatted value records"
     },
     "comment": {
         "prefix": [

@@ -9,39 +9,5 @@
             "from: ${3|earliest,latest,0|}"
         ],
         "description": "A simple consumer"
-    },
-    "partition-consumer": {
-        "prefix": [
-            "partitions-consumer"
-        ],
-        "body": [
-            "CONSUMER ${1:consumer-group-id}",
-            "topic: ${2:topic_name}",
-            "from: ${3|earliest,latest,0|}",
-            "partitions: ${4|0|}"
-        ],
-        "description": "A consumer with a partitions filter"
-    },
-    "key-format-consumer": {
-        "prefix": [
-            "key-format-consumer"
-        ],
-        "body": [
-            "CONSUMER ${1:consumer-group-id}",
-            "topic: ${2:topic_name}",
-            "key-format: ${3|none,string,double,float,integer,long,short|}"
-        ],
-        "description": "A consumer with a key format"
-    },
-    "value-format-consumer": {
-        "prefix": [
-            "value-format-consumer"
-        ],
-        "body": [
-            "CONSUMER ${1:consumer-group-id}",
-            "topic: ${2:topic_name}",
-            "value-format: ${3|none,string,double,float,integer,long,short|}"
-        ],
-        "description": "A consumer with a value format"
     }
 }
