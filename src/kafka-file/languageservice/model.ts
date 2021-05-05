@@ -21,7 +21,10 @@ export class Model {
         return this.getDefinitionEnum(name, value) !== undefined;
     }
 
-    public getDefinitionEnum(name: string, value: string): ModelDefinition | undefined {
+    public getDefinitionEnum(name: string, value?: string): ModelDefinition | undefined {
+        if (!value) {
+            return;
+        }
         const definition = this.getDefinition(name);
         if (!definition) {
             return undefined;
@@ -73,7 +76,7 @@ const consumerProperties = [
             },
             {
                 name: "string",
-                description: "Similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.StringDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringDeserializer.java) which currently only supports `UTF-8` encoding."
+                description: "Similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.StringDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringDeserializer.java)."
             },
             {
                 name: "double",
@@ -107,7 +110,7 @@ const consumerProperties = [
             },
             {
                 name: "string",
-                description: "Similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.StringDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringDeserializer.java) which currently only supports `UTF-8` encoding."
+                description: "Similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.StringDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringDeserializer.java)."
             },
             {
                 name: "double",
@@ -158,7 +161,7 @@ const producerProperties = [
         enum: [
             {
                 name: "string",
-                description: "Similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.StringSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringSerializer.java) which currently only supports `UTF-8` encoding."
+                description: "Similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.StringSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringSerializer.java)."
             },
             {
                 name: "double",
@@ -188,7 +191,7 @@ const producerProperties = [
         enum: [
             {
                 name: "string",
-                description: "Similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.StringSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringSerializer.java) which currently only supports `UTF-8` encoding."
+                description: "Similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.StringSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringSerializer.java)."
             },
             {
                 name: "double",

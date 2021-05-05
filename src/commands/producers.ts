@@ -7,7 +7,7 @@ import { OutputChannelProvider } from "../providers/outputChannelProvider";
 import { KafkaExplorer } from "../explorer";
 import { WorkspaceSettings } from "../settings";
 import { pickClient } from "./common";
-import { MessageFormat, serialize } from "../client/serialization";
+import { MessageFormat, SerializationSetting, serialize } from "../client/serialization";
 import { createProducerUri, ProducerCollection, ProducerInfoUri, ProducerLaunchState } from "../client/producer";
 import { ProducerRecord } from "kafkajs";
 import { ProducerValidator } from "../validators/producer";
@@ -15,7 +15,9 @@ import { getErrorMessage } from "../errors";
 
 export interface ProduceRecordCommand extends ProducerInfoUri {
     messageKeyFormat?: MessageFormat;
+    messageKeyFormatSettings?: SerializationSetting[];
     messageValueFormat?: MessageFormat;
+    messageValueFormatSettings?: SerializationSetting[];
 }
 
 export class ProduceRecordCommandHandler {
@@ -46,6 +48,10 @@ export class ProduceRecordCommandHandler {
                 channel.appendLine("No topic");
                 return;
             }
+            if (value === undefined) {
+                channel.appendLine("No value");
+                return;
+            }
             if (this.settings.producerFakerJSEnabled) {
                 faker.setLocale(this.settings.producerFakerJSLocale);
             }
@@ -61,15 +67,15 @@ export class ProduceRecordCommandHandler {
                     faker.seed(seed);
                     const randomizedValue = faker.fake(value);
                     return {
-                        key: serialize(randomizedKey, command.messageKeyFormat),
-                        value: serialize(randomizedValue, command.messageValueFormat)
+                        key: serialize(randomizedKey, command.messageKeyFormat, command.messageKeyFormatSettings),
+                        value: serialize(randomizedValue, command.messageValueFormat, command.messageValueFormatSettings)
                     };
                 }
 
                 // Return key/value message as-is
                 return {
-                    key: serialize(key, command.messageKeyFormat),
-                    value: serialize(value, command.messageValueFormat)
+                    key: serialize(key, command.messageKeyFormat, command.messageKeyFormatSettings),
+                    value: serialize(value, command.messageValueFormat, command.messageValueFormatSettings)
                 };
             });
 

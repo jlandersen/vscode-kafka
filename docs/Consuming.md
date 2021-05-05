@@ -20,11 +20,6 @@ Once this command is launched, it creates a consumer group (with an auto-generat
 
 In this case, the starting offset can be only be configured via the [kafka.consumers.offset](#kafkaconsumersoffset) preference.
 
-Known limitations:
-
-* UTF-8 encoded keys and values only. If data is encoded differently, it will not be pretty.
-* One consumer group is created per topic (may change in the future to just have one for the extension).
-
 ### Kafka file
 
 Define simple consumers in a `.kafka` file, using the following format:
@@ -58,7 +53,7 @@ The `CONSUMER` block defines:
 The deserializers can have the following value:
 
    * `none`: no deserializer (ignores content).
-   * `string`: similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.StringDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringDeserializer.java) which currently only supports `UTF-8` encoding.
+   * `string`: similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.StringDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringDeserializer.java). By default it supports `UTF-8` encoding, but you can specify the encoding as parameter like this `string(base64)`. The valid encoding values are defined in [Node.js' buffers and character encodings](https://nodejs.org/api/buffer.html#buffer_buffers_and_character_encodings).
    * `double`: similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.DoubleDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/DoubleDeserializer.java).
    * `float`: similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.FloatDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/FloatDeserializer.java).
    * `integer`: similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.IntegerDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/IntegerDeserializer.java).
@@ -84,6 +79,10 @@ Completion is available for
  * property value:
 
 ![Property value completion](assets/kafka-file-consumer-property-value-completion.png)
+
+ * string encoding:
+ 
+![String encoding completion](assets/kafka-file-consumer-string-encoding-completion.png)
 
  * topic:
 

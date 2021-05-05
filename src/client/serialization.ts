@@ -1,18 +1,23 @@
-export type MessageFormat = "none" | "string" | "double" | "float" | "integer" | "long" | "short" ;
+export type MessageFormat = "none" | "string" | "double" | "float" | "integer" | "long" | "short";
 
 export type SerializationdResult = any | Error;
 
 export class SerializationException extends Error { }
 
+export interface SerializationSetting {
+    name?: string;
+    value?: string;
+}
+
 // ---------------- Serializers ----------------
 
 interface Serializer {
-    serialize(data: string): Buffer | string | null;
+    serialize(data: string, settings?: SerializationSetting[]): Buffer | string | null;
 }
 
 const serializerRegistry: Map<MessageFormat, Serializer> = new Map();
 
-export function serialize(data?: string, format?: MessageFormat): Buffer | string | null   {
+export function serialize(data?: string, format?: MessageFormat, settings?: SerializationSetting[]): Buffer | string | null {
     if (!data || !format) {
         return data || null;
     }
@@ -20,7 +25,7 @@ export function serialize(data?: string, format?: MessageFormat): Buffer | strin
     if (!serializer) {
         throw new SerializationException(`Cannot find a serializer for ${format} format.`);
     }
-    return serializer.serialize(data);
+    return serializer.serialize(data, settings);
 }
 
 function getSerializer(format: MessageFormat): Serializer | undefined {
@@ -79,7 +84,11 @@ class ShortSerializer implements Serializer {
 
 class StringSerializer implements Serializer {
 
-    serialize(value: string): Buffer | string | null {
+    serialize(value: string, settings?: SerializationSetting[]): Buffer | string | null {
+        const encoding = settings?.[0].value;
+        if (encoding) {
+            return Buffer.from(value, <BufferEncoding>encoding);
+        }
         return value;
     };
 }
@@ -94,12 +103,12 @@ serializerRegistry.set("string", new StringSerializer());
 // ---------------- Deserializers ----------------
 
 interface Deserializer {
-    deserialize(data: Buffer): any;
+    deserialize(data: Buffer, settings?: SerializationSetting[]): any;
 }
 
 const deserializerRegistry: Map<MessageFormat, Deserializer> = new Map();
 
-export function deserialize(data: Buffer | null, format?: MessageFormat): SerializationdResult | null {
+export function deserialize(data: Buffer | null, format?: MessageFormat, settings?: SerializationSetting[]): SerializationdResult | null {
     if (data === null || !format) {
         return data;
     }
@@ -111,7 +120,7 @@ export function deserialize(data: Buffer | null, format?: MessageFormat): Serial
         if (!deserializer) {
             throw new SerializationException(`Cannot find a deserializer for ${format} format.`);
         }
-        return deserializer.deserialize(data);
+        return deserializer.deserialize(data, settings);
     }
     catch (e) {
         return e;
@@ -189,11 +198,12 @@ class ShortDeserializer implements Deserializer {
 
 class StringDeserializer implements Deserializer {
 
-    deserialize(data: Buffer | null): any {
+    deserialize(data: Buffer | null, settings?: SerializationSetting[]): any {
         if (data === null) {
             return null;
         }
-        return data.toString();
+        const encoding = settings?.[0].value;
+        return data.toString(encoding);
     }
 }
 

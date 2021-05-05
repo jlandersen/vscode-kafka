@@ -1,9 +1,10 @@
 import { TextDocument, CodeLens, Range } from "vscode";
 import { ClientState, ConsumerLaunchState } from "../../../client";
 import { createProducerUri, ProducerLaunchState } from "../../../client/producer";
+import { SerializationSetting } from "../../../client/serialization";
 import { LaunchConsumerCommand, ProduceRecordCommand, ProduceRecordCommandHandler, SelectClusterCommandHandler, StartConsumerCommandHandler, StopConsumerCommandHandler } from "../../../commands";
 import { ProducerLaunchStateProvider, ConsumerLaunchStateProvider, SelectedClusterProvider } from "../kafkaFileLanguageService";
-import { Block, BlockType, ConsumerBlock, KafkaFileDocument, ProducerBlock } from "../parser/kafkaFileParser";
+import { Block, BlockType, ConsumerBlock, KafkaFileDocument, CalleeFunction, ProducerBlock } from "../parser/kafkaFileParser";
 
 /**
  * Kafka file codeLens support.
@@ -43,7 +44,7 @@ export class KafkaFileCodeLenses {
     getClusterStatus(state: ClientState | undefined) {
         switch (state) {
             case ClientState.disconnected:
-                return `$(eye-closed) `;            
+                return `$(eye-closed) `;
             case ClientState.connecting:
                 return `$(sync~spin) `;
             case ClientState.connected:
@@ -110,7 +111,9 @@ export class KafkaFileCodeLenses {
         let key;
         let value = block.value?.content;
         let keyFormat;
+        let keyFormatSettings: Array<SerializationSetting> | undefined;
         let valueFormat;
+        let valueFormatSettings: Array<SerializationSetting> | undefined;
         block.properties.forEach(property => {
             switch (property.propertyName) {
                 case 'topic':
@@ -119,12 +122,18 @@ export class KafkaFileCodeLenses {
                 case 'key':
                     key = property.propertyValue;
                     break;
-                case 'key-format':
-                    keyFormat = property.propertyValue;
+                case 'key-format': {
+                    const callee = <CalleeFunction>property.value;
+                    keyFormat = callee.functionName;
+                    keyFormatSettings = this.getSerializationSettings(callee);
                     break;
-                case 'value-format':
-                    valueFormat = property.propertyValue;
+                }
+                case 'value-format': {
+                    const callee = <CalleeFunction>property.value;
+                    valueFormat = callee.functionName;
+                    valueFormatSettings = this.getSerializationSettings(callee);
                     break;
+                }
             }
         });
         return {
@@ -133,8 +142,17 @@ export class KafkaFileCodeLenses {
             key,
             value,
             messageKeyFormat: keyFormat,
-            messageValueFormat: valueFormat
+            messageKeyFormatSettings: keyFormatSettings,
+            messageValueFormat: valueFormat,
+            messageValueFormatSettings: valueFormatSettings
         } as ProduceRecordCommand;
+    }
+
+    private getSerializationSettings(callee: CalleeFunction): SerializationSetting[] | undefined {
+        const parameters = callee.parameters;
+        if (parameters.length > 0) {
+            return parameters.map(p => { return { value: p.value }; });
+        }
     }
 
     private createConsumerLens(block: ConsumerBlock, lineRange: Range, range: Range, clusterName: string | undefined, clusterId: string | undefined, clusterState: ClientState | undefined): CodeLens[] {
@@ -193,7 +211,9 @@ export class KafkaFileCodeLenses {
         let partitions;
         let offset;
         let keyFormat;
+        let keyFormatSettings;
         let valueFormat;
+        let valueFormatSettings;
         block.properties.forEach(property => {
             switch (property.propertyName) {
                 case 'topic':
@@ -205,12 +225,18 @@ export class KafkaFileCodeLenses {
                 case 'partitions':
                     partitions = property.propertyValue;
                     break;
-                case 'key-format':
-                    keyFormat = property.propertyValue;
+                case 'key-format': {
+                    const callee = <CalleeFunction>property.value;
+                    keyFormat = callee.functionName;
+                    keyFormatSettings = this.getSerializationSettings(callee);
                     break;
-                case 'value-format':
-                    valueFormat = property.propertyValue;
+                }
+                case 'value-format': {
+                    const callee = <CalleeFunction>property.value;
+                    valueFormat = callee.functionName;
+                    valueFormatSettings = this.getSerializationSettings(callee);
                     break;
+                }
             }
         });
 
@@ -221,7 +247,9 @@ export class KafkaFileCodeLenses {
             fromOffset: offset,
             partitions,
             messageKeyFormat: keyFormat,
-            messageValueFormat: valueFormat
+            messageValueFormat: valueFormat,
+            messageKeyFormatSettings: keyFormatSettings,
+            messageValueFormatSettings: valueFormatSettings
         } as LaunchConsumerCommand;
     }
 }

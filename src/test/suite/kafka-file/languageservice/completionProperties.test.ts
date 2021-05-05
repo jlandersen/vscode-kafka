@@ -393,6 +393,11 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                         range: range(position(1, 11), position(1, 11))
                     },
                     {
+                        label: 'string with encoding...', kind: CompletionItemKind.Value,
+                        insertText: ' string(${1|utf8,utf16le,base64,latin1,hex|})',
+                        range: range(position(1, 11), position(1, 11))
+                    },
+                    {
                         label: 'double', kind: CompletionItemKind.Value,
                         insertText: ' double',
                         range: range(position(1, 11), position(1, 11))
@@ -438,6 +443,11 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                         range: range(position(1, 13), position(1, 13))
                     },
                     {
+                        label: 'string with encoding...', kind: CompletionItemKind.Value,
+                        insertText: ' string(${1|utf8,utf16le,base64,latin1,hex|})',
+                        range: range(position(1, 13), position(1, 13))
+                    },
+                    {
                         label: 'double', kind: CompletionItemKind.Value,
                         insertText: ' double',
                         range: range(position(1, 13), position(1, 13))
@@ -466,6 +476,65 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
             });
     });
 
+    test("CONSUMER property value for string encoding of key-format", async () => {
+        await testCompletion(
+            'CONSUMER a\n' +
+            'key-format: string(|'
+            , {
+                items: [
+                    {
+                        label: 'utf8', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 19), position(1, 19))
+                    },
+                    {
+                        label: 'utf16le', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 19), position(1, 19))
+                    },
+                    {
+                        label: 'base64', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 19), position(1, 19))
+                    },
+                    {
+                        label: 'latin1', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 19), position(1, 19))
+                    },
+                    {
+                        label: 'hex', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 19), position(1, 19))
+                    }
+                ]
+            });
+    });
+
+    test("CONSUMER property value for string encoding of value-format", async () => {
+        await testCompletion(
+            'CONSUMER a\n' +
+            'value-format: string(|'
+            , {
+                items: [
+                    {
+                        label: 'utf8', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 21), position(1, 21))
+                    },
+                    {
+                        label: 'utf16le', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 21), position(1, 21))
+                    },
+                    {
+                        label: 'base64', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 21), position(1, 21))
+                    },
+                    {
+                        label: 'latin1', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 21), position(1, 21))
+                    },
+                    {
+                        label: 'hex', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 21), position(1, 21))
+                    }
+                ]
+            });
+    });
 });
 
 suite("Kafka File PRODUCER Completion Test Suite", () => {
@@ -695,6 +764,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                         range: range(position(1, 11), position(1, 11))
                     },
                     {
+                        label: 'string with encoding...', kind: CompletionItemKind.Value,
+                        insertText: ' string(${1|utf8,utf16le,base64,latin1,hex|})',
+                        range: range(position(1, 11), position(1, 11))
+                    },
+                    {
                         label: 'double', kind: CompletionItemKind.Value,
                         insertText: ' double',
                         range: range(position(1, 11), position(1, 11))
@@ -732,6 +806,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     {
                         label: 'string', kind: CompletionItemKind.Value,
                         insertText: ' string',
+                        range: range(position(1, 11), position(1, 13))
+                    },
+                    {
+                        label: 'string with encoding...', kind: CompletionItemKind.Value,
+                        insertText: ' string(${1|utf8,utf16le,base64,latin1,hex|})',
                         range: range(position(1, 11), position(1, 13))
                     },
                     {
@@ -773,6 +852,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     {
                         label: 'string', kind: CompletionItemKind.Value,
                         insertText: ' string',
+                        range: range(position(2, 11), position(2, 13))
+                    },
+                    {
+                        label: 'string with encoding...', kind: CompletionItemKind.Value,
+                        insertText: ' string(${1|utf8,utf16le,base64,latin1,hex|})',
                         range: range(position(2, 11), position(2, 13))
                     },
                     {
@@ -818,6 +902,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                         range: range(position(2, 11), position(2, 13))
                     },
                     {
+                        label: 'string with encoding...', kind: CompletionItemKind.Value,
+                        insertText: ' string(${1|utf8,utf16le,base64,latin1,hex|})',
+                        range: range(position(2, 11), position(2, 13))
+                    },
+                    {
                         label: 'double', kind: CompletionItemKind.Value,
                         insertText: ' double',
                         range: range(position(2, 11), position(2, 13))
@@ -858,6 +947,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                         range: range(position(1, 13), position(1, 13))
                     },
                     {
+                        label: 'string with encoding...', kind: CompletionItemKind.Value,
+                        insertText: ' string(${1|utf8,utf16le,base64,latin1,hex|})',
+                        range: range(position(1, 13), position(1, 13))
+                    },
+                    {
                         label: 'double', kind: CompletionItemKind.Value,
                         insertText: ' double',
                         range: range(position(1, 13), position(1, 13))
@@ -881,6 +975,66 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                         label: 'short', kind: CompletionItemKind.Value,
                         insertText: ' short',
                         range: range(position(1, 13), position(1, 13))
+                    }
+                ]
+            });
+    });
+
+    test("PRODUCER property value for string encoding of key-format", async () => {
+        await testCompletion(
+            'PRODUCER a\n' +
+            'key-format: string(|'
+            , {
+                items: [
+                    {
+                        label: 'utf8', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 19), position(1, 19))
+                    },
+                    {
+                        label: 'utf16le', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 19), position(1, 19))
+                    },
+                    {
+                        label: 'base64', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 19), position(1, 19))
+                    },
+                    {
+                        label: 'latin1', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 19), position(1, 19))
+                    },
+                    {
+                        label: 'hex', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 19), position(1, 19))
+                    }
+                ]
+            });
+    });
+
+    test("PRODUCER property value for string encoding of value-format", async () => {
+        await testCompletion(
+            'PRODUCER a\n' +
+            'value-format: string(|'
+            , {
+                items: [
+                    {
+                        label: 'utf8', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 21), position(1, 21))
+                    },
+                    {
+                        label: 'utf16le', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 21), position(1, 21))
+                    },
+                    {
+                        label: 'base64', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 21), position(1, 21))
+                    },
+                    {
+                        label: 'latin1', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 21), position(1, 21))
+                    },
+                    {
+                        label: 'hex', kind: CompletionItemKind.EnumMember,
+                        range: range(position(1, 21), position(1, 21))
                     }
                 ]
             });

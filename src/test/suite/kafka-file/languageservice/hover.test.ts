@@ -116,7 +116,7 @@ suite("Kafka File CONSUMER Hover Test Suite", () => {
             'CONSUMER\n' +
             'key-format: stri|ng',
             hover(
-                'Similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.StringDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringDeserializer.java) which currently only supports `UTF-8` encoding.',
+                'Similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.StringDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringDeserializer.java).',
                 position(1, 12),
                 position(1, 18)
             )
@@ -144,7 +144,7 @@ suite("Kafka File CONSUMER Hover Test Suite", () => {
             'CONSUMER\n' +
             'value-format: stri|ng',
             hover(
-                'Similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.StringDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringDeserializer.java) which currently only supports `UTF-8` encoding.',
+                'Similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.StringDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringDeserializer.java).',
                 position(1, 14),
                 position(1, 20)
             )
@@ -270,7 +270,7 @@ suite("Kafka File PRODUCER Hover Test Suite", () => {
             'PRODUCER\n' +
             'key-format: stri|ng',
             hover(
-                'Similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.StringSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringSerializer.java) which currently only supports `UTF-8` encoding.',
+                'Similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.StringSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringSerializer.java).',
                 position(1, 12),
                 position(1, 18)
             )
@@ -298,7 +298,7 @@ suite("Kafka File PRODUCER Hover Test Suite", () => {
             'PRODUCER\n' +
             'value-format: stri|ng',
             hover(
-                'Similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.StringSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringSerializer.java) which currently only supports `UTF-8` encoding.',
+                'Similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.StringSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringSerializer.java).',
                 position(1, 14),
                 position(1, 20)
             )

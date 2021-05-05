@@ -1,5 +1,5 @@
 import { Diagnostic, DiagnosticSeverity, Position, Range, TextDocument } from "vscode";
-import { Block, BlockType, ConsumerBlock, DynamicChunk, KafkaFileDocument, MustacheExpression, ProducerBlock, Property } from "../parser/kafkaFileParser";
+import { Block, BlockType, Chunk, ConsumerBlock, DynamicChunk, KafkaFileDocument, CalleeFunction, MustacheExpression, ProducerBlock, Property } from "../parser/kafkaFileParser";
 import { ConsumerValidator } from "../../../validators/consumer";
 import { ProducerValidator } from "../../../validators/producer";
 import { CommonsValidator } from "../../../validators/commons";
@@ -236,7 +236,7 @@ export class KafkaFileDiagnostics {
         if (!range) {
             return;
         }
-        const errorMessage = await this.validateValue(propertyName, type, propertyValue);
+        const errorMessage = await this.validateValue(propertyName, type, property.value);
         if (errorMessage) {
             diagnostics.push(new Diagnostic(range, errorMessage, DiagnosticSeverity.Error));
         }
@@ -249,18 +249,20 @@ export class KafkaFileDiagnostics {
         }
     }
 
-    private async validateValue(propertyName: string, type: BlockType, propertyValue?: string): Promise<string | undefined> {
+    private async validateValue(propertyName: string, type: BlockType, propertyValue?: Chunk): Promise<string | undefined> {
         switch (propertyName) {
             case 'topic':
-                return CommonsValidator.validateTopic(propertyValue);
+                return CommonsValidator.validateTopic(propertyValue?.content.trim());
             case 'key-format':
-                return type === BlockType.consumer ? ConsumerValidator.validateKeyFormat(propertyValue) : ProducerValidator.validateKeyFormat(propertyValue);
+                const keyFormat = (<CalleeFunction>propertyValue).functionName;
+                return type === BlockType.consumer ? ConsumerValidator.validateKeyFormat(keyFormat) : ProducerValidator.validateKeyFormat(keyFormat);
             case 'value-format':
-                return type === BlockType.consumer ? ConsumerValidator.validateValueFormat(propertyValue) : ProducerValidator.validateValueFormat(propertyValue);
+                const valueFormat = (<CalleeFunction>propertyValue).functionName;
+                return type === BlockType.consumer ? ConsumerValidator.validateValueFormat(valueFormat) : ProducerValidator.validateValueFormat(valueFormat);
             case 'from':
-                return ConsumerValidator.validateOffset(propertyValue);
+                return ConsumerValidator.validateOffset(propertyValue?.content.trim());
             case 'partitions': {
-                return ConsumerValidator.validatePartitions(propertyValue);
+                return ConsumerValidator.validatePartitions(propertyValue?.content.trim());
             }
         }
     }

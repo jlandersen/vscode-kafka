@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 
 import { ConsumedRecord, Consumer, ConsumerChangedStatusEvent, ConsumerCollection, ConsumerCollectionChangedEvent, ConsumerLaunchState, RecordReceivedEvent } from "../client";
+import { SerializationSetting } from "../client/serialization";
 import { CommonMessages } from "../constants";
 import { ClusterSettings } from "../settings/clusters";
 
@@ -86,13 +87,20 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
             line += `  - partitions: ${consumer.options.partitions}\n`;
         }
         if (consumer.options.messageKeyFormat) {
-            line += `  - key format: ${consumer.options.messageKeyFormat}\n`;
+            line += `  - key format: ${consumer.options.messageKeyFormat}${this.getFormatSettings(consumer.options.messageKeyFormatSettings)}\n`;
         }
         if (consumer.options.messageValueFormat) {
-            line += `  - value format: ${consumer.options.messageValueFormat}\n`;
+            line += `  - value format: ${consumer.options.messageValueFormat}${this.getFormatSettings(consumer.options.messageValueFormatSettings)}\n`;
         }
         line += `\n`;
         this.updateBuffer(consumer.uri, line);
+    }
+
+    getFormatSettings(messageKeyFormatSettings: SerializationSetting[] | undefined) {
+        if (!messageKeyFormatSettings) {
+            return '';
+        }
+        return `(${messageKeyFormatSettings.map(s => s.value).join(',')})`;
     }
 
     onDidConsumerError(uri: vscode.Uri, error: any): void {

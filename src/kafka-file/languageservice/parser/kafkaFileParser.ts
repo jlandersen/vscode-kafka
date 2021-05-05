@@ -11,8 +11,10 @@ export enum NodeKind {
     property,
     propertyKey,
     propertyAssigner,
-    propertyValue,
-    mustacheExpression
+    propertyValue,    
+    mustacheExpression,
+    calleeFunction,
+    parameter
 }
 export interface Node {
     start: Position;
@@ -178,7 +180,7 @@ export class Property extends BaseNode {
         return true;
     }
 
-    findNodeAt(position : Position) : Node {
+    findNodeAt(position: Position): Node {
         if (this.isBeforeAssigner(position)) {
             return this.key?.findNodeAt(position) || this;
         }
@@ -240,6 +242,34 @@ export class DynamicChunk extends ChildrenNode<MustacheExpression> {
                 .filter(node => node.kind === NodeKind.mustacheExpression));
     }
 
+}
+
+export class Parameter extends Chunk {
+    name?: string;
+    
+    public get value() : string {
+        return this.content?.trim();
+    }
+    
+}
+
+export class CalleeFunction extends ChildrenNode<Parameter> {
+    startParametersCharacter?: number;
+    endParametersCharacter?: number;
+
+    constructor(public readonly content: string, start: Position, end: Position) {
+        super(start, end, NodeKind.calleeFunction);
+        parseParameters(this);
+    }
+
+    public get functionName() : string {
+        return this.startParametersCharacter ? this.content.substring(0, this.startParametersCharacter - this.start.character).trim() : this.content.trim();
+    }
+
+    public get parameters(): Array<Parameter> {
+        return this.children;
+    }
+    
 }
 
 /**
@@ -459,11 +489,18 @@ function createProperty(lineText: string, lineNumber: number, parent: Block): Pr
         const content = lineText.substr(start, end);
         if (withinValue) {
             const propertyName = propertyKey?.content.trim();
-            if (propertyName === 'key') {
-                propertyValue = new DynamicChunk(content, new Position(lineNumber, start), new Position(lineNumber, end), NodeKind.propertyValue);
-            } else {
-                propertyValue = new Chunk(content, new Position(lineNumber, start), new Position(lineNumber, end), NodeKind.propertyValue);
-            }
+            switch (propertyName) {
+                case "key":
+                    propertyValue = new DynamicChunk(content, new Position(lineNumber, start), new Position(lineNumber, end), NodeKind.propertyValue);
+                    break;
+                case "key-format":
+                case "value-format":
+                    propertyValue = new CalleeFunction(content, new Position(lineNumber, start), new Position(lineNumber, end));
+                    break;
+                default:
+                    propertyValue = new Chunk(content, new Position(lineNumber, start), new Position(lineNumber, end), NodeKind.propertyValue);
+                    break;
+            }            
         } else {
             propertyKey = new Chunk(content, new Position(lineNumber, start), new Position(lineNumber, end), NodeKind.propertyKey);
         }
@@ -481,6 +518,66 @@ export class ExpressionEdge {
     constructor(readonly position: Position, readonly offset: number, readonly open: boolean) {
 
     }
+}
+
+function parseParameters(parent: CalleeFunction) {
+    const content = parent.content;
+    let startLine = parent.start.line;
+    let startColumn = parent.start.character;
+    let currentLine = startLine;
+    let currentColumn = startColumn;
+    let previousChar: string | undefined;
+    let startParameter: number | undefined;
+
+    function addParameterIfNeeded() {
+        if (startParameter) {
+            const value = content.substring(startParameter - startColumn, currentColumn - startColumn);
+            const start = new Position(currentLine, startParameter);
+            const end = new Position(currentLine, currentColumn);
+            parent.addChild(new Parameter(value, start, end, NodeKind.parameter));
+        }
+    }
+
+    for (let currentOffset = 0; currentOffset < content.length; currentOffset++) {
+        const currentChar = content[currentOffset];
+        switch (currentChar) {
+            case '\r':
+                // compute line, column position
+                currentLine++;
+                currentColumn = 0;
+                break;
+            case '\n': {
+                if (previousChar !== '\r') {
+                    // compute line, column position
+                    currentLine++;
+                    currentColumn = 0;
+                }
+                break;
+            }
+            case '(': {
+                if (!parent.startParametersCharacter) {
+                    parent.startParametersCharacter = currentColumn;
+                    startParameter = currentColumn + 1;
+                }
+                break;
+            }
+            case ')': {
+                parent.endParametersCharacter = currentColumn;
+                addParameterIfNeeded();
+                startParameter = undefined;
+                break;
+            }
+            case ',': {                
+                addParameterIfNeeded();                
+                startParameter = currentColumn + 1;
+                break;
+            }
+        }
+        if (currentChar !== '\r' && currentChar !== '\n') {
+            currentColumn++;
+        }
+    }
+    addParameterIfNeeded();
 }
 
 function parseMustacheExpressions(parent: DynamicChunk) {
@@ -532,7 +629,7 @@ function parseMustacheExpressions(parent: DynamicChunk) {
     }
 
     // 2. create mustache expression AST by visiting collected edges
-    
+
     let previousEdge = new ExpressionEdge(new Position(startLine, startColumn), 0, true);
     const endOfValueEdge = new ExpressionEdge(new Position(currentLine, currentColumn), currentOffset, false);
     for (let i = 0; i < edges.length; i++) {
@@ -548,7 +645,7 @@ function parseMustacheExpressions(parent: DynamicChunk) {
 
             const openedEdge = currentEdge;
             let closedEdge = endOfValueEdge;
-            let closed  = false;
+            let closed = false;
             if (matchingClosedEdge) {
                 // '}}' has been found
                 closed = true;

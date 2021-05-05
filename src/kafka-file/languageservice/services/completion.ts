@@ -1,7 +1,14 @@
 import { TextDocument, Position, CompletionList, CompletionItem, SnippetString, MarkdownString, CompletionItemKind, Range } from "vscode";
 import { createTopicDocumentation, SelectedClusterProvider, TopicProvider } from "../kafkaFileLanguageService";
 import { consumerModel, fakerjsAPIModel, Model, ModelDefinition, producerModel } from "../model";
-import { Block, BlockType, Chunk, ConsumerBlock, KafkaFileDocument, MustacheExpression, NodeKind, ProducerBlock, Property } from "../parser/kafkaFileParser";
+import { Block, BlockType, Chunk, ConsumerBlock, KafkaFileDocument, CalleeFunction, MustacheExpression, NodeKind, Parameter, ProducerBlock, Property } from "../parser/kafkaFileParser";
+
+/**
+ * Supported encoding by nodejs Buffer.
+ * 
+ * @see https://nodejs.org/api/buffer.html#buffer_buffers_and_character_encodings
+ */
+const bufferEncoding = ["utf8", "utf16le", "base64", "latin1", "hex"];
 
 /**
  * Kafka file completion support.
@@ -18,7 +25,7 @@ export class KafkaFileCompletion {
             return;
         }
 
-        // Following comments with use the '|' character to show the position where the complation is trigerred
+        // Following comments with use the '|' character to show the position where the compilation is triggered
         const items: Array<CompletionItem> = [];
         switch (node.kind) {
             case NodeKind.consumerBlock: {
@@ -80,23 +87,53 @@ export class KafkaFileCompletion {
                     }
                 } else {
                     const propertyValue = property.value;
-                    const expression = propertyValue?.findNodeBefore(position);
-                    if (expression && expression.kind === NodeKind.mustacheExpression) {
-                        // Completion was triggered inside a mustache expression which is inside the property value
+                    // Property value can be:
+                    // - a simple value -> abcd
+                    // - a mustache expression -> {{...}}
+                    // - a method parameter ->  string(utf-8)
+                    const previousNode = propertyValue?.findNodeBefore(position);
+                    switch (previousNode?.kind) {
+                        case NodeKind.mustacheExpression: {
+                            // Completion was triggered inside a mustache expression which is inside the property value
 
-                        // PRODUCER
-                        // key: abcd-{{|}}
-                        this.collectFakerJSExpressions(<MustacheExpression>expression, producerFakerJSEnabled, position, items);
-                    } else {
-                        const block = <Block>property.parent;
-                        if (block.type === BlockType.consumer) {
-                            // CONSUMER
-                            // key-format: |
-                            await this.collectConsumerPropertyValues(propertyValue, property, <ConsumerBlock>block, items);
-                        } else {
                             // PRODUCER
-                            // key-format: |
-                            await this.collectProducerPropertyValues(propertyValue, property, <ProducerBlock>block, items);
+                            // key: abcd-{{|}}
+                            const expression = <MustacheExpression>previousNode;
+                            this.collectFakerJSExpressions(expression, producerFakerJSEnabled, position, items);
+                            break;
+                        }
+                        case NodeKind.calleeFunction: {
+                            // Check if completion was triggered inside an empty method parameter
+
+                            const callee = <CalleeFunction>previousNode;
+                            if (callee.startParametersCharacter) {
+                                // PRODUCER
+                                // key-format: string(|)
+                                this.collectMethodParameters(callee, position, items);
+                            } else {
+                                // PRODUCER
+                                // key-format: |
+                                await this.collectDefaultPropertyValues(property, propertyValue, items);
+                            }
+                            break;
+                        }
+                        case NodeKind.parameter: {
+                            // Completion was triggered inside a method parameter which is inside the property value
+
+                            // PRODUCER
+                            // key-format: string(ut|f)
+
+                            // OR
+
+                            // PRODUCER
+                            // key-format: string(utf8, u|t)
+
+                            const parameter = <Parameter>previousNode;
+                            this.collectMethodParameters(<CalleeFunction>parameter.parent, position, items);
+                            break;
+                        }
+                        default: {
+                            await this.collectDefaultPropertyValues(property, propertyValue, items);
                         }
                     }
                 }
@@ -205,6 +242,19 @@ export class KafkaFileCompletion {
             item.insertText = insertText;
             item.range = valueRange;
             items.push(item);
+
+            if (value === 'string' && (propertyName === 'key-format' || propertyName === 'value-format')) {
+                const item = new CompletionItem('string with encoding...');
+                item.kind = CompletionItemKind.Value;
+                const insertText = new SnippetString(' ');
+                insertText.appendText(value);
+                insertText.appendText('(');
+                insertText.appendChoice(bufferEncoding);
+                insertText.appendText(')');
+                item.insertText = insertText;
+                item.range = valueRange;
+                items.push(item);
+            }
         });
     }
 
@@ -275,9 +325,40 @@ export class KafkaFileCompletion {
             }*/
         }
     }
+
+    collectMethodParameters(callee: CalleeFunction, position: Position, items: CompletionItem[]) {
+        const parameter = callee.parameters.find(p => position.isAfterOrEqual(p.start) && position.isBeforeOrEqual(p.end));
+        if (!parameter) {
+            return;
+        }
+        switch (callee.functionName) {
+            case 'string': {
+                const range = parameter.range();
+                bufferEncoding.forEach(encoding => {
+                    const item = new CompletionItem(encoding);
+                    item.kind = CompletionItemKind.EnumMember;
+                    item.range = range;
+                    items.push(item);
+                });
+            }
+        }
+    }
+
+    async collectDefaultPropertyValues(property: Property, propertyValue: Chunk | undefined, items: CompletionItem[]) {
+        const block = <Block>property.parent;
+        if (block.type === BlockType.consumer) {
+            // CONSUMER
+            // key-format: |
+            await this.collectConsumerPropertyValues(propertyValue, property, <ConsumerBlock>block, items);
+        } else {
+            // PRODUCER
+            // key-format: |
+            await this.collectProducerPropertyValues(propertyValue, property, <ProducerBlock>block, items);
+        }
+    }
 }
 
-function createMarkdownString(contents : string) {
+function createMarkdownString(contents: string) {
     const doc = new MarkdownString(contents);
     doc.isTrusted = true;
     return doc;
