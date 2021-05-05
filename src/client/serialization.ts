@@ -1,4 +1,8 @@
-export type MessageFormat = "none" | "string" | "double" | "float" | "integer" | "long" | "short";
+import { Uri } from "vscode";
+
+const serializerRegistry: Map<MessageFormat, Serializer> = new Map();
+
+export type MessageFormat = "none" | "string" | "double" | "float" | "integer" | "long" | "short" | string;
 
 export type SerializationdResult = any | Error;
 
@@ -11,13 +15,15 @@ export interface SerializationSetting {
 
 // ---------------- Serializers ----------------
 
-interface Serializer {
-    serialize(data: string, settings?: SerializationSetting[]): Buffer | string | null;
+export interface Serializer {
+    serialize(data: string, baseFileUri?: Uri, settings?: SerializationSetting[]): Buffer | string | null;
 }
 
-const serializerRegistry: Map<MessageFormat, Serializer> = new Map();
+export function registerSerializer(serializerId: string, serializer: Serializer) {
+    serializerRegistry.set(serializerId, serializer);
+}
 
-export function serialize(data?: string, format?: MessageFormat, settings?: SerializationSetting[]): Buffer | string | null {
+export function serialize(data?: string, format?: MessageFormat, baseFileUri?: Uri, settings?: SerializationSetting[]): Buffer | string | null {
     if (!data || !format) {
         return data || null;
     }
@@ -25,7 +31,7 @@ export function serialize(data?: string, format?: MessageFormat, settings?: Seri
     if (!serializer) {
         throw new SerializationException(`Cannot find a serializer for ${format} format.`);
     }
-    return serializer.serialize(data, settings);
+    return serializer.serialize(data, baseFileUri, settings);
 }
 
 function getSerializer(format: MessageFormat): Serializer | undefined {
@@ -84,7 +90,7 @@ class ShortSerializer implements Serializer {
 
 class StringSerializer implements Serializer {
 
-    serialize(value: string, settings?: SerializationSetting[]): Buffer | string | null {
+    serialize(value: string, baseFileUri: Uri | undefined, settings?: SerializationSetting[]): Buffer | string | null {
         const encoding = settings?.[0].value;
         if (encoding) {
             return Buffer.from(value, <BufferEncoding>encoding);
@@ -93,22 +99,26 @@ class StringSerializer implements Serializer {
     };
 }
 
-serializerRegistry.set("double", new DoubleSerializer());
-serializerRegistry.set("float", new FloatSerializer());
-serializerRegistry.set("integer", new IntegerSerializer());
-serializerRegistry.set("long", new LongSerializer());
-serializerRegistry.set("short", new ShortSerializer());
-serializerRegistry.set("string", new StringSerializer());
+// Register default Kafka serializers
+registerSerializer("double", new DoubleSerializer());
+registerSerializer("float", new FloatSerializer());
+registerSerializer("integer", new IntegerSerializer());
+registerSerializer("long", new LongSerializer());
+registerSerializer("short", new ShortSerializer());
+registerSerializer("string", new StringSerializer());
 
 // ---------------- Deserializers ----------------
-
-interface Deserializer {
-    deserialize(data: Buffer, settings?: SerializationSetting[]): any;
-}
-
 const deserializerRegistry: Map<MessageFormat, Deserializer> = new Map();
 
-export function deserialize(data: Buffer | null, format?: MessageFormat, settings?: SerializationSetting[]): SerializationdResult | null {
+export interface Deserializer {
+    deserialize(data: Buffer, baseFileUri?: Uri, settings?: SerializationSetting[]): any;
+}
+
+export function registerDeserializer(deserializerId: string, deserializer: Deserializer) {
+    deserializerRegistry.set(deserializerId, deserializer);
+}
+
+export function deserialize(data: Buffer | null, format?: MessageFormat, baseFileUri?: Uri, settings?: SerializationSetting[]): SerializationdResult | null {
     if (data === null || !format) {
         return data;
     }
@@ -120,7 +130,7 @@ export function deserialize(data: Buffer | null, format?: MessageFormat, setting
         if (!deserializer) {
             throw new SerializationException(`Cannot find a deserializer for ${format} format.`);
         }
-        return deserializer.deserialize(data, settings);
+        return deserializer.deserialize(data, baseFileUri, settings);
     }
     catch (e) {
         return e;
@@ -198,7 +208,7 @@ class ShortDeserializer implements Deserializer {
 
 class StringDeserializer implements Deserializer {
 
-    deserialize(data: Buffer | null, settings?: SerializationSetting[]): any {
+    deserialize(data: Buffer | null, baseFileUri: Uri | undefined, settings?: SerializationSetting[]): any {
         if (data === null) {
             return null;
         }
@@ -207,9 +217,10 @@ class StringDeserializer implements Deserializer {
     }
 }
 
-deserializerRegistry.set("double", new DoubleDeserializer());
-deserializerRegistry.set("float", new FloatDeserializer());
-deserializerRegistry.set("integer", new IntegerDeserializer());
-deserializerRegistry.set("long", new LongDeserializer());
-deserializerRegistry.set("short", new ShortDeserializer());
-deserializerRegistry.set("string", new StringDeserializer());
+// Register default Kafka deserializers
+registerDeserializer("double", new DoubleDeserializer());
+registerDeserializer("float", new FloatDeserializer());
+registerDeserializer("integer", new IntegerDeserializer());
+registerDeserializer("long", new LongDeserializer());
+registerDeserializer("short", new ShortDeserializer());
+registerDeserializer("string", new StringDeserializer());

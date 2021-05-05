@@ -43,12 +43,12 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                     },
                     {
                         label: 'key-format', kind: CompletionItemKind.Property,
-                        insertText: 'key-format: ${1|none,string,double,float,integer,long,short|}',
+                        insertText: 'key-format: ${1|none,string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 0))
                     },
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
-                        insertText: 'value-format: ${1|none,string,double,float,integer,long,short|}',
+                        insertText: 'value-format: ${1|none,string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 0))
                     },
                     {
@@ -79,12 +79,12 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                     },
                     {
                         label: 'key-format', kind: CompletionItemKind.Property,
-                        insertText: 'key-format: ${1|none,string,double,float,integer,long,short|}',
+                        insertText: 'key-format: ${1|none,string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 1))
                     },
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
-                        insertText: 'value-format: ${1|none,string,double,float,integer,long,short|}',
+                        insertText: 'value-format: ${1|none,string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 1))
                     },
                     {
@@ -114,12 +114,12 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                     },
                     {
                         label: 'key-format', kind: CompletionItemKind.Property,
-                        insertText: 'key-format: ${1|none,string,double,float,integer,long,short|}',
+                        insertText: 'key-format: ${1|none,string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 5))
                     },
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
-                        insertText: 'value-format: ${1|none,string,double,float,integer,long,short|}',
+                        insertText: 'value-format: ${1|none,string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 5))
                     },
                     {
@@ -149,12 +149,12 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                     },
                     {
                         label: 'key-format', kind: CompletionItemKind.Property,
-                        insertText: 'key-format: ${1|none,string,double,float,integer,long,short|}',
+                        insertText: 'key-format: ${1|none,string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 6))
                     },
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
-                        insertText: 'value-format: ${1|none,string,double,float,integer,long,short|}',
+                        insertText: 'value-format: ${1|none,string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 6))
                     },
                     {
@@ -184,12 +184,12 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                     },
                     {
                         label: 'key-format', kind: CompletionItemKind.Property,
-                        insertText: 'key-format: ${1|none,string,double,float,integer,long,short|}',
+                        insertText: 'key-format: ${1|none,string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 6))
                     },
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
-                        insertText: 'value-format: ${1|none,string,double,float,integer,long,short|}',
+                        insertText: 'value-format: ${1|none,string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 6))
                     },
                     {
@@ -219,12 +219,12 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                     },
                     {
                         label: 'key-format', kind: CompletionItemKind.Property,
-                        insertText: 'key-format: ${1|none,string,double,float,integer,long,short|}',
+                        insertText: 'key-format: ${1|none,string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 11))
                     },
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
-                        insertText: 'value-format: ${1|none,string,double,float,integer,long,short|}',
+                        insertText: 'value-format: ${1|none,string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 11))
                     },
                     {
@@ -256,12 +256,12 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                     },*/
                     {
                         label: 'key-format', kind: CompletionItemKind.Property,
-                        insertText: 'key-format: ${1|none,string,double,float,integer,long,short|}',
+                        insertText: 'key-format: ${1|none,string,double,float,integer,long,short,avro|}',
                         range: range(position(2, 0), position(2, 5))
                     },
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
-                        insertText: 'value-format: ${1|none,string,double,float,integer,long,short|}',
+                        insertText: 'value-format: ${1|none,string,double,float,integer,long,short,avro|}',
                         range: range(position(2, 0), position(2, 5))
                     },
                     {
@@ -421,6 +421,11 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                         label: 'short', kind: CompletionItemKind.Value,
                         insertText: ' short',
                         range: range(position(1, 11), position(1, 11))
+                    },
+                    {
+                        label: 'avro', kind: CompletionItemKind.Value,
+                        insertText: ' avro',
+                        range: range(position(1, 11), position(1, 11))
                     }
                 ]
             });
@@ -470,6 +475,11 @@ suite("Kafka File CONSUMER Completion Test Suite", () => {
                     {
                         label: 'short', kind: CompletionItemKind.Value,
                         insertText: ' short',
+                        range: range(position(1, 13), position(1, 13))
+                    },
+                    {
+                        label: 'avro', kind: CompletionItemKind.Value,
+                        insertText: ' avro',
                         range: range(position(1, 13), position(1, 13))
                     }
                 ]
@@ -557,12 +567,12 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     },
                     {
                         label: 'key-format', kind: CompletionItemKind.Property,
-                        insertText: 'key-format: ${1|string,double,float,integer,long,short|}',
+                        insertText: 'key-format: ${1|string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 0))
                     },
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
-                        insertText: 'value-format: ${1|string,double,float,integer,long,short|}',
+                        insertText: 'value-format: ${1|string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 0))
                     }
                 ]
@@ -588,12 +598,12 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     },
                     {
                         label: 'key-format', kind: CompletionItemKind.Property,
-                        insertText: 'key-format: ${1|string,double,float,integer,long,short|}',
+                        insertText: 'key-format: ${1|string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 1))
                     },
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
-                        insertText: 'value-format: ${1|string,double,float,integer,long,short|}',
+                        insertText: 'value-format: ${1|string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 1))
                     }
                 ]
@@ -618,12 +628,12 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     },
                     {
                         label: 'key-format', kind: CompletionItemKind.Property,
-                        insertText: 'key-format: ${1|string,double,float,integer,long,short|}',
+                        insertText: 'key-format: ${1|string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 5))
                     },
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
-                        insertText: 'value-format: ${1|string,double,float,integer,long,short|}',
+                        insertText: 'value-format: ${1|string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 5))
                     }
                 ]
@@ -648,12 +658,12 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     },
                     {
                         label: 'key-format', kind: CompletionItemKind.Property,
-                        insertText: 'key-format: ${1|string,double,float,integer,long,short|}',
+                        insertText: 'key-format: ${1|string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 6))
                     },
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
-                        insertText: 'value-format: ${1|string,double,float,integer,long,short|}',
+                        insertText: 'value-format: ${1|string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 6))
                     }
                 ]
@@ -678,12 +688,12 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     },
                     {
                         label: 'key-format', kind: CompletionItemKind.Property,
-                        insertText: 'key-format: ${1|string,double,float,integer,long,short|}',
+                        insertText: 'key-format: ${1|string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 6))
                     },
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
-                        insertText: 'value-format: ${1|string,double,float,integer,long,short|}',
+                        insertText: 'value-format: ${1|string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 6))
                     }
                 ]
@@ -708,12 +718,12 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     },
                     {
                         label: 'key-format', kind: CompletionItemKind.Property,
-                        insertText: 'key-format: ${1|string,double,float,integer,long,short|}',
+                        insertText: 'key-format: ${1|string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 11))
                     },
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
-                        insertText: 'value-format: ${1|string,double,float,integer,long,short|}',
+                        insertText: 'value-format: ${1|string,double,float,integer,long,short,avro|}',
                         range: range(position(1, 0), position(1, 11))
                     }
                 ]
@@ -740,12 +750,12 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     },*/
                     {
                         label: 'key-format', kind: CompletionItemKind.Property,
-                        insertText: 'key-format: ${1|string,double,float,integer,long,short|}',
+                        insertText: 'key-format: ${1|string,double,float,integer,long,short,avro|}',
                         range: range(position(2, 0), position(2, 5))
                     },
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
-                        insertText: 'value-format: ${1|string,double,float,integer,long,short|}',
+                        insertText: 'value-format: ${1|string,double,float,integer,long,short,avro|}',
                         range: range(position(2, 0), position(2, 5))
                     }
                 ]
@@ -792,6 +802,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                         label: 'short', kind: CompletionItemKind.Value,
                         insertText: ' short',
                         range: range(position(1, 11), position(1, 11))
+                    },
+                    {
+                        label: 'avro', kind: CompletionItemKind.Value,
+                        insertText: ' avro',
+                        range: range(position(1, 11), position(1, 11))
                     }
                 ]
             });
@@ -836,6 +851,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     {
                         label: 'short', kind: CompletionItemKind.Value,
                         insertText: ' short',
+                        range: range(position(1, 11), position(1, 13))
+                    },
+                    {
+                        label: 'avro', kind: CompletionItemKind.Value,
+                        insertText: ' avro',
                         range: range(position(1, 11), position(1, 13))
                     }
                 ]
@@ -882,6 +902,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     {
                         label: 'short', kind: CompletionItemKind.Value,
                         insertText: ' short',
+                        range: range(position(2, 11), position(2, 13))
+                    },
+                    {
+                        label: 'avro', kind: CompletionItemKind.Value,
+                        insertText: ' avro',
                         range: range(position(2, 11), position(2, 13))
                     }
                 ]
@@ -930,6 +955,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                         label: 'short', kind: CompletionItemKind.Value,
                         insertText: ' short',
                         range: range(position(2, 11), position(2, 13))
+                    },
+                    {
+                        label: 'avro', kind: CompletionItemKind.Value,
+                        insertText: ' avro',
+                        range: range(position(2, 11), position(2, 13))
                     }
                 ]
             });
@@ -974,6 +1004,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     {
                         label: 'short', kind: CompletionItemKind.Value,
                         insertText: ' short',
+                        range: range(position(1, 13), position(1, 13))
+                    },
+                    {
+                        label: 'avro', kind: CompletionItemKind.Value,
+                        insertText: ' avro',
                         range: range(position(1, 13), position(1, 13))
                     }
                 ]

@@ -56,6 +56,7 @@ export class ProduceRecordCommandHandler {
                 faker.setLocale(this.settings.producerFakerJSLocale);
             }
 
+            const kafkaFileUri = vscode.window.activeTextEditor?.document.uri;
             const messages = [...Array(times).keys()].map(() => {
                 if (this.settings.producerFakerJSEnabled) {
                     //Use same seed for key and value so we can generate content like
@@ -67,15 +68,15 @@ export class ProduceRecordCommandHandler {
                     faker.seed(seed);
                     const randomizedValue = faker.fake(value);
                     return {
-                        key: serialize(randomizedKey, command.messageKeyFormat, command.messageKeyFormatSettings),
-                        value: serialize(randomizedValue, command.messageValueFormat, command.messageValueFormatSettings)
+                        key: serialize(randomizedKey, command.messageKeyFormat, kafkaFileUri, command.messageKeyFormatSettings),
+                        value: serialize(randomizedValue, command.messageValueFormat, kafkaFileUri, command.messageValueFormatSettings)
                     };
                 }
 
                 // Return key/value message as-is
                 return {
-                    key: serialize(key, command.messageKeyFormat, command.messageKeyFormatSettings),
-                    value: serialize(value, command.messageValueFormat, command.messageValueFormatSettings)
+                    key: serialize(key, command.messageKeyFormat, kafkaFileUri, command.messageKeyFormatSettings),
+                    value: serialize(value, command.messageValueFormat, kafkaFileUri, command.messageValueFormatSettings)
                 };
             });
 

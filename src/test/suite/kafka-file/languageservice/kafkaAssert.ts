@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { CodeLens, Position, Range, Command, Uri, workspace, CompletionList, SnippetString, Diagnostic, DiagnosticSeverity, Hover, MarkdownString } from "vscode";
+import { CodeLens, Position, Range, Command, Uri, workspace, CompletionList, SnippetString, Diagnostic, DiagnosticSeverity, Hover, MarkdownString, DocumentLink } from "vscode";
 import { ClientState, ConsumerLaunchState } from "../../../../client";
 import { BrokerConfigs } from "../../../../client/config";
 import { ProducerLaunchState } from "../../../../client/producer";
@@ -102,6 +102,7 @@ export function codeLens(start: Position, end: Position, command: Command): Code
     const r = range(start, end);
     return new CodeLens(r, command);
 }
+
 export async function assertCodeLens(content: string, expected: Array<CodeLens>, languageService: LanguageService) {
     let document = await getDocument(content);
     let ast = languageService.parseKafkaFileDocument(document);
@@ -182,6 +183,20 @@ export async function assertHover(value: string, expected?: Hover, ls = language
     }
 }
 
+// Document Link assert
+
+export function documentLink(start: Position, end: Position, target: string): DocumentLink {
+    const r = range(start, end);
+    return new DocumentLink(r, Uri.parse(target));
+}
+
+export async function assertDocumentLinks(content: string, expected: Array<DocumentLink>, ls = languageService) {
+    let document = await getDocument(content);
+    let ast = ls.parseKafkaFileDocument(document);
+    const actual = await ls.provideDocumentLinks(document, ast);
+    assert.deepStrictEqual(actual, expected);
+}
+
 // Kafka parser assert
 
 export interface ExpectedChunckResult {
@@ -245,3 +260,4 @@ export async function assertParseBlock(content: string, expected: Array<Expected
         }
     }
 }
+
