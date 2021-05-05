@@ -2,7 +2,7 @@ import { Hover, MarkdownString, Position, Range, TextDocument } from "vscode";
 import { getDocumentationPageUri } from "../../../docs/markdownPreviewProvider";
 import { createTopicDocumentation, SelectedClusterProvider, TopicProvider } from "../kafkaFileLanguageService";
 import { consumerModel, Model, producerModel } from "../model";
-import { Block, BlockType, Chunk, ConsumerBlock, KafkaFileDocument, MustacheExpression, NodeKind, ProducerBlock, Property } from "../parser/kafkaFileParser";
+import { Block, BlockType, CalleeFunction, Chunk, ConsumerBlock, KafkaFileDocument, MustacheExpression, NodeKind, ProducerBlock, Property } from "../parser/kafkaFileParser";
 
 export class KafkaFileHover {
 
@@ -52,19 +52,16 @@ export class KafkaFileHover {
                 }
             }
 
+            case NodeKind.calleeFunction: {
+                const property = <Property>node.parent;
+                const propertyValue = (<CalleeFunction>node).functionName;
+                return this.getHoverForPropertyValue(property, propertyValue);
+            }
+
             case NodeKind.propertyValue: {
-                const propertyValue = <Chunk>node;
-                const property = <Property>propertyValue.parent;
-                const block = <Block>property.parent;
-                if (block.type === BlockType.consumer) {
-                    // CONSUMER
-                    // key-format: |
-                    return await this.getHoverForConsumerPropertyValues(propertyValue, property, <ConsumerBlock>block);
-                } else {
-                    // PRODUCER
-                    // key-format: |
-                    return await this.getHoverForProducerPropertyValues(propertyValue, property, <ProducerBlock>block);
-                }
+                const property = <Property>node.parent;
+                const propertyValue = property.propertyValue;
+                return this.getHoverForPropertyValue(property, propertyValue);
             }
 
             case NodeKind.mustacheExpression: {
@@ -93,7 +90,22 @@ export class KafkaFileHover {
         }
     }
 
-    async getHoverForConsumerPropertyValues(propertyValue: Chunk, property: Property, block: ConsumerBlock): Promise<Hover | undefined> {
+    async getHoverForPropertyValue(property: Property, propertyValue?: string) {
+        if (!propertyValue) {
+            return;
+        }
+        const block = <Block>property.parent;
+        if (block.type === BlockType.consumer) {
+            // CONSUMER
+            // key-format: |
+            return await this.getHoverForConsumerPropertyValues(propertyValue, property, <ConsumerBlock>block);
+        } else {
+            // PRODUCER
+            // key-format: |
+            return await this.getHoverForProducerPropertyValues(propertyValue, property, <ProducerBlock>block);
+        }
+    }
+    async getHoverForConsumerPropertyValues(propertyValue: string, property: Property, block: ConsumerBlock): Promise<Hover | undefined> {
         const propertyName = property.propertyName;
         switch (propertyName) {
             case 'topic':
@@ -108,7 +120,7 @@ export class KafkaFileHover {
     }
 
 
-    async getHoverForProducerPropertyValues(propertyValue: Chunk, property: Property, block: ProducerBlock): Promise<Hover | undefined> {
+    async getHoverForProducerPropertyValues(propertyValue: string, property: Property, block: ProducerBlock): Promise<Hover | undefined> {
         const propertyName = property.propertyName;
         switch (propertyName) {
             case 'topic':
@@ -150,12 +162,12 @@ export class KafkaFileHover {
         return undefined;
     }
 
-    async getHoverForPropertyValues(propertyValue: Chunk, property: Property, block: Block, metadata: Model): Promise<Hover | undefined> {
+    async getHoverForPropertyValues(propertyValue: string, property: Property, block: Block, metadata: Model): Promise<Hover | undefined> {
         const propertyName = property.propertyName;
         if (!propertyName) {
             return;
         }
-        const definition = metadata.getDefinitionEnum(propertyName, propertyValue.content.trim());
+        const definition = metadata.getDefinitionEnum(propertyName, propertyValue);
         if (definition && definition.description) {
             return createHover(definition.description, property.propertyTrimmedValueRange);
         }

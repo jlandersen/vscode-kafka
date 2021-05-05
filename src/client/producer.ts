@@ -184,7 +184,7 @@ export interface ProducerInfoUri {
     clusterId: string;
     topicId?: string;
     key?: string;
-    value: string;
+    value?: string;
 }
 
 const TOPIC_QUERY_PARAMETER = 'topic';
