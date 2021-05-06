@@ -9,6 +9,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 - Simplify snippets. See [#180](https://github.com/jlandersen/vscode-kafka/pull/180).
 - Hover support in `.kafka` files. See [#149](https://github.com/jlandersen/vscode-kafka/issues/149).
 - String encoding serialization support. See [#181](https://github.com/jlandersen/vscode-kafka/issues/181).
+- Refresh Cluster Provider API when extensions are installed/uninstalled. See [#137](https://github.com/jlandersen/vscode-kafka/issues/137).
 
 ## [0.12.0] - 2021-04-26
 ### Added

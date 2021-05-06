@@ -79,15 +79,32 @@ export class ClientAccessor implements Disposable {
         }
 
         const client = this.get(clusterId);
+        this.changeState(client, ClientState.disconnecting);
         client.dispose();
+        this.changeState(client, ClientState.disconnected);
         delete this.clientsById[clusterId];
     }
 
-    public dispose(): void {
+    public dispose(clusterProviderIds?: string[]): void {
         for (const clusterId of Object.keys(this.clientsById)) {
-            this.clientsById[clusterId].dispose();
-            delete this.clientsById[clusterId];
+            if (this.shouldBeDisposed(clusterId, clusterProviderIds)) {
+                this.remove(clusterId);
+            }
         }
+    }
+
+    private shouldBeDisposed(clusterId: string, clusterProviderIds?: string[] | undefined): boolean {
+        if (!clusterProviderIds) {
+            return true;
+        }
+        if (this.has(clusterId)) {
+            const clusterProviderId = this.get(clusterId).cluster.clusterProviderId;
+            if (!clusterProviderId) {
+                return true;
+            }
+            return clusterProviderIds.indexOf(clusterProviderId) !== -1;
+        }
+        return true;
     }
 
     public static getInstance(): ClientAccessor {

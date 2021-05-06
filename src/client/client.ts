@@ -212,7 +212,9 @@ class KafkaJsClient implements Client {
 
     // Promise which returns the KafkaJsClient instance when it is ready.
     private kafkaPromise: Promise<KafkaJsClient>;
-    
+
+    private error: undefined;
+
     constructor(public readonly cluster: Cluster, workspaceSettings: WorkspaceSettings) {
         this.metadata = {
             brokers: [],
@@ -220,31 +222,56 @@ class KafkaJsClient implements Client {
         };
         // The Kafka client is created in asynchronous since external vscode extension
         // can contribute to the creation of Kafka instance.
-        this.kafkaPromise = createKafka(cluster)
+        this.kafkaPromise = this.createKafkaPromise();
+    }
+
+    private async createKafkaPromise(): Promise<KafkaJsClient> {
+        return createKafka(this.cluster)
             .then(result => {
+                this.error = undefined;
                 this.kafkaJsClient = result;
                 this.kafkaAdminClient = this.kafkaJsClient.admin();
                 this.kafkaProducer = this.kafkaJsClient.producer();
                 return this;
+            }, (error) => {
+                // Error while create of Kafka client (ex : cluster provider is not available)
+                this.error = error;
+                return this;
             });
     }
 
+    private async getKafkaPromise(): Promise<KafkaJsClient> {
+        if (this.error) {
+            // This case comes from when a client is created with cluster provider id which is not available
+            // we try to recreate the client (when the proper extension is installed, the client will able to create)
+            this.kafkaPromise = this.createKafkaPromise();
+        }
+        return this.kafkaPromise;
+    }
 
     public get state(): ClientState {
         return ClientState.disconnected;
     }
 
     private async getkafkaClient(): Promise<Kafka> {
-        const client = (await this.kafkaPromise).kafkaJsClient;
+        const promise = (await this.getKafkaPromise());
+        const client = promise.kafkaJsClient;
         if (!client) {
+            if (promise.error) {
+                throw promise.error;
+            }
             throw new Error('Kafka client cannot be null.');
         }
         return client;
     }
 
     private async getkafkaAdminClient(): Promise<Admin> {
-        const admin = (await this.kafkaPromise).kafkaAdminClient;
+        const promise = (await this.getKafkaPromise());
+        const admin = promise.kafkaAdminClient;
         if (!admin) {
+            if (promise.error) {
+                throw promise.error;
+            }
             throw new Error('Kafka Admin cannot be null.');
         }
         return admin;
@@ -407,7 +434,7 @@ class KafkaJsClient implements Client {
             this.kafkaAdminClient.disconnect();
         }
     }
-    
+
 }
 
 export const createClient = (cluster: Cluster, workspaceSettings: WorkspaceSettings): Client => new EnsureConnectedDecorator(

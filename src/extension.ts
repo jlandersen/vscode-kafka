@@ -33,7 +33,7 @@ import { SelectedClusterStatusBarItem } from "./views/selectedClusterStatusBarIt
 import { NodeBase } from "./explorer/models/nodeBase";
 import * as path from 'path';
 import { markdownPreviewProvider } from "./docs/markdownPreviewProvider";
-import { getDefaultKafkaExtensionParticipant } from "./kafka-extensions/registry";
+import { getDefaultKafkaExtensionParticipant, refreshClusterProviderDefinitions } from "./kafka-extensions/registry";
 import { KafkaExtensionParticipant } from "./kafka-extensions/api";
 import { ProducerCollection } from "./client/producer";
 import { startLanguageClient } from "./kafka-file/kafkaFileClient";
@@ -150,6 +150,13 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
         vscode.workspace.registerTextDocumentContentProvider(
             ConsumerVirtualTextDocumentProvider.SCHEME, consumerVirtualTextDocumentProvider)
     );
+
+    // Refresh cluster provider participant when a vscode extension is installed/uninstalled
+    if (vscode.extensions.onDidChange) {// Theia doesn't support this API yet
+        context.subscriptions.push(vscode.extensions.onDidChange(() => {
+            refreshClusterProviderDefinitions();
+        }));
+    }
 
     return getDefaultKafkaExtensionParticipant();
 }

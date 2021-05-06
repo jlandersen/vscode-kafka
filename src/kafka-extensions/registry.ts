@@ -4,6 +4,7 @@ import { Cluster, ConnectionOptions, createDefaultKafkaConfig as createDefaultKa
 import { ClusterSettings } from "../settings/clusters";
 import { configureDefaultClusters } from "../wizards/clusters";
 import { ClusterProviderParticipant, KafkaExtensionParticipant } from "./api";
+import { ClientAccessor } from "../client";
 
 /**
  * Cluster provider is used to:
@@ -97,12 +98,12 @@ const defaultClusterProviderId = 'vscode-kafka.manual';
 let providers: Map<string, ClusterProvider> = new Map();
 
 export function getClusterProvider(clusterProviderId?: string): ClusterProvider | undefined {
-    intializeIfNeeded();
+    initializeIfNeeded();
     return providers.get(clusterProviderId || defaultClusterProviderId);
 }
 
 export function getClusterProviders(): ClusterProvider[] {
-    intializeIfNeeded();
+    initializeIfNeeded();
     // "Configure manually" provider must be the first
     const manual = getClusterProvider(defaultClusterProviderId);
     // Other providers must be sorted by name ascending
@@ -121,15 +122,29 @@ function sortByNameAscending(a: ClusterProvider, b: ClusterProvider): -1 | 0 | 1
     return 0;
 }
 
-function intializeIfNeeded() {
+function initializeIfNeeded() {
     if (providers.size === 0) {
-        providers = collectClusterProviderDefinitions(vscode.extensions.all);
+        refreshClusterProviderDefinitions();
     }
 }
 
 export interface ClusterProviderDefinition {
     id: string;
     name?: string;
+}
+export function refreshClusterProviderDefinitions() {
+    const oldClusterProviderIds = Array.from(providers.keys());
+    providers = collectClusterProviderDefinitions(vscode.extensions.all);
+    const newClusterProviderIds = Array.from(providers.keys());
+
+    // Disconnect all kafka client linked to a cluster provider id coming from an installed/uninstalled extension
+    const oldIdsToDispose = oldClusterProviderIds.filter(id => !newClusterProviderIds.includes(id));
+    const newIdsToDispose = newClusterProviderIds.filter(id => !oldClusterProviderIds.includes(id));
+    const allIdsToDispose = [...oldIdsToDispose, ...newIdsToDispose];
+    if (allIdsToDispose.length > 0) {
+        const toDispose = [...new Set(allIdsToDispose)];
+        ClientAccessor.getInstance().dispose(toDispose);
+    }
 }
 
 /**
@@ -141,7 +156,7 @@ export interface ClusterProviderDefinition {
  *          "clusterProviders": [
  *              {
  *                  "id": "vscode-kafka.manual",
- *                  "name": "Manual"
+                    "name": "Configure manually"
  *              }
  *          ]
  *      }
@@ -151,7 +166,7 @@ export interface ClusterProviderDefinition {
  *
  * @returns the map of cluster providers.
  */
-export function collectClusterProviderDefinitions(extensions: readonly vscode.Extension<any>[]): Map<string, ClusterProvider> {
+function collectClusterProviderDefinitions(extensions: readonly vscode.Extension<any>[]): Map<string, ClusterProvider> {
     const result: Map<string, ClusterProvider> = new Map();
     if (extensions && extensions.length) {
         for (const extension of extensions) {
