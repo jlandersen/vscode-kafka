@@ -5,17 +5,18 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 ### Added
 - Show cluster state in kafka file. See [#175](https://github.com/jlandersen/vscode-kafka/pull/175).
 - Validation for available topics in `.kafka` files. See [#153](https://github.com/jlandersen/vscode-kafka/issues/153).
-- Simplify snippets. See [#180](https://github.com/jlandersen/vscode-kafka/pull/180).
 - Hover support in `.kafka` files. See [#149](https://github.com/jlandersen/vscode-kafka/issues/149).
 - String encoding serialization support. See [#181](https://github.com/jlandersen/vscode-kafka/issues/181).
 - Refresh Cluster Provider API when extensions are installed/uninstalled. See [#137](https://github.com/jlandersen/vscode-kafka/issues/137).
 - Edit cluster configuration. See [#25](https://github.com/jlandersen/vscode-kafka/issues/25).
 - Added SSL configuration. See [#86](https://github.com/jlandersen/vscode-kafka/issues/86).
-- "Select cluster command" provides the option to create a new cluster. See [#103](https://github.com/jlandersen/vscode-kafka/issues/103).
+- `Select Cluster` command provides the option to create a new cluster. See [#103](https://github.com/jlandersen/vscode-kafka/issues/103).
+- Expose new internal commands (`vscode-kafka.api.saveclusters` and `vscode-kafka.api.deleteclusters`) to programmatically add/delete clusters (from 3rd party extensions). See [#182](https://github.com/jlandersen/vscode-kafka/issues/182).
 
 ### Changed
-- Hide internal [strimzi](https://strimzi.io/) topics/consumers by default. See [#176](https://github.com/jlandersen/vscode-kafka/pull/176).
 - Changed cluster wizard to use a Webview. See [#88](https://github.com/jlandersen/vscode-kafka/issues/88).
+- Hide internal [strimzi](https://strimzi.io/) topics/consumers by default. See [#176](https://github.com/jlandersen/vscode-kafka/pull/176).
+- Simplify snippets. See [#180](https://github.com/jlandersen/vscode-kafka/pull/180).
 - Allow non-SSL configuration with SASL authentication. See [#200](https://github.com/jlandersen/vscode-kafka/issues/200).
 
 ## [0.12.0] - 2021-04-26

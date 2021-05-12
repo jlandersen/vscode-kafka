@@ -45,7 +45,7 @@ export async function pickCluster(clusterSettings: ClusterSettings, addClusterCo
     }
     // New Cluster, open the wizard to create a cluster.
     if (addClusterCommandHandler) {
-        addClusterCommandHandler.execute(true);
+        addClusterCommandHandler.execute();
     }
 }
 
@@ -93,4 +93,18 @@ export async function pickBroker(clientAccessor: ClientAccessor): Promise<Broker
 
     const pickedBroker = await vscode.window.showQuickPick(brokerQuickPickItems);
     return pickedBroker?.broker;
+}
+
+export function getNames(clusters: (Cluster|undefined)[]): string {
+    let names = '';
+    for (const cluster of clusters) {
+        if (names !== '') {
+            names += '\', \'';
+        }
+        names += cluster!.name;
+    }
+    if (names !== '') {
+        names = '\''+names+'\'';
+    }
+    return names;
 }

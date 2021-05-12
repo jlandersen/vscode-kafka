@@ -154,7 +154,7 @@ export class KafkaExplorer implements KafkaModelProvider, vscode.Disposable, vsc
         if (nodes && nodes.length > 0) {
             const item = nodes[0];
             if (item instanceof ClusterItem) {
-                vscode.commands.executeCommand(DeleteClusterCommandHandler.commandId, item);
+                vscode.commands.executeCommand(DeleteClusterCommandHandler.userCommandId, item);
             } else if (item instanceof TopicItem) {
                 vscode.commands.executeCommand(DeleteTopicCommandHandler.commandId, item);
             } else if (item instanceof ConsumerGroupItem) {

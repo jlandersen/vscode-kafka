@@ -26,6 +26,8 @@
     "activationEvents": [
         "onCommand:vscode-kafka.open.docs.home",
         "onCommand:vscode-kafka.open.docs.page",
+        "onCommand:vscode-kafka.api.saveclusters",
+        "onCommand:vscode-kafka.api.deleteclusters",
         "onCommand:vscode-kafka.explorer.addcluster",
         "onCommand:vscode-kafka.explorer.selectcluster",
         "onCommand:vscode-kafka.explorer.editcluster",

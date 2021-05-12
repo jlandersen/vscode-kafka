@@ -1,43 +1,45 @@
+import * as path from 'path';
 import * as vscode from "vscode";
-
-import { getClientAccessor, ConsumerCollection } from "./client";
+import { Cluster, ConsumerCollection, getClientAccessor } from "./client";
+import { ProducerCollection } from "./client/producer";
 import {
+    AddClusterCommandHandler,
+    ClearConsumerViewCommandHandler,
     CreateTopicCommandHandler,
+    DeleteClusterCommandHandler,
+    DeleteClusterRequest,
+    DeleteConsumerGroupCommand,
+    DeleteConsumerGroupCommandHandler,
     DeleteTopicCommandHandler,
     DumpBrokerMetadataCommandHandler,
     DumpClusterMetadataCommandHandler,
     DumpTopicMetadataCommandHandler,
+    EditClusterCommandHandler,
+    handleErrors,
+    LaunchConsumerCommand,
     ListConsumersCommandHandler,
+    ProduceRecordCommand,
     ProduceRecordCommandHandler,
+    SaveClusterCommandHandler,
+    SelectClusterCommandHandler,
     StartConsumerCommandHandler,
     StopConsumerCommandHandler,
-    ToggleConsumerCommandHandler,
-    AddClusterCommandHandler,
-    DeleteClusterCommandHandler,
-    SelectClusterCommandHandler,
-    handleErrors,
-    ClearConsumerViewCommandHandler,
-    DeleteConsumerGroupCommandHandler,
-    DeleteConsumerGroupCommand,
-    LaunchConsumerCommand,
-    ProduceRecordCommand,
-    EditClusterCommandHandler
+    ToggleConsumerCommandHandler
 } from "./commands";
 import { Context } from "./context";
+import { markdownPreviewProvider } from "./docs/markdownPreviewProvider";
 import { BrokerItem, KafkaExplorer, TopicItem } from "./explorer";
+import { ClusterItem } from "./explorer/models/cluster";
+import { NodeBase } from "./explorer/models/nodeBase";
+import { TopicGroupItem } from "./explorer/models/topics";
+import { KafkaExtensionParticipant } from "./kafka-extensions/api";
+import { getDefaultKafkaExtensionParticipant, refreshClusterProviderDefinitions } from "./kafka-extensions/registry";
+import { startLanguageClient } from "./kafka-file/kafkaFileClient";
 import { ConsumerVirtualTextDocumentProvider, OutputChannelProvider } from "./providers";
 import { getClusterSettings, getWorkspaceSettings } from "./settings";
-import { ClusterItem } from "./explorer/models/cluster";
-import { TopicGroupItem } from "./explorer/models/topics";
 import { ConsumerStatusBarItem } from "./views/consumerStatusBarItem";
 import { SelectedClusterStatusBarItem } from "./views/selectedClusterStatusBarItem";
-import { NodeBase } from "./explorer/models/nodeBase";
-import * as path from 'path';
-import { markdownPreviewProvider } from "./docs/markdownPreviewProvider";
-import { getDefaultKafkaExtensionParticipant, refreshClusterProviderDefinitions } from "./kafka-extensions/registry";
-import { KafkaExtensionParticipant } from "./kafka-extensions/api";
-import { ProducerCollection } from "./client/producer";
-import { startLanguageClient } from "./kafka-file/kafkaFileClient";
+
 
 export function activate(context: vscode.ExtensionContext): KafkaExtensionParticipant {
     Context.register(context);
@@ -75,6 +77,7 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     const clearConsumerViewCommandHandler = new ClearConsumerViewCommandHandler(consumerVirtualTextDocumentProvider);
     const deleteConsumerGroupCommandHandler = new DeleteConsumerGroupCommandHandler(clientAccessor, explorer);
     const addClusterCommandHandler = new AddClusterCommandHandler(clusterSettings, clientAccessor, explorer, context);
+    const saveClusterCommandHandler = new SaveClusterCommandHandler(clusterSettings, explorer);
     const deleteClusterCommandHandler = new DeleteClusterCommandHandler(clusterSettings, clientAccessor, explorer);
     const selectClusterCommandHandler = new SelectClusterCommandHandler(clusterSettings, addClusterCommandHandler);
     const editClusterCommandHandler = new EditClusterCommandHandler(clusterSettings, clientAccessor, explorer, context);
@@ -98,8 +101,8 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
         EditClusterCommandHandler.commandId,
         handleErrors((clusterItem?: ClusterItem) => editClusterCommandHandler.execute(clusterItem?.cluster.id))));
     context.subscriptions.push(vscode.commands.registerCommand(
-        DeleteClusterCommandHandler.commandId,
-        handleErrors((clusterItem?: ClusterItem) => deleteClusterCommandHandler.execute(clusterItem?.cluster.id))));
+        DeleteClusterCommandHandler.userCommandId,
+        handleErrors((clusterItem?: ClusterItem) => deleteClusterCommandHandler.execute({ clusterIds: clusterItem?.cluster.id, confirm: true}))));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.dumptopicmetadata",
         (topic?: TopicItem) => dumpTopicMetadataCommandHandler.execute(topic)));
@@ -143,7 +146,13 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
             return vscode.commands.executeCommand("workbench.extensions.search", "@tag:kafka-provider");
         }
     ));
-
+    context.subscriptions.push(vscode.commands.registerCommand(
+        SaveClusterCommandHandler.commandId,
+        handleErrors((clusters: Cluster[]) => saveClusterCommandHandler.execute(clusters))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        DeleteClusterCommandHandler.commandId,
+        handleErrors((deleteRequest: DeleteClusterRequest) => deleteClusterCommandHandler.execute(deleteRequest))));
+    
     registerVSCodeKafkaDocumentationCommands(context);
 
     // .kafka file related

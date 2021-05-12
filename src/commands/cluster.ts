@@ -1,12 +1,58 @@
-import * as vscode from "vscode";
 import { dump } from "js-yaml";
-import { Broker, ClientAccessor } from "../client";
+import * as vscode from "vscode";
+import { Broker, ClientAccessor, Cluster } from "../client";
+import { KafkaExplorer } from "../explorer";
 import { BrokerItem } from "../explorer/models/brokers";
 import { OutputChannelProvider } from "../providers";
-import { pickBroker, pickClient, pickCluster } from "./common";
 import { ClusterSettings } from "../settings";
-import { KafkaExplorer } from "../explorer";
 import { openClusterForm, openClusterWizard } from "../wizards/clusters";
+import { showErrorMessage } from "../wizards/multiStepInput";
+import { pickBroker, pickClient, pickCluster, getNames } from "./common";
+
+
+
+export class SaveClusterCommandHandler {
+
+    public static commandId = "vscode-kafka.api.saveclusters";
+
+    constructor(protected clusterSettings: ClusterSettings, protected explorer: KafkaExplorer) {
+    }
+
+    async execute(clusters: Cluster[]): Promise<void> {
+        if (!clusters || clusters.length === 0) {
+            return;
+        }
+        let update = false;
+        try {
+            // Save collected clusters in settings.
+            let createdClusterNames = getNames(clusters);
+            for (const cluster of clusters) {
+                update = update || !!this.clusterSettings.get(cluster.id);
+                this.clusterSettings.upsert(cluster);
+            }
+            vscode.window.showInformationMessage(`${clusters.length > 1 ? `${clusters.length} clusters` : 'Cluster'} ${createdClusterNames} ${update ? 'updated' : 'created'} successfully`);
+    
+            // Refresh the explorer
+            this.explorer.refresh();
+    
+            // Selecting the created cluster is done with TreeView#reveal
+            // 1. Show the treeview of the explorer (otherwise reveal will not work)
+            this.explorer.show();
+            // 2. the reveal() call must occur within a timeout(),
+            // while waiting for a fix in https://github.com/microsoft/vscode/issues/114149
+            const selectCluster = !update && clusters.length === 1;
+            setTimeout(() => {
+                this.explorer.selectClusterByName(clusters[0].name);
+                if (selectCluster){
+                    this.clusterSettings.selected = clusters[0];
+                }
+            }, 1000);
+        }
+        catch (error) {
+            showErrorMessage(`Error while ${update ? 'updating' : 'creating'} cluster${clusters.length > 1 ?'s':''}`, error);
+        }
+    }
+}
 
 /**
  * Adds a new cluster to the collection.
@@ -18,10 +64,14 @@ export class AddClusterCommandHandler {
     constructor(private clusterSettings: ClusterSettings, private clientAccessor: ClientAccessor, private explorer: KafkaExplorer, private context: vscode.ExtensionContext) {
     }
 
-    async execute(selectCluster = false): Promise<void> {
-        openClusterWizard(this.clusterSettings, this.clientAccessor, this.explorer, this.context, selectCluster);
+    async execute(): Promise<void> {
+        openClusterWizard(this.clusterSettings, this.clientAccessor, this.explorer, this.context);
     }
+}
 
+export interface DeleteClusterRequest {
+    clusterIds : string | string[] | undefined
+    confirm: boolean
 }
 
 /**
@@ -29,24 +79,37 @@ export class AddClusterCommandHandler {
  */
 export class DeleteClusterCommandHandler {
 
-    public static commandId = 'vscode-kafka.cluster.delete';
+    public static commandId = 'vscode-kafka.api.deleteclusters';
+    public static userCommandId = 'vscode-kafka.cluster.delete';
 
     constructor(private clusterSettings: ClusterSettings, private clientAccessor: ClientAccessor, private explorer: KafkaExplorer) {
     }
 
-    async execute(clusterId?: string): Promise<void> {
-        const cluster = clusterId ? this.clusterSettings.get(clusterId) : await pickCluster(this.clusterSettings);
-        if (!cluster) {
+    async execute(deleteRequest: DeleteClusterRequest): Promise<void> {
+        const clusterIds = deleteRequest.clusterIds;
+        let clusters:(Cluster|undefined)[] = [];
+        if (Array.isArray(clusterIds)) {
+            clusters = clusterIds.map(id => this.clusterSettings.get(id)).filter(c=> c !== undefined);
+        } else {
+            const cluster = clusterIds ? this.clusterSettings.get(clusterIds) : await pickCluster(this.clusterSettings);
+            if (cluster) {
+                clusters.push(cluster);
+            }
+        }
+        if (clusters.length === 0) {
             return;
         }
-
-        const deleteConfirmation = await vscode.window.showWarningMessage(`Are you sure you want to delete cluster '${cluster.name}'?`, 'Cancel', 'Delete');
-        if (deleteConfirmation !== 'Delete') {
-            return;
+        if (deleteRequest.confirm) {
+            const clusterNames = getNames(clusters);
+            const deleteConfirmation = await vscode.window.showWarningMessage(`Are you sure you want to delete cluster${clusters.length === 1?'':'s'} ${clusterNames}?`, 'Cancel', 'Delete');
+            if (deleteConfirmation !== 'Delete') {
+                return;
+            }
         }
-
-        this.clusterSettings.remove(cluster.id);
-        this.clientAccessor.remove(cluster.id);
+        clusters.forEach(cluster => {
+            this.clusterSettings.remove(cluster!.id);
+            this.clientAccessor.remove(cluster!.id);
+        });
         this.explorer.refresh();
     }
 }
@@ -93,7 +156,7 @@ export class EditClusterCommandHandler {
         if (!cluster) {
             return;
         }
-        openClusterForm(cluster, this.clusterSettings, this.clientAccessor, this.explorer, this.context, false);
+        openClusterForm(cluster, this.clusterSettings, this.clientAccessor, this.explorer, this.context);
     }
 }
 
