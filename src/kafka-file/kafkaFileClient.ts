@@ -9,44 +9,46 @@ import { ConsumerLaunchStateProvider, getLanguageService, LanguageService, Produ
 import { runSafeAsync } from "./utils/runner";
 import { ThrottledDelayer } from "./utils/async";
 import { WorkspaceSettings } from "../settings";
-import { ClientAccessor } from "../client";
+import { ClientAccessor, isVisible, sortTopics, Topic } from "../client";
 import { BrokerConfigs } from "../client/config";
 import { KafkaModelProvider } from "../explorer/models/kafka";
 import { ClusterItem } from "../explorer/models/cluster";
 
 class ClusterInfo {
 
-    private topics?: TopicDetail[];
+    private allTopics?: Topic[];
+    private filteredTopics?: TopicDetail[];
 
     private autoCreateTopicEnabled?: BrokerConfigs.AutoCreateTopicResult;
 
     constructor(public readonly cluster?: ClusterItem, public readonly error?: any) {
     }
-
     async getTopics(): Promise<TopicDetail[]> {
-        if (this.topics) {
-            return this.topics;
+        if (!this.filteredTopics) {
+            try {
+                this.allTopics = await this.loadTopics();
+            }
+            catch (e) {
+                this.allTopics = [];
+            }
+            const visibleTopics = this.allTopics
+                .filter(topic => isVisible(topic));
+            this.filteredTopics = sortTopics(visibleTopics);
         }
-        try {
-            this.topics = await this.loadTopics();
-        }
-        catch (e) {
-            this.topics = [];
-        }
-        return this.topics;
+        return this.filteredTopics;
     }
 
-    private async loadTopics(): Promise<TopicDetail[]> {
+    private async loadTopics(): Promise<Topic[]> {
         if (this.cluster) {
-            return (await this.cluster.getTopics())
-                .map(child => (child.topic));
+            return await this.cluster.client.getTopics();
         }
         return [];
     }
 
     async getTopic(topicId: string): Promise<TopicDetail | undefined> {
-        const topics = await this.getTopics();
-        return topics.find(topic => topic.id === topicId);
+        await this.getTopics();
+        const topics = this.allTopics;
+        return topics?.find(topic => topic.id === topicId);
     }
 
     async getAutoCreateTopicEnabled(): Promise<BrokerConfigs.AutoCreateTopicResult> {
@@ -61,7 +63,7 @@ class ClusterInfo {
         if (this.cluster) {
             return await BrokerConfigs.getAutoCreateTopicEnabled(this.cluster.client);
         }
-        return {type : "unknown"};
+        return { type: "unknown" };
     }
 }
 
@@ -112,7 +114,7 @@ class DataModelTopicProvider implements TopicProvider {
 
 export function startLanguageClient(
     clusterSettings: ClusterSettings,
-    clientAccessor : ClientAccessor,
+    clientAccessor: ClientAccessor,
     workspaceSettings: WorkspaceSettings,
     producerCollection: ProducerCollection,
     consumerCollection: ConsumerCollection,
@@ -199,7 +201,7 @@ export function startLanguageClient(
     };
 }
 
-function createLanguageService(clusterSettings: ClusterSettings, clientAccessor : ClientAccessor, producerCollection: ProducerCollection, consumerCollection: ConsumerCollection, modelProvider: KafkaModelProvider): LanguageService {
+function createLanguageService(clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, producerCollection: ProducerCollection, consumerCollection: ConsumerCollection, modelProvider: KafkaModelProvider): LanguageService {
     const producerLaunchStateProvider = {
         getProducerLaunchState(uri: vscode.Uri): ProducerLaunchState {
             const producer = producerCollection.get(uri);
@@ -217,7 +219,7 @@ function createLanguageService(clusterSettings: ClusterSettings, clientAccessor 
     const selectedClusterProvider = {
         getSelectedCluster() {
             const selected = clusterSettings.selected;
-            const clusterId =  selected?.id;
+            const clusterId = selected?.id;
             const clusterState = clusterId ? clientAccessor.getState(clusterId) : undefined;
             return {
                 clusterId,
@@ -298,7 +300,7 @@ class KafkaFileDiagnostics extends AbstractKafkaFileFeature implements vscode.Di
         kafkaFileDocuments: LanguageModelCache<KafkaFileDocument>,
         languageService: LanguageService,
         clusterSettings: ClusterSettings,
-        clientAccessor : ClientAccessor,
+        clientAccessor: ClientAccessor,
         modelProvider: KafkaModelProvider,
         settings: WorkspaceSettings
     ) {
@@ -371,7 +373,7 @@ class KafkaFileHoverProvider extends AbstractKafkaFileFeature implements vscode.
         return runSafeAsync(async () => {
             const kafkaFileDocument = this.getKafkaFileDocument(document);
             return this.languageService.doHover(document, kafkaFileDocument, position);
-        }, null, `Error while computing hover for ${document.uri}`, token);       
+        }, null, `Error while computing hover for ${document.uri}`, token);
     }
 
 }
