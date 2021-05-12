@@ -1,9 +1,11 @@
+import * as minimatch from "minimatch";
 import { Admin, ConfigResourceTypes, Consumer, ConsumerConfig, Kafka, KafkaConfig, Producer, SeekEntry } from "kafkajs";
 
 import { Disposable } from "vscode";
 import { ClientAccessor, ClientState } from ".";
 import { getClusterProvider } from "../kafka-extensions/registry";
-import { WorkspaceSettings } from "../settings";
+import { getWorkspaceSettings, WorkspaceSettings } from "../settings";
+import { TopicSortOption } from "../settings/workspace";
 
 export interface ConnectionOptions {
     clusterProviderId?: string;
@@ -470,4 +472,38 @@ export function addQueryParameter(query: string, name: string, value?: string): 
         return query;
     }
     return `${query}${query.length > 0 ? '&' : '?'}${name}=${value}`;
+}
+
+export function isVisible(t: Topic): boolean {
+    const settings = getWorkspaceSettings();
+    const filters = settings.topicFilters;
+    if (!filters) {
+        return true;
+    }
+    const id = t.id.toLowerCase();
+    return !filters.find(f => minimatch(id, f));
+}
+
+export function sortTopics(topics: Topic[]): Topic[] {
+    const settings = getWorkspaceSettings();
+    switch (settings.topicSortOption) {
+        case TopicSortOption.name:
+            topics = topics.sort(sortByNameAscending);
+            break;
+        case TopicSortOption.partitions:
+            topics = topics.sort(sortByPartitionsAscending);
+    }
+    return topics;
+}
+
+function sortByNameAscending(a: Topic, b: Topic): -1 | 0 | 1 {
+    if (a.id.toLowerCase() < b.id.toLowerCase()) { return -1; }
+    if (a.id.toLowerCase() > b.id.toLowerCase()) { return 1; }
+    return 0;
+}
+
+function sortByPartitionsAscending(a: Topic, b: Topic): -1 | 0 | 1 {
+    if (a.partitionCount < b.partitionCount) { return -1; }
+    if (a.partitionCount > b.partitionCount) { return 1; }
+    return 0;
 }
