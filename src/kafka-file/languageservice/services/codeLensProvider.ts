@@ -50,7 +50,7 @@ export class KafkaFileCodeLenses {
             case ClientState.connected:
                 return `$(eye) `;
             case ClientState.invalid:
-                return `$(error) `;
+                return `$(warning) `;
             default:
                 return '';
         }
