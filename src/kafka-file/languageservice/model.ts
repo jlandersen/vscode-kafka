@@ -97,13 +97,17 @@ const consumerProperties = [
             {
                 name: "short",
                 description: "Similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.ShortDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/ShortDeserializer.java)."
+            },
+            {
+                name: "avro",
+                description: "Avro deserializer"
             }
         ]
     },
     {
         name: "value-format",
         description: `[Deserializer](${getDocumentationPageUri('Consuming', 'deserializer')}) to use for the value *[optional]*.`,
-        enum: [
+        enum: [            
             {
                 name: "none",
                 description: "No deserializer (ignores content)"
@@ -131,6 +135,10 @@ const consumerProperties = [
             {
                 name: "short",
                 description: "Similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.ShortDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/ShortDeserializer.java)."
+            },
+            {
+                name: "avro",
+                description: "Avro deserializer"
             }
         ]
     },
@@ -182,6 +190,10 @@ const producerProperties = [
             {
                 name: "short",
                 description: "Similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.ShortSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/ShortSerializer.java)."
+            },
+            {
+                name: "avro",
+                description: "Avro serializer"
             }
         ]
     },
@@ -212,6 +224,10 @@ const producerProperties = [
             {
                 name: "short",
                 description: "Similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.ShortSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/ShortSerializer.java)."
+            },
+            {
+                name: "avro",
+                description: "Avro serializer"
             }
         ]
     }

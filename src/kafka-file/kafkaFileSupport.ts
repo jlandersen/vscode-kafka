@@ -112,9 +112,9 @@ class DataModelTopicProvider implements TopicProvider {
     }
 }
 
-export function startLanguageClient(
+export function registerKafkaFileSupport(
     clusterSettings: ClusterSettings,
-    clientAccessor: ClientAccessor,
+    clientAccessor : ClientAccessor,
     workspaceSettings: WorkspaceSettings,
     producerCollection: ProducerCollection,
     consumerCollection: ConsumerCollection,
@@ -171,6 +171,11 @@ export function startLanguageClient(
     context.subscriptions.push(
         vscode.languages.registerHoverProvider(documentSelector, hover)
     );
+    // Document Link
+    const documentLink = new KafkaFileDocumentLinkProvider(kafkaFileDocuments, languageService);
+    context.subscriptions.push(
+        vscode.languages.registerDocumentLinkProvider(documentSelector, documentLink)
+    );
 
     // Open / Close document
     context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(e => {
@@ -201,7 +206,7 @@ export function startLanguageClient(
     };
 }
 
-function createLanguageService(clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, producerCollection: ProducerCollection, consumerCollection: ConsumerCollection, modelProvider: KafkaModelProvider): LanguageService {
+function createLanguageService(clusterSettings: ClusterSettings, clientAccessor : ClientAccessor, producerCollection: ProducerCollection, consumerCollection: ConsumerCollection, modelProvider: KafkaModelProvider): LanguageService {
     const producerLaunchStateProvider = {
         getProducerLaunchState(uri: vscode.Uri): ProducerLaunchState {
             const producer = producerCollection.get(uri);
@@ -219,7 +224,7 @@ function createLanguageService(clusterSettings: ClusterSettings, clientAccessor:
     const selectedClusterProvider = {
         getSelectedCluster() {
             const selected = clusterSettings.selected;
-            const clusterId = selected?.id;
+            const clusterId =  selected?.id;
             const clusterState = clusterId ? clientAccessor.getState(clusterId) : undefined;
             return {
                 clusterId,
@@ -300,7 +305,7 @@ class KafkaFileDiagnostics extends AbstractKafkaFileFeature implements vscode.Di
         kafkaFileDocuments: LanguageModelCache<KafkaFileDocument>,
         languageService: LanguageService,
         clusterSettings: ClusterSettings,
-        clientAccessor: ClientAccessor,
+        clientAccessor : ClientAccessor,
         modelProvider: KafkaModelProvider,
         settings: WorkspaceSettings
     ) {
@@ -373,7 +378,16 @@ class KafkaFileHoverProvider extends AbstractKafkaFileFeature implements vscode.
         return runSafeAsync(async () => {
             const kafkaFileDocument = this.getKafkaFileDocument(document);
             return this.languageService.doHover(document, kafkaFileDocument, position);
-        }, null, `Error while computing hover for ${document.uri}`, token);
+        }, null, `Error while computing hover for ${document.uri}`, token);       
     }
 
+}
+
+class KafkaFileDocumentLinkProvider extends AbstractKafkaFileFeature implements vscode.DocumentLinkProvider {
+    provideDocumentLinks(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.DocumentLink[]> {
+        return runSafeAsync(async () => {
+            const kafkaFileDocument = this.getKafkaFileDocument(document);
+            return this.languageService.provideDocumentLinks(document, kafkaFileDocument);
+        }, null, `Error while computing document link for ${document.uri}`, token);       
+    }
 }

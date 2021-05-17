@@ -1,11 +1,12 @@
-import { CodeLens, CompletionList, Diagnostic, Hover, Position, TextDocument, Uri } from "vscode";
+import { CodeLens, CompletionList, Diagnostic, DocumentLink, Hover, Position, TextDocument, Uri } from "vscode";
 import { ClientState, ConsumerLaunchState } from "../../client";
 import { BrokerConfigs } from "../../client/config";
 import { ProducerLaunchState } from "../../client/producer";
-import { KafkaFileDocument, parseKafkaFile } from "./parser/kafkaFileParser";
+import { CalleeFunction, KafkaFileDocument, parseKafkaFile, Property } from "./parser/kafkaFileParser";
 import { KafkaFileCodeLenses } from "./services/codeLensProvider";
 import { KafkaFileCompletion } from "./services/completion";
 import { KafkaFileDiagnostics } from "./services/diagnostics";
+import { KafkaFileDocumentLinks } from "./services/documentLinks";
 import { KafkaFileHover } from "./services/hover";
 
 /**
@@ -96,6 +97,14 @@ export interface LanguageService {
      * @param position the position where the hover was triggered.
      */
     doHover(document: TextDocument, kafkaFileDocument: KafkaFileDocument, position: Position): Promise<Hover | undefined>;
+
+    /**
+     * Returns the document links for the given text document and parsed AST.
+     *
+     * @param document the text document.
+     * @param kafkaFileDocument the parsed AST.
+     */
+    provideDocumentLinks(document: TextDocument, kafkaFileDocument: KafkaFileDocument): Promise<DocumentLink[]>;
 }
 
 /**
@@ -112,15 +121,25 @@ export function getLanguageService(producerLaunchStateProvider: ProducerLaunchSt
     const completion = new KafkaFileCompletion(selectedClusterProvider, topicProvider);
     const diagnostics = new KafkaFileDiagnostics(selectedClusterProvider, topicProvider);
     const hover = new KafkaFileHover(selectedClusterProvider, topicProvider);
+    const links = new KafkaFileDocumentLinks();
     return {
         parseKafkaFileDocument: (document: TextDocument) => parseKafkaFile(document),
         getCodeLenses: codeLenses.getCodeLenses.bind(codeLenses),
         doComplete: completion.doComplete.bind(completion),
         doDiagnostics: diagnostics.doDiagnostics.bind(diagnostics),
-        doHover: hover.doHover.bind(hover)
+        doHover: hover.doHover.bind(hover),
+        provideDocumentLinks: links.provideDocumentLinks.bind(links)
     };
 }
 
+export function getAvroCalleeFunction(property: Property): CalleeFunction | undefined {
+    if (property.propertyName === 'key-format' || property.propertyName === 'value-format') {
+        const callee = <CalleeFunction>property.value;
+        if (callee && callee.functionName === 'avro') {
+            return callee;
+        }
+    }
+}
 export function createTopicDocumentation(topic: TopicDetail): string {
     return `Topic \`${topic.id}\`\n` +
         ` * partition count: \`${topic.partitionCount}\`\n` +

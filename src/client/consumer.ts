@@ -7,6 +7,7 @@ import { addQueryParameter, Client, ConnectionOptions } from "./client";
 import { deserialize, MessageFormat, SerializationdResult, SerializationSetting } from "./serialization";
 
 interface ConsumerOptions extends ConnectionOptions {
+    kafkaFileUri?: vscode.Uri;
     consumerGroupId: string;
     topicId: string;
     fromOffset: InitialConsumerOffset | string;
@@ -63,7 +64,7 @@ export class Consumer implements vscode.Disposable {
     public state: ConsumerLaunchState = ConsumerLaunchState.idle;
     public error: any;
 
-    constructor(public uri: vscode.Uri, clusterSettings: ClusterSettings, private clientAccessor: ClientAccessor) {
+    constructor(public uri: vscode.Uri, kafkaFileUri: vscode.Uri | undefined, clusterSettings: ClusterSettings, private clientAccessor: ClientAccessor) {
         const { clusterId, consumerGroupId, topicId, fromOffset, partitions, messageKeyFormat, messageKeyFormatSettings, messageValueFormat,messageValueFormatSettings } = extractConsumerInfoUri(uri);
         this.clusterId = clusterId;
         const cluster = clusterSettings.get(clusterId);
@@ -75,6 +76,7 @@ export class Consumer implements vscode.Disposable {
 
             const settings = getWorkspaceSettings();
             this.options = {
+                kafkaFileUri,
                 clusterProviderId: cluster.clusterProviderId,
                 bootstrap: cluster.bootstrap,
                 saslOption: cluster.saslOption,
@@ -118,8 +120,8 @@ export class Consumer implements vscode.Disposable {
 
         this.consumer.run({
             eachMessage: async ({ topic, partition, message }) => {
-                message.key = deserialize(message.key, this.options.messageKeyFormat, this.options.messageKeyFormatSettings);
-                message.value = deserialize(message.value, this.options.messageValueFormat, this.options.messageValueFormatSettings);
+                message.key = deserialize(message.key, this.options.messageKeyFormat, this.options.kafkaFileUri, this.options.messageKeyFormatSettings);
+                message.value = deserialize(message.value, this.options.messageValueFormat, this.options.kafkaFileUri, this.options.messageValueFormatSettings);
                 this.onDidReceiveMessageEmitter.fire({
                     uri: this.uri,
                     record: { topic: topic, partition: partition, ...message },
@@ -235,9 +237,9 @@ export class ConsumerCollection implements vscode.Disposable {
     /**
      * Creates a new consumer for a provided uri.
      */
-    async create(uri: vscode.Uri): Promise<Consumer> {
+    async create(uri: vscode.Uri, kafkaFileUri? : vscode.Uri): Promise<Consumer> {
         // Create the consumer
-        const consumer = new Consumer(uri, this.clusterSettings, this.clientAccessor);
+        const consumer = new Consumer(uri, kafkaFileUri, this.clusterSettings, this.clientAccessor);
         this.consumers[uri.toString()] = consumer;
 
         // Fire an event to notify that Consumer is starting

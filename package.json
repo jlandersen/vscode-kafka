@@ -162,14 +162,23 @@
                     ".kafka"
                 ],
                 "aliases": [
-                    "kafka"
+                    "Kafka DSL"
                 ],
                 "configuration": "./language-configuration.json"
             },
             {
                 "id": "kafka-consumer",
                 "aliases": [
-                    "Kafka Consumer"
+                    "Kafka Consumer View"
+                ]
+            },
+            {
+                "id": "jsonc",
+                "filenamePatterns": [
+                    "*.avsc"
+                ],
+                "aliases": [
+                    "Avro Schema Definition"
                 ]
             }
         ],
@@ -199,6 +208,10 @@
             {
                 "fileMatch": "package.json",
                 "url": "./schemas/package.schema.json"
+            },
+            {
+                "fileMatch": "*.avsc",
+                "url": "./schemas/avro-avsc.json"
             }
         ],
         "commands": [
@@ -451,6 +464,7 @@
         "test": "node ./out/test/runTest.js"
     },
     "dependencies": {
+        "avsc": "^5.7.0",
         "faker": "^5.5.2",
         "fs-extra": "^8.1.0",
         "glob": "^7.1.6",

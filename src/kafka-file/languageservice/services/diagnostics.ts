@@ -4,10 +4,18 @@ import { ConsumerValidator } from "../../../validators/consumer";
 import { ProducerValidator } from "../../../validators/producer";
 import { CommonsValidator } from "../../../validators/commons";
 import { fakerjsAPIModel, PartModelProvider } from "../model";
-import { SelectedClusterProvider, TopicProvider } from "../kafkaFileLanguageService";
+import { getAvroCalleeFunction, SelectedClusterProvider, TopicProvider } from "../kafkaFileLanguageService";
 import { ClientState } from "../../../client";
 import { BrokerConfigs } from "../../../client/config";
+import { validateAVSC } from "../../../avro/avroFileSupport";
 
+class ValidationContext {
+    public readonly diagnostics: Diagnostic[] = [];
+
+    constructor(public readonly document: TextDocument, public producerFakerJSEnabled: boolean) {
+
+    }
+}
 /**
  * Kafka file diagnostics support.
  */
@@ -18,24 +26,24 @@ export class KafkaFileDiagnostics {
     }
 
     async doDiagnostics(document: TextDocument, kafkaFileDocument: KafkaFileDocument, producerFakerJSEnabled: boolean): Promise<Diagnostic[]> {
-        const diagnostics: Diagnostic[] = [];
+        const validationContext = new ValidationContext(document, producerFakerJSEnabled);
         for (const block of kafkaFileDocument.blocks) {
             if (block.type === BlockType.consumer) {
-                await this.validateConsumerBlock(<ConsumerBlock>block, diagnostics);
+                await this.validateConsumerBlock(<ConsumerBlock>block, validationContext);
             } else {
-                await this.validateProducerBlock(<ProducerBlock>block, producerFakerJSEnabled, diagnostics);
+                await this.validateProducerBlock(<ProducerBlock>block, validationContext);
             }
         }
-        return diagnostics;
+        return validationContext.diagnostics;
     }
 
-    async validateConsumerBlock(block: ConsumerBlock, diagnostics: Diagnostic[]) {
-        await this.validateProperties(block, false, diagnostics);
+    async validateConsumerBlock(block: ConsumerBlock, validationContext: ValidationContext) {
+        await this.validateProperties(block, validationContext);
     }
 
-    async validateProducerBlock(block: ProducerBlock, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
-        await this.validateProperties(block, producerFakerJSEnabled, diagnostics);
-        this.validateProducerValue(block, producerFakerJSEnabled, diagnostics);
+    async validateProducerBlock(block: ProducerBlock, validationContext: ValidationContext) {
+        await this.validateProperties(block, validationContext);
+        this.validateProducerValue(block, validationContext.producerFakerJSEnabled, validationContext.diagnostics);
     }
 
     validateProducerValue(block: ProducerBlock, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
@@ -150,12 +158,12 @@ export class KafkaFileDiagnostics {
         return new Range(start, end);
     }
 
-    async validateProperties(block: Block, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
+    async validateProperties(block: Block, validationContext: ValidationContext) {
         const existingProperties = new Map<string, Property[]>();
         let topicProperty: Property | undefined;
         for (const property of block.properties) {
             const propertyName = property.propertyName;
-            this.validateProperty(property, block, producerFakerJSEnabled, diagnostics);
+            this.validateProperty(property, block, validationContext);
             if (propertyName === 'topic') {
                 topicProperty = property;
             }
@@ -173,11 +181,14 @@ export class KafkaFileDiagnostics {
             if (properties.length > 1) {
                 properties.forEach(property => {
                     const range = property.propertyKeyRange;
+                    const diagnostics = validationContext.diagnostics;
                     diagnostics.push(new Diagnostic(range, `Duplicate property '${propertyName}'`, DiagnosticSeverity.Warning));
                 });
             }
         });
 
+        // Validate existing topic declaration and topic value
+        const diagnostics = validationContext.diagnostics;
         if (!topicProperty) {
             const range = new Range(block.start, new Position(block.start.line, block.start.character + 8));
             diagnostics.push(new Diagnostic(range, `The ${block.type === BlockType.consumer ? 'consumer' : 'producer'} must declare the 'topic:' property.`, DiagnosticSeverity.Error));
@@ -186,7 +197,8 @@ export class KafkaFileDiagnostics {
         }
     }
 
-    validateProperty(property: Property, block: Block, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
+    validateProperty(property: Property, block: Block, validationContext: ValidationContext) {
+        const diagnostics = validationContext.diagnostics;
         const propertyName = property.propertyName;
         // 1. Validate property syntax
         this.validateSyntaxProperty(propertyName, property, diagnostics);
@@ -198,7 +210,29 @@ export class KafkaFileDiagnostics {
                 this.validateUnknownProperty(propertyName, property, diagnostics);
             } else {
                 // 3. Validate property value
-                this.validatePropertyValue(property, block.type, producerFakerJSEnabled, diagnostics);
+                this.validatePropertyValue(property, block.type, validationContext.producerFakerJSEnabled, diagnostics);
+            }
+
+            // validate avro parameter
+            const avro = getAvroCalleeFunction(property);
+            if (avro) {
+                const parameter = avro.parameters[0];
+                const path = parameter?.value;
+                if (!path) {
+                    // parameter path is required
+                    const range = property.propertyValue ? property.propertyTrimmedValueRange : property.propertyKeyRange;
+                    if (range) {
+                        diagnostics.push(new Diagnostic(range, `The avro format must declare the 'path' parameter.`, DiagnosticSeverity.Error));
+                    }
+                } else {
+                    const result = validateAVSC(validationContext.document.uri, path);
+                    if (result) {
+                        const range = parameter.range();
+                        if (range) {
+                            diagnostics.push(new Diagnostic(range, result, DiagnosticSeverity.Error));
+                        }
+                    }
+                }
             }
         }
     }

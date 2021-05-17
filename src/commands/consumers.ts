@@ -71,7 +71,8 @@ abstract class LaunchConsumerCommandHandler {
                 openDocument(consumeUri);
 
                 // Start the consumer
-                await startConsumerWithProgress(consumeUri, this.consumerCollection, this.explorer);
+                const kafkaFileUri = vscode.window.activeTextEditor?.document.uri;
+                await startConsumerWithProgress(consumeUri, kafkaFileUri, this.consumerCollection, this.explorer);
             } else {
                 // Stop the consumer
                 if (consumer) {
@@ -134,7 +135,7 @@ export class ToggleConsumerCommandHandler {
             if (started) {
                 await stopConsumerWithProgress(uri, this.consumerCollection);
             } else {
-                await startConsumerWithProgress(uri, this.consumerCollection);
+                await startConsumerWithProgress(uri, uri, this.consumerCollection);
             }
         }
         catch (e) {
@@ -263,7 +264,7 @@ export class DeleteConsumerGroupCommandHandler {
     }
 }
 
-async function startConsumerWithProgress(consumeUri: vscode.Uri, consumerCollection: ConsumerCollection, explorer?: KafkaExplorer) {
+async function startConsumerWithProgress(consumeUri: vscode.Uri, kafkaFileUri: vscode.Uri | undefined, consumerCollection: ConsumerCollection, explorer?: KafkaExplorer) {
     const consumer = consumerCollection.get(consumeUri);
     if (consumer && consumer.state === ConsumerLaunchState.closing) {
         vscode.window.showErrorMessage(`The consumer cannot be started because it is stopping.`);
@@ -275,7 +276,7 @@ async function startConsumerWithProgress(consumeUri: vscode.Uri, consumerCollect
         cancellable: false
     }, (progress, token) => {
         return new Promise((resolve, reject) => {
-            consumerCollection.create(consumeUri)
+            consumerCollection.create(consumeUri, kafkaFileUri)
                 .then(consumer => {
                     if (explorer) {
                         explorer.refresh();

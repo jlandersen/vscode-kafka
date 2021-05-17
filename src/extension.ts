@@ -36,7 +36,8 @@ import { markdownPreviewProvider } from "./docs/markdownPreviewProvider";
 import { getDefaultKafkaExtensionParticipant, refreshClusterProviderDefinitions } from "./kafka-extensions/registry";
 import { KafkaExtensionParticipant } from "./kafka-extensions/api";
 import { ProducerCollection } from "./client/producer";
-import { startLanguageClient } from "./kafka-file/kafkaFileClient";
+import { registerKafkaFileSupport } from "./kafka-file/kafkaFileSupport";
+import { registerAvroFileSupport } from "./avro/avroFileSupport";
 
 export function activate(context: vscode.ExtensionContext): KafkaExtensionParticipant {
     Context.register(context);
@@ -143,7 +144,12 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
 
     // .kafka file related
     context.subscriptions.push(
-        startLanguageClient(clusterSettings, clientAccessor, workspaceSettings, producerCollection, consumerCollection, explorer, context)
+        registerKafkaFileSupport(clusterSettings, clientAccessor, workspaceSettings, producerCollection, consumerCollection, explorer, context)
+    );
+
+     // .avro file related
+     context.subscriptions.push(
+        registerAvroFileSupport(context)
     );
 
     context.subscriptions.push(
