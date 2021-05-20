@@ -1,69 +1,434 @@
-import { QuickPickItem, window } from "vscode";
-import { Cluster, ConnectionOptions, SaslMechanism } from "../client";
-import { INPUT_TITLE } from "../constants";
-import { KafkaExplorer } from "../explorer/kafkaExplorer";
-import { ClusterProvider, getClusterProviders } from "../kafka-extensions/registry";
-import { ClusterSettings } from "../settings/clusters";
-import { MultiStepInput, showErrorMessage, State } from "./multiStepInput";
-import { validateBroker, validateClusterName, validateAuthentificationUserName } from "./validators";
+/* eslint-disable @typescript-eslint/naming-convention */
+import * as vscode from "vscode";
+import { WebviewWizard, WizardDefinition, SEVERITY, UPDATE_TITLE, WizardPageFieldDefinition, WizardPageSectionDefinition, BUTTONS, PerformFinishResponse, IWizardPage, ValidatorResponseItem } from "@redhat-developer/vscode-wizard";
+import { ClientAccessor, Cluster, SaslMechanism, SaslOption, SslOption } from "../client";
+import { ClusterSettings } from "../settings";
+import { validateAuthentificationUserName, validateBroker, validateClusterName, validateFile } from "./validators";
+import { KafkaExplorer } from "../explorer";
+import { ClusterProvider, defaultClusterProviderId, getClusterProviders } from "../kafka-extensions/registry";
+import { showErrorMessage } from "./multiStepInput";
 
-interface AddClusterState extends State, ConnectionOptions {
-    name: string;
+export function openClusterWizard(clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext) {
+    const providers = getClusterProviders();
+    if (providers.length === 1) {
+        return openClusterForm(undefined, clusterSettings, clientAccessor, explorer, context);
+    }
+    const wiz: WebviewWizard = createClusterWizard(providers, clusterSettings, clientAccessor, explorer, context);
+    wiz.open();
 }
 
-const DEFAULT_STEPS = 4;
+export function openClusterForm(cluster: Cluster | undefined, clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext) {
+    const wiz: WebviewWizard = createEditClusterForm(cluster, clusterSettings, clientAccessor, explorer, context);
+    wiz.open();
+}
 
-export async function addClusterWizard(clusterSettings: ClusterSettings, explorer: KafkaExplorer): Promise<void> {
+interface AuthMechanism {
+    key: string,
+    label: string;
+}
 
-    async function pickClusterProvider(): Promise<ClusterProvider | undefined> {
-        const providers = getClusterProviders();
-        if (providers.length === 1) {
-            // If only the default cluster provider ('Configure manually') is present, return it.
-            return providers[0];
+const authMechanisms: Array<AuthMechanism> = [
+    { key: "none", label: "None" },
+    { key: "plain", label: "SASL/PLAIN" },
+    { key: "scram-sha-256", label: "SASL/SCRAM-256" },
+    { key: "scram-sha-512", label: "SASL/SCRAM-512" }
+];
+
+interface ValidationContext {
+    clusterSettings: ClusterSettings;
+    wizard: WebviewWizard | null;
+}
+// --- Wizard page fields
+
+// Fields for Page 1:
+const CLUSTER_PROVIDER_ID_FIELD = "clusterProviderId";
+
+// Fields for Page 2:
+const CLUSTER_NAME_FIELD = "name";
+const CLUSTER_BOOTSTRAP_FIELD = "bootstrap";
+const DEFAULT_BROKER = 'localhost:9092';
+
+// SASL fields
+const CLUSTER_SASL_MECHANISM_FIELD = "saslOptions.mechanism";
+const CLUSTER_SASL_USERNAME_FIELD = "saslOptions.username";
+const CLUSTER_SASL_PASSWORD_FIELD = "saslOptions.password";
+// SSL fields
+const CLUSTER_SSL_FIELD = "ssl";
+const CLUSTER_SSL_CA_FIELD = "ssl.ca";
+const CLUSTER_SSL_KEY_FIELD = "ssl.key";
+const CLUSTER_SSL_CERT_FIELD = "ssl.cert";
+
+// --- Wizard page ID
+const CLUSTER_PROVIDER_PAGE = 'cluster-provider-page';
+const CLUSTER_FORM_PAGE = 'cluster-form-page';
+
+function createClusterWizard(providers: ClusterProvider[], clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext): WebviewWizard {
+    const valiationContext = {
+        clusterSettings: clusterSettings,
+        wizard: null
+    } as ValidationContext;
+
+    const clusterWizardDef: WizardDefinition = {
+        title: "Add New Cluster(s)",
+        hideWizardHeader: true,
+        pages: [
+            {
+                id: CLUSTER_PROVIDER_PAGE,
+                hideWizardPageHeader: true,
+                fields: [
+                    {
+                        id: CLUSTER_PROVIDER_ID_FIELD,
+                        label: "Cluster provider:",
+                        initialValue: `${defaultClusterProviderId}`,
+                        type: "select",
+                        optionProvider: {
+
+                            getItems() {
+                                return [...providers];
+                            },
+
+                            getValueItem(provider: string | ClusterProvider) {
+                                return (<ClusterProvider>provider).id;
+                            },
+
+                            getLabelItem(provider: string | ClusterProvider) {
+                                return (<ClusterProvider>provider).name;
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                id: CLUSTER_FORM_PAGE,
+                hideWizardPageHeader: true,
+                fields: createFields(),
+                validator: createValidator(valiationContext),
+            }
+        ],
+        workflowManager: {
+
+            getNextPage(page: IWizardPage, data: any): IWizardPage | null {
+                if (page.getId() === CLUSTER_PROVIDER_PAGE) {
+                    const selectedClusterProvider = getSelectedClusterProvider(data, providers);
+                    if (selectedClusterProvider?.id !== defaultClusterProviderId) {
+                        return null;
+                    }
+                    return page.getNextPage();
+                }
+                return null;
+            },
+
+            canFinish(wizard: WebviewWizard, data: any) {
+                const page = wizard.getCurrentPage();
+                if (page?.getId() === CLUSTER_PROVIDER_PAGE) {
+                    const selectedClusterProvider = getSelectedClusterProvider(data, providers);
+                    return (selectedClusterProvider !== undefined && selectedClusterProvider.id !== defaultClusterProviderId);
+                }
+                return page?.isPageComplete() || false;
+            },
+
+            async performFinish(wizard: WebviewWizard, data: any) {
+                const page = wizard.getCurrentPage();
+                if (page?.getId() === CLUSTER_FORM_PAGE) {
+                    const cluster = createCluster(data);
+                    saveCluster(false, data, cluster, clusterSettings, clientAccessor, explorer);
+                    // Open the cluster in form page
+                    openClusterForm(cluster, clusterSettings, clientAccessor, explorer, context);
+                } else {
+                    const provider = getSelectedClusterProvider(data, providers);
+                    if (provider) {
+                        // Collect clusters...
+                        let clusters: Cluster[] | undefined;
+                        try {
+                            clusters = await provider.collectClusters(clusterSettings);
+                            if (!clusters || clusters.length === 0) {
+                                return null;
+                            }
+                        }
+                        catch (error) {
+                            showErrorMessage("Error while collecting cluster(s)", error);
+                            return null;
+                        }
+                        // Save clusters.
+                        saveClusters(false, clusters, clusterSettings, clientAccessor, explorer);
+                    }
+                }
+                return null;
+            }
+        }
+    };
+
+    return new WebviewWizard(`new-cluster`, "cluster", context, clusterWizardDef,
+        new Map<string, string>());
+}
+
+function getSelectedClusterProvider(data: any, providers: ClusterProvider[]): ClusterProvider | undefined {
+    return providers.find(provider => provider.id === data[CLUSTER_PROVIDER_ID_FIELD]);
+}
+
+function createEditClusterForm(cluster: Cluster | undefined, clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext): WebviewWizard {
+    const valiationContext = {
+        clusterSettings: clusterSettings,
+        wizard: null
+    } as ValidationContext;
+
+    const clusterWizardDef: WizardDefinition = {
+        title: `${cluster?.name || 'New Cluster'}`,
+        showDirtyState: true,
+        hideWizardHeader: true,
+        pages: [
+            {
+                id: `cluster-form-page'}`,
+                hideWizardPageHeader: true,
+                fields: createFields(cluster),
+                validator: createValidator(valiationContext)
+            }
+        ],
+        buttons: [{
+            id: BUTTONS.FINISH,
+            label: "Save"
+        }],
+        workflowManager: {
+
+            async performFinish(wizard: WebviewWizard, data: any) {
+                if (!cluster) {
+                    cluster = createCluster(data);
+                }
+                // Save cluster
+                saveCluster(true, data, cluster, clusterSettings, clientAccessor, explorer);
+
+                // Update tab title
+                let newTitle: string = cluster.name;
+                return new Promise<PerformFinishResponse | null>((res, rej) => {
+                    res({
+                        close: false,
+                        success: true,
+                        returnObject: null,
+                        templates: [
+                            { id: UPDATE_TITLE, content: newTitle },
+                        ]
+                    });
+                });
+            }
+        }
+    };
+    const wizard = new WebviewWizard(`${cluster?.id}`, "cluster", context, clusterWizardDef,
+        new Map<string, string>());
+    valiationContext.wizard = wizard;
+    return wizard;
+}
+
+function createFields(cluster?: Cluster): (WizardPageFieldDefinition | WizardPageSectionDefinition)[] {
+    const tlsConnectionOptions: SslOption | undefined = <SslOption>cluster?.ssl;
+    return [
+        {
+            id: CLUSTER_NAME_FIELD,
+            label: "Name:",
+            initialValue: `${cluster?.name || ''}`,
+            type: "textbox",
+            placeholder: 'Friendly name'
+        },
+        {
+            id: CLUSTER_BOOTSTRAP_FIELD,
+            label: "Bootstrap server:",
+            initialValue: `${cluster ? (cluster?.bootstrap || '') : DEFAULT_BROKER}`,
+            type: "textbox",
+            placeholder: 'Broker(s) (localhost:9092,localhost:9093...)'
+        },
+        {
+            id: 'sasl-section',
+            label: 'Authentication',
+            childFields: [
+                {
+                    id: CLUSTER_SASL_MECHANISM_FIELD,
+                    label: "Mechanism:",
+                    initialValue: `${cluster?.saslOption?.mechanism || "none"}`,
+                    type: "select",
+                    optionProvider: {
+
+                        getItems() {
+                            return authMechanisms;
+                        },
+
+                        getValueItem(mechanism: AuthMechanism) {
+                            return mechanism.key;
+                        },
+
+                        getLabelItem(mechanism: AuthMechanism) {
+                            return mechanism.label;
+                        }
+                    }
+                },
+                {
+                    id: CLUSTER_SASL_USERNAME_FIELD,
+                    label: "Username:",
+                    initialValue: `${cluster?.saslOption?.username || ''}`,
+                    type: "textbox"
+                },
+                {
+                    id: CLUSTER_SASL_PASSWORD_FIELD,
+                    label: "Password:",
+                    initialValue: `${cluster?.saslOption?.password || ''}`,
+                    type: "password"
+                }
+            ]
+        },
+        {
+            id: 'ssl-section',
+            label: 'SSL',
+            childFields: [
+                {
+                    id: CLUSTER_SSL_FIELD,
+                    label: "Enable SSL",
+                    initialValue: !(cluster?.ssl === undefined || cluster?.ssl === false) ? 'true' : undefined,
+                    type: "checkbox"
+                },
+                {
+                    id: CLUSTER_SSL_CA_FIELD,
+                    label: "Certificate Authority:",
+                    initialValue: tlsConnectionOptions?.ca,
+                    type: "file-picker",
+                    placeholder: "Select file in PEM format.",
+                    dialogOptions: {
+                        canSelectMany: false,
+                        filters: {
+                            'All': ['*'],
+                            'PEM': ['pem', 'crt', 'cer', 'key']
+                        }
+                    }
+                },
+                {
+                    id: CLUSTER_SSL_KEY_FIELD,
+                    label: "Client key:",
+                    initialValue: tlsConnectionOptions?.key,
+                    type: "file-picker",
+                    placeholder: "Select file in PEM format.",
+                    dialogOptions: {
+                        canSelectMany: false,
+                        filters: {
+                            'All': ['*'],
+                            'PEM': ['pem', 'crt', 'cer', 'key']
+                        }
+                    }
+                },
+                {
+                    id: CLUSTER_SSL_CERT_FIELD,
+                    label: "Client certificate:",
+                    initialValue: tlsConnectionOptions?.cert,
+                    type: "file-picker",
+                    placeholder: "Select file in PEM format.",
+                    dialogOptions: {
+                        canSelectMany: false,
+                        filters: {
+                            'All': ['*'],
+                            'PEM': ['pem', 'crt', 'cer', 'key']
+                        }
+                    }
+                }
+            ]
+        }
+    ];
+}
+
+function createValidator(validationContext: ValidationContext) {
+    return (parameters?: any) => {
+        const clusterName = validationContext.wizard?.title;
+        const diagnostics: Array<ValidatorResponseItem> = [];
+
+        // 1. Validate cluster name
+        const clusterSettings = validationContext.clusterSettings;
+        const existingClusterNames = clusterSettings.getAll()
+            .filter(c => clusterName === undefined || c.name !== clusterName)
+            .map(c => c.name);
+        const clustername = parameters[CLUSTER_NAME_FIELD];
+        let result = validateClusterName(clustername, existingClusterNames);
+        if (result) {
+            diagnostics.push(
+                {
+                    template: {
+                        id: CLUSTER_NAME_FIELD,
+                        content: result
+                    },
+                    severity: SEVERITY.ERROR
+                }
+            );
         }
 
-        const providerItems: QuickPickItem[] = providers
-            .map(provider => {
-                return { "label": provider.name };
-            });
-        const selected = (await window.showQuickPick(providerItems))?.label;
-        if (!selected) {
-            return;
+        // 2. Validate bootstrap broker
+        const bootstrap = parameters[CLUSTER_BOOTSTRAP_FIELD];
+        result = validateBroker(bootstrap);
+        if (result) {
+            diagnostics.push(
+                {
+                    template: {
+                        id: CLUSTER_BOOTSTRAP_FIELD,
+                        content: result
+                    },
+                    severity: SEVERITY.ERROR
+                }
+            );
         }
-        return providers.find(provider => provider.name === selected);
-    }
 
-    // Pick the cluster provider which provides the capability to return a list of clusters to add to the kafka explorer
-    // eg (configure cluster via a custom wizard, import clusters from a repository, etc)
-    const provider = await pickClusterProvider();
-    if (!provider) {
-        return;
-    }
+        // 3. Validate username if SASL is enabled
+        if (parameters[CLUSTER_SASL_MECHANISM_FIELD] !== 'none') {
+            const username = parameters[CLUSTER_SASL_USERNAME_FIELD];
+            result = validateAuthentificationUserName(username);
+            if (result) {
+                diagnostics.push(
+                    {
+                        template: {
+                            id: CLUSTER_SASL_USERNAME_FIELD,
+                            content: result
+                        },
+                        severity: SEVERITY.ERROR
+                    }
+                );
+            }
 
-    // Collect clusters...
-    let clusters: Cluster[] | undefined;
-    try {
-        clusters = await provider.collectClusters(clusterSettings);
-        if (!clusters || clusters.length === 0) {
-            return;
+            // check if SSL checkbox is checked
+            if (!(parameters[CLUSTER_SSL_FIELD] === true || parameters[CLUSTER_SSL_FIELD] === 'true')) {
+                diagnostics.push(
+                    {
+                        template: {
+                            id: CLUSTER_SSL_FIELD,
+                            content: 'SSL should be enabled since Authentication is enabled.'
+                        },
+                        severity: SEVERITY.ERROR
+                    }
+                );
+            }
         }
-    }
-    catch (error) {
-        showErrorMessage(`Error while collecting cluster(s)`, error);
-        return;
-    }
 
+        // 4. Validate certificate files
+        validateCertificateFile(parameters, CLUSTER_SSL_CA_FIELD, diagnostics);
+        validateCertificateFile(parameters, CLUSTER_SSL_KEY_FIELD, diagnostics);
+        validateCertificateFile(parameters, CLUSTER_SSL_CERT_FIELD, diagnostics);
+
+        return { items: diagnostics };
+    };
+}
+
+function saveCluster(update: boolean, data: any, cluster: Cluster, clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer) {
+    cluster.name = data[CLUSTER_NAME_FIELD];
+    cluster.bootstrap = data[CLUSTER_BOOTSTRAP_FIELD];
+    cluster.saslOption = createSaslOption(data);
+    cluster.ssl = createSsl(data);
+    saveClusters(update, [cluster], clusterSettings, clientAccessor, explorer);
+}
+
+function saveClusters(update: boolean, clusters: Cluster[], clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer) {
     try {
         // Save collected clusters in settings.
         let createdClusterNames = '';
         for (const cluster of clusters) {
             clusterSettings.upsert(cluster);
+            clientAccessor.remove(cluster.id);
             if (createdClusterNames !== '') {
                 createdClusterNames += '\', \'';
             }
             createdClusterNames += cluster.name;
         }
-        window.showInformationMessage(`${clusters.length > 1 ? `${clusters.length} clusters` : 'Cluster'} '${createdClusterNames}' created successfully`);
+        vscode.window.showInformationMessage(`${clusters.length > 1 ? `${clusters.length} clusters` : 'Cluster'} '${createdClusterNames}' ${update ? 'updated' : 'created'} successfully`);
 
         // Refresh the explorer
         explorer.refresh();
@@ -80,155 +445,63 @@ export async function addClusterWizard(clusterSettings: ClusterSettings, explore
         }, 1000);
     }
     catch (error) {
-        showErrorMessage(`Error while creating cluster`, error);
+        showErrorMessage(`Error while ${update ? 'updating' : 'creating'} cluster`, error);
     }
 }
 
-const DEFAULT_BROKER = 'localhost:9092';
-
-export async function configureDefaultClusters(clusterSettings: ClusterSettings): Promise<Cluster[] | undefined> {
-
-    const state: Partial<AddClusterState> = {
-        totalSteps: DEFAULT_STEPS
-    };
-
-    async function collectInputs(state: Partial<AddClusterState>, clusterSettings: ClusterSettings) {
-        await MultiStepInput.run(input => inputBrokers(input, state, clusterSettings));
+function createSaslOption(data: any): SaslOption | undefined {
+    const mechanism = data[CLUSTER_SASL_MECHANISM_FIELD] as SaslMechanism;
+    if (mechanism) {
+        const username = data[CLUSTER_SASL_USERNAME_FIELD];
+        const password = data[CLUSTER_SASL_PASSWORD_FIELD];
+        return {
+            mechanism,
+            username,
+            password
+        } as SaslOption;
     }
+}
 
-    async function inputBrokers(input: MultiStepInput, state: Partial<AddClusterState>, clusterSettings: ClusterSettings) {
-        state.bootstrap = await input.showInputBox({
-            title: INPUT_TITLE,
-            step: input.getStepNumber(),
-            totalSteps: state.totalSteps,
-            value: state.bootstrap ? state.bootstrap : DEFAULT_BROKER,
-            prompt: 'Broker(s) (localhost:9092,localhost:9093...)',
-            validate: validateBroker
-        });
-        return (input: MultiStepInput) => inputClusterName(input, state, clusterSettings);
+function createSsl(data: any): SslOption | boolean {
+    const ca = data[CLUSTER_SSL_CA_FIELD];
+    const key = data[CLUSTER_SSL_KEY_FIELD];
+    const cert = data[CLUSTER_SSL_CERT_FIELD];
+    if (ca || key || cert) {
+        return {
+            ca,
+            key,
+            cert
+        } as SslOption;
     }
+    return data[CLUSTER_SSL_FIELD] === true || data[CLUSTER_SSL_FIELD] === 'true';
+}
 
-    async function inputClusterName(input: MultiStepInput, state: Partial<AddClusterState>, clusterSettings: ClusterSettings) {
-        const existingClusterNames = clusterSettings.getAll().map(cluster => cluster.name);
-        state.name = await input.showInputBox({
-            title: INPUT_TITLE,
-            step: input.getStepNumber(),
-            totalSteps: state.totalSteps,
-            value: state.name || '',
-            prompt: 'Friendly name',
-            validationContext: existingClusterNames,
-            validate: validateClusterName
-        });
-
-        return (input: MultiStepInput) => inputAuthentification(input, state);
-    }
-
-    async function inputAuthentification(input: MultiStepInput, state: Partial<AddClusterState>) {
-        const authMechanisms = new Map<string, string>([
-            ["SASL/PLAIN", "plain"],
-            ["SASL/SCRAM-256", "scram-sha-256"],
-            ["SASL/SCRAM-512", "scram-sha-512"]
-        ]);
-        const authOptions: QuickPickItem[] = [{ "label": "None" }];
-        for (const label of authMechanisms.keys()) {
-            authOptions.push({ "label": label });
-        }
-
-        const authentification = (await input.showQuickPick({
-            title: INPUT_TITLE,
-            step: input.getStepNumber(),
-            totalSteps: state.totalSteps,
-            placeholder: 'Pick authentification',
-            items: authOptions,
-            activeItem: authOptions[0]
-        })).label;
-        if (authentification) {
-            if (authentification === authOptions[0].label) {
-                state.totalSteps = DEFAULT_STEPS;// we're on the 4-step track
-                return (input: MultiStepInput) => inputSSL(input, state);
-            } else {
-                state.totalSteps = DEFAULT_STEPS + 1;// we're on the 5-step track
-                state.saslOption = { mechanism: authMechanisms.get(authentification) as SaslMechanism };
-                return (input: MultiStepInput) => inputAuthentificationUserName(input, state);
-            }
-        }
-        return undefined;
-    }
-
-    async function inputAuthentificationUserName(input: MultiStepInput, state: Partial<AddClusterState>) {
-        if (!state.saslOption) {
-            return;
-        }
-        state.saslOption.username = await input.showInputBox({
-            title: INPUT_TITLE,
-            step: input.getStepNumber(),
-            totalSteps: state.totalSteps,
-            value: state.saslOption?.username || '',
-            prompt: ' Username',
-            validate: validateAuthentificationUserName
-        });
-
-        return (input: MultiStepInput) => inputAuthentificationPassword(input, state);
-    }
-
-    async function inputAuthentificationPassword(input: MultiStepInput, state: Partial<AddClusterState>) {
-        if (!state.saslOption) {
-            return;
-        }
-        state.saslOption.password = await input.showInputBox({
-            title: INPUT_TITLE,
-            step: input.getStepNumber(),
-            totalSteps: state.totalSteps,
-            value: state.saslOption.password || '',
-            prompt: ' Password',
-            password: true
-        });
-    }
-
-    async function inputSSL(input: MultiStepInput, state: Partial<AddClusterState>) {
-        const sslOptions: QuickPickItem[] = [{ "label": "Disabled" }, { "label": "Enabled" }];
-        const ssl = (await input.showQuickPick({
-            title: INPUT_TITLE,
-            step: input.getStepNumber(),
-            totalSteps: state.totalSteps,
-            placeholder: 'SSL',
-            items: sslOptions,
-            activeItem: sslOptions[0]
-        })).label;
-        if (ssl) {
-            state.ssl = ssl === sslOptions[1].label;
-        }
-    }
-
-    try {
-        await collectInputs(state, clusterSettings);
-    } catch (e) {
-        showErrorMessage('Error while collecting inputs for creating cluster', e);
-        return;
-    }
-
-    const addClusterState: AddClusterState = state as AddClusterState;
-    const bootstrap = state.bootstrap;
-    if (!bootstrap) {
-        return;
-    }
-    const name = state.name;
-    if (!name) {
-        return;
-    }
-    const saslOption = addClusterState.saslOption;
+function createCluster(data: any): Cluster {
+    const name = data[CLUSTER_NAME_FIELD];
+    const bootstrap = data[CLUSTER_BOOTSTRAP_FIELD];
     const sanitizedName = name.replace(/[^a-zA-Z0-9]/g, "");
     const suffix = Buffer.from(bootstrap).toString("base64").replace(/=/g, "");
 
-    return [
-        {
-            id: `${sanitizedName}-${suffix}`,
-            bootstrap,
-            name,
-            saslOption,
-            ssl: state.ssl
-        }
-    ];
+    return {
+        id: `${sanitizedName}-${suffix}`
+    } as Cluster;
 }
 
-
+function validateCertificateFile(parameters: any, fieldId: string, diagnostics: Array<ValidatorResponseItem>) {
+    const fileName = parameters[fieldId];
+    if (!fileName || fileName === '') {
+        return;
+    }
+    const result = validateFile(fileName);
+    if (result) {
+        diagnostics.push(
+            {
+                template: {
+                    id: fieldId,
+                    content: result
+                },
+                severity: SEVERITY.ERROR
+            }
+        );
+    }
+}

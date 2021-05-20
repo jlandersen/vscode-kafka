@@ -6,17 +6,17 @@ import { OutputChannelProvider } from "../providers";
 import { pickBroker, pickClient, pickCluster } from "./common";
 import { ClusterSettings } from "../settings";
 import { KafkaExplorer } from "../explorer";
-import { addClusterWizard } from "../wizards/clusters";
+import { openClusterForm, openClusterWizard } from "../wizards/clusters";
 
 /**
  * Adds a new cluster to the collection.
  */
 export class AddClusterCommandHandler {
-    constructor(private clusterSettings: ClusterSettings, private explorer: KafkaExplorer) {
+    constructor(private clusterSettings: ClusterSettings, private clientAccessor: ClientAccessor, private explorer: KafkaExplorer, private context: vscode.ExtensionContext) {
     }
 
     async execute(): Promise<void> {
-        addClusterWizard(this.clusterSettings, this.explorer);
+        openClusterWizard(this.clusterSettings, this.clientAccessor, this.explorer, this.context);
     }
 
 }
@@ -70,6 +70,27 @@ export class SelectClusterCommandHandler {
         }
 
         this.clusterSettings.selected = this.clusterSettings.get(clusterId);
+    }
+}
+
+export class EditClusterCommandHandler {
+
+    public static commandId = 'vscode-kafka.explorer.editcluster';
+
+    constructor(private clusterSettings: ClusterSettings, private clientAccessor: ClientAccessor, private explorer: KafkaExplorer, private context: vscode.ExtensionContext) {
+    }
+
+    async execute(clusterId?: string): Promise<void> {
+        let cluster;
+        if (!clusterId) {
+            cluster = await pickCluster(this.clusterSettings);
+        } else {
+            cluster = this.clusterSettings.get(clusterId);
+        }
+        if (!cluster) {
+            return;
+        }
+        openClusterForm(cluster, this.clusterSettings, this.clientAccessor, this.explorer, this.context);
     }
 }
 

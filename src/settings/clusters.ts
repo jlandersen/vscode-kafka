@@ -75,7 +75,7 @@ class MementoClusterSettings implements ClusterSettings {
     set selected(value: Cluster | undefined) {
         const oldClusterId = this.selected?.id;
         this.storage.update(this.selectedClusterIdStorageKey, value?.id);
-        this.onDidChangeSelectedEmitter.fire({ oldClusterId : oldClusterId, newClusterId: value?.id });
+        this.onDidChangeSelectedEmitter.fire({ oldClusterId: oldClusterId, newClusterId: value?.id });
     }
 
     getAll(): Cluster[] {
@@ -98,6 +98,11 @@ class MementoClusterSettings implements ClusterSettings {
         const state = this.storage.get<ClusterStoreType>(this.clusterCollectionStorageKey, {});
         state[cluster.id] = cluster;
         this.storage.update(this.clusterCollectionStorageKey, state);
+        if (this.selected?.id === cluster.id) {
+            // This usecase comes from when a cluster which is selected is updated
+            // In this case we need to fire a select event to update status bar with the new cluster name.
+            this.selected = cluster;
+        }
         this.setSelectedClusterIfNeeded();
     }
 

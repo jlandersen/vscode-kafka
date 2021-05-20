@@ -28,6 +28,7 @@
         "onCommand:vscode-kafka.open.docs.page",
         "onCommand:vscode-kafka.explorer.addcluster",
         "onCommand:vscode-kafka.explorer.selectcluster",
+        "onCommand:vscode-kafka.explorer.editcluster",
         "onCommand:vscode-kafka.cluster.delete",
         "onCommand:vscode-kafka.explorer.createtopic",
         "onCommand:vscode-kafka.explorer.refresh",
@@ -279,6 +280,11 @@
                 "category": "Kafka"
             },
             {
+                "command": "vscode-kafka.explorer.editcluster",
+                "title": "Edit Cluster",
+                "category": "Kafka"
+            },
+            {
                 "command": "vscode-kafka.consumer.start",
                 "title": "Start Consumer (UTF-8 record values)",
                 "category": "Kafka"
@@ -373,6 +379,11 @@
                     "group": "1_kafka"
                 },
                 {
+                    "command": "vscode-kafka.explorer.editcluster",
+                    "when": "view == kafkaExplorer && viewItem =~ /^cluster$|^selectedCluster$/ && !listMultiSelection",
+                    "group": "1_kafka"
+                },
+                {
                     "command": "vscode-kafka.explorer.copylabel",
                     "when": "view == kafkaExplorer",
                     "group": "2_cutcopypaste"
@@ -451,6 +462,8 @@
         "test": "node ./out/test/runTest.js"
     },
     "dependencies": {
+        "@redhat-developer/vscode-wizard": "^0.2.13",
+        "handlebars": "^4.7.3",
         "faker": "^5.5.2",
         "fs-extra": "^8.1.0",
         "glob": "^7.1.6",
@@ -474,6 +487,7 @@
         "vsce": "^1.88.0",
         "vscode-test": "^1.4.1",
         "webpack": "^5.10.0",
-        "webpack-cli": "^4.2.0"
+        "webpack-cli": "^4.2.0",
+        "copy-webpack-plugin": "^9.0.1"
     }
 }

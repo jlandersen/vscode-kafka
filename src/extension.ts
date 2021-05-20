@@ -20,7 +20,8 @@ import {
     DeleteConsumerGroupCommandHandler,
     DeleteConsumerGroupCommand,
     LaunchConsumerCommand,
-    ProduceRecordCommand
+    ProduceRecordCommand,
+    EditClusterCommandHandler
 } from "./commands";
 import { Context } from "./context";
 import { BrokerItem, KafkaExplorer, TopicItem } from "./explorer";
@@ -73,9 +74,10 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     const toggleConsumerCommandHandler = new ToggleConsumerCommandHandler(consumerCollection);
     const clearConsumerViewCommandHandler = new ClearConsumerViewCommandHandler(consumerVirtualTextDocumentProvider);
     const deleteConsumerGroupCommandHandler = new DeleteConsumerGroupCommandHandler(clientAccessor, explorer);
-    const addClusterCommandHandler = new AddClusterCommandHandler(clusterSettings, explorer);
+    const addClusterCommandHandler = new AddClusterCommandHandler(clusterSettings, clientAccessor, explorer, context);
     const deleteClusterCommandHandler = new DeleteClusterCommandHandler(clusterSettings, clientAccessor, explorer);
     const selectClusterCommandHandler = new SelectClusterCommandHandler(clusterSettings);
+    const editClusterCommandHandler = new EditClusterCommandHandler(clusterSettings, clientAccessor, explorer, context);
     const dumpTopicMetadataCommandHandler = new DumpTopicMetadataCommandHandler(clientAccessor, outputChannelProvider);
     const dumpClusterMetadataCommandHandler = new DumpClusterMetadataCommandHandler(clientAccessor, outputChannelProvider);
     const dumpBrokerMetadataCommandHandler = new DumpBrokerMetadataCommandHandler(clientAccessor, outputChannelProvider);
@@ -92,6 +94,9 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     context.subscriptions.push(vscode.commands.registerCommand(
         SelectClusterCommandHandler.commandId,
         handleErrors((clusterItem?: ClusterItem) => selectClusterCommandHandler.execute(clusterItem?.cluster.id))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        EditClusterCommandHandler.commandId,
+        handleErrors((clusterItem?: ClusterItem) => editClusterCommandHandler.execute(clusterItem?.cluster.id))));
     context.subscriptions.push(vscode.commands.registerCommand(
         DeleteClusterCommandHandler.commandId,
         handleErrors((clusterItem?: ClusterItem) => deleteClusterCommandHandler.execute(clusterItem?.cluster.id))));
@@ -157,7 +162,6 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
             refreshClusterProviderDefinitions();
         }));
     }
-
     return getDefaultKafkaExtensionParticipant();
 }
 

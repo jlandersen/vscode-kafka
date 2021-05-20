@@ -1,5 +1,7 @@
+import * as fs from "fs";
 import * as minimatch from "minimatch";
-import { Admin, ConfigResourceTypes, Consumer, ConsumerConfig, Kafka, KafkaConfig, Producer, SeekEntry } from "kafkajs";
+import * as tls from "tls";
+import { Admin, ConfigResourceTypes, Consumer, ConsumerConfig, Kafka, KafkaConfig, Producer, SASLOptions, SeekEntry } from "kafkajs";
 
 import { Disposable } from "vscode";
 import { ClientAccessor, ClientState } from ".";
@@ -11,7 +13,7 @@ export interface ConnectionOptions {
     clusterProviderId?: string;
     bootstrap: string;
     saslOption?: SaslOption;
-    ssl?: boolean;
+    ssl?: SslOption | boolean
 }
 
 export interface Cluster extends ConnectionOptions {
@@ -28,6 +30,15 @@ export interface SaslOption {
     mechanism: SaslMechanism;
     username?: string;
     password?: string;
+}
+
+/**
+ * The SSL option.
+ */
+export interface SslOption {
+    ca?: string;
+    key?: string;
+    cert?: string;
 }
 
 export interface Broker {
@@ -452,20 +463,40 @@ export const createKafka = async (connectionOptions: ConnectionOptions): Promise
 };
 
 export const createDefaultKafkaConfig = (connectionOptions: ConnectionOptions): KafkaConfig => {
-    if (connectionOptions.saslOption && connectionOptions.saslOption.username && connectionOptions.saslOption.password) {
-        return {
-            clientId: "vscode-kafka",
-            brokers: connectionOptions.bootstrap.split(","),
-            ssl: true,
-            sasl: { mechanism: connectionOptions.saslOption.mechanism, username: connectionOptions.saslOption.username, password: connectionOptions.saslOption.password },
-        };
-    }
     return {
         clientId: "vscode-kafka",
         brokers: connectionOptions.bootstrap.split(","),
-        ssl: connectionOptions.ssl
+        sasl: createSaslOption(connectionOptions),
+        ssl: createSsl(connectionOptions)
     };
 };
+
+function createSaslOption(connectionOptions: ConnectionOptions): SASLOptions | undefined {
+    if (connectionOptions.saslOption && connectionOptions.saslOption.username && connectionOptions.saslOption.password) {
+        return {
+            mechanism: connectionOptions.saslOption.mechanism,
+            username: connectionOptions.saslOption.username,
+            password: connectionOptions.saslOption.password
+        };
+    }
+}
+
+function createSsl(connectionOptions: ConnectionOptions):  tls.ConnectionOptions | boolean | undefined {
+    if (connectionOptions.ssl) {
+        const sslOption = <SslOption> connectionOptions.ssl;
+        if (sslOption) {
+            const ca = sslOption.ca ?  fs.readFileSync(sslOption.ca) : undefined;
+            const key = sslOption.key ?  fs.readFileSync(sslOption.key) : undefined;
+            const cert = sslOption.cert ?  fs.readFileSync(sslOption.cert) : undefined;
+            return {
+                ca,
+                key,
+                cert
+            } as tls.ConnectionOptions;
+        }
+    }
+    return connectionOptions.ssl;
+}
 
 export function addQueryParameter(query: string, name: string, value?: string): string {
     if (value === undefined) {

@@ -96,6 +96,11 @@ _Tools for Apache Kafka®_ is built using Github Actions. Here's how to download
 - Unzip the archive,
 - Install the vscode-kafka-*.vsix extension by following these [instructions](https://code.visualstudio.com/docs/editor/extension-gallery#_install-from-a-vsix).
 
+## Contributing
+
+This is an open source project open to anyone. Contributions are extremely welcome!
+
+For information on getting started, refer to the [CONTRIBUTING instructions](CONTRIBUTING.md).
 ## License
 MIT License. See [LICENSE](LICENSE) file.
 
