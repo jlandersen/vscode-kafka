@@ -1,16 +1,16 @@
 // ------------------ Cluster validators
-
+import * as fs from "fs";
 import { CommonsValidator } from "../validators/commons";
 
 const BROKER_FIELD = 'Broker';
 const CLUSTER_FIELD = 'Cluster name';
 const USERNAME_FIELD = 'User name';
 
-export async function validateBroker(broker: string): Promise<string | undefined> {
+export function validateBroker(broker: string): string | undefined {
     return CommonsValidator.validateFieldRequired(BROKER_FIELD, broker);
 }
 
-export async function validateClusterName(cluster: string, existingClusterNames: string[]): Promise<string | undefined> {
+export function validateClusterName(cluster: string, existingClusterNames: string[]): string | undefined {
     const result = CommonsValidator.validateFieldRequired(CLUSTER_FIELD, cluster);
     if (result) {
         return result;
@@ -18,10 +18,19 @@ export async function validateClusterName(cluster: string, existingClusterNames:
     return CommonsValidator.validateFieldUniqueValue(CLUSTER_FIELD, cluster, existingClusterNames);
 }
 
-export async function validateAuthentificationUserName(userName: string): Promise<string | undefined> {
+export function validateAuthentificationUserName(userName: string): string | undefined {
     return CommonsValidator.validateFieldRequired(USERNAME_FIELD, userName);
 }
 
+export function validateFile(filePath: string) : string | undefined {
+    if (!fs.existsSync(filePath)) {
+        return `The file '${filePath}' doesn't exist.`;
+    }
+    if (fs.lstatSync(filePath).isDirectory()) {
+        return `'${filePath}' is a directory, please select a file.`;
+    }
+    return undefined;
+}
 // ------------------ Topic validators
 
 const TOPIC_FIELD = 'Topic name';

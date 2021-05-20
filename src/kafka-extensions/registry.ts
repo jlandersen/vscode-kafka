@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import { KafkaConfig } from "kafkajs";
 import { Cluster, ConnectionOptions, createDefaultKafkaConfig as createDefaultKafkaConfig } from "../client/client";
 import { ClusterSettings } from "../settings/clusters";
-import { configureDefaultClusters } from "../wizards/clusters";
 import { ClusterProviderParticipant, KafkaExtensionParticipant } from "./api";
 import { ClientAccessor } from "../client";
 
@@ -93,7 +92,7 @@ function isKafkaExtensionParticipant(arg: any): boolean {
     return (arg as KafkaExtensionParticipant).getClusterProviderParticipant !== undefined;
 }
 
-const defaultClusterProviderId = 'vscode-kafka.manual';
+export const defaultClusterProviderId = 'vscode-kafka.manual';
 
 let providers: Map<string, ClusterProvider> = new Map();
 
@@ -192,7 +191,7 @@ export function getDefaultKafkaExtensionParticipant(): KafkaExtensionParticipant
     return {
         getClusterProviderParticipant(clusterProviderId: string): ClusterProviderParticipant {
             return {
-                configureClusters: (clusterSettings: ClusterSettings): Promise<Cluster[] | undefined> => configureDefaultClusters(clusterSettings),
+                configureClusters: (clusterSettings: ClusterSettings): Promise<Cluster[] | undefined> => Promise.resolve(undefined),
                 createKafkaConfig: (connectionOptions: ConnectionOptions): KafkaConfig => createDefaultKafkaConfig(connectionOptions)
             } as ClusterProviderParticipant;
         }
