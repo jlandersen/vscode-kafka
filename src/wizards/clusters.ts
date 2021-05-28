@@ -11,7 +11,7 @@ interface AddClusterState extends State, ConnectionOptions {
     name: string;
 }
 
-const DEFAULT_STEPS = 4;
+const DEFAULT_STEPS = 5;
 
 export async function addClusterWizard(clusterSettings: ClusterSettings, explorer: KafkaExplorer): Promise<void> {
 
@@ -144,7 +144,7 @@ export async function configureDefaultClusters(clusterSettings: ClusterSettings)
         })).label;
         if (authentification) {
             if (authentification === authOptions[0].label) {
-                state.totalSteps = DEFAULT_STEPS;// we're on the 4-step track
+                state.totalSteps = DEFAULT_STEPS;// we're on the 5-step track
                 return (input: MultiStepInput) => inputSSL(input, state);
             } else {
                 state.totalSteps = DEFAULT_STEPS + 1;// we're on the 5-step track
@@ -183,6 +183,7 @@ export async function configureDefaultClusters(clusterSettings: ClusterSettings)
             prompt: ' Password',
             password: true
         });
+        return (input: MultiStepInput) => inputSSL(input, state);
     }
 
     async function inputSSL(input: MultiStepInput, state: Partial<AddClusterState>) {

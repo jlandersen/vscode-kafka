@@ -456,7 +456,7 @@ export const createDefaultKafkaConfig = (connectionOptions: ConnectionOptions): 
         return {
             clientId: "vscode-kafka",
             brokers: connectionOptions.bootstrap.split(","),
-            ssl: true,
+            ssl: connectionOptions.ssl,
             sasl: { mechanism: connectionOptions.saslOption.mechanism, username: connectionOptions.saslOption.username, password: connectionOptions.saslOption.password },
         };
     }
