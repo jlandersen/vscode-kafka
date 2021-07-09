@@ -391,9 +391,9 @@ function createValidator(validationContext: ValidationContext) {
                     {
                         template: {
                             id: CLUSTER_SSL_FIELD,
-                            content: 'SSL should be enabled since Authentication is enabled.'
+                            content: 'SSL should probably be enabled since Authentication is enabled.'
                         },
-                        severity: SEVERITY.ERROR
+                        severity: SEVERITY.WARN
                     }
                 );
             }

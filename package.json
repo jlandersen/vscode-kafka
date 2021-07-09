@@ -462,11 +462,11 @@
         "test": "node ./out/test/runTest.js"
     },
     "dependencies": {
-        "@redhat-developer/vscode-wizard": "^0.2.13",
-        "handlebars": "^4.7.3",
+        "@redhat-developer/vscode-wizard": "^0.2.15",
         "faker": "^5.5.2",
         "fs-extra": "^8.1.0",
         "glob": "^7.1.6",
+        "handlebars": "^4.7.3",
         "js-yaml": "^3.14.0",
         "kafkajs": "^1.15.0"
     },
