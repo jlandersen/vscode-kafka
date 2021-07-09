@@ -4,12 +4,18 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 ## [0.13.0]
 ### Added
 - Show cluster state in kafka file. See [#175](https://github.com/jlandersen/vscode-kafka/pull/175).
-- Hide internal [strimzi](https://strimzi.io/) topics/consumers by default. See [#176](https://github.com/jlandersen/vscode-kafka/pull/176).
 - Validation for available topics in `.kafka` files. See [#153](https://github.com/jlandersen/vscode-kafka/issues/153).
 - Simplify snippets. See [#180](https://github.com/jlandersen/vscode-kafka/pull/180).
 - Hover support in `.kafka` files. See [#149](https://github.com/jlandersen/vscode-kafka/issues/149).
 - String encoding serialization support. See [#181](https://github.com/jlandersen/vscode-kafka/issues/181).
 - Refresh Cluster Provider API when extensions are installed/uninstalled. See [#137](https://github.com/jlandersen/vscode-kafka/issues/137).
+- Edit cluster configuration. See [#25](https://github.com/jlandersen/vscode-kafka/issues/25).
+- Added SSL configuration. See [#86](https://github.com/jlandersen/vscode-kafka/issues/86).
+
+### Changed
+- Hide internal [strimzi](https://strimzi.io/) topics/consumers by default. See [#176](https://github.com/jlandersen/vscode-kafka/pull/176).
+- Changed cluster wizard to use a Webview. See [#88](https://github.com/jlandersen/vscode-kafka/issues/88).
+- Allow non-SSL configuration with SASL authentication. See [#200](https://github.com/jlandersen/vscode-kafka/issues/200).
 
 ## [0.12.0] - 2021-04-26
 ### Added

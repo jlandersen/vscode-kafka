@@ -15,13 +15,13 @@ Features:
 - Produce (randomized) messages
 - Consume messages
 - SASL/PLAIN, SASL/SCRAM-256, SASL/SCRAM-512 Authentication (Kafka 0.10+)
+- SSL Support
 - Clusters can be contributed by 3rd party extensions
 
 Planned features, in no particular order:
 - More administration features
-- Improved new cluster wizard
 - Improved .kafka validation support
-- SSL support
+- Better SSL support
 
 You might also find useful information in the [Online Documentation](https://github.com/jlandersen/vscode-kafka/blob/master/docs/README.md)
 or you can read this documentation inside your editor with the command `Open Documentation` available with `Ctrl+Shift+P`:
