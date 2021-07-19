@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import * as vscode from "vscode";
-import { WebviewWizard, WizardDefinition, SEVERITY, UPDATE_TITLE, WizardPageFieldDefinition, WizardPageSectionDefinition, BUTTONS, PerformFinishResponse, IWizardPage, ValidatorResponseItem } from "@redhat-developer/vscode-wizard";
+import { WebviewWizard, WizardDefinition, SEVERITY, UPDATE_TITLE, WizardPageFieldDefinition, WizardPageSectionDefinition, BUTTONS, PerformFinishResponse, IWizardPage, ValidatorResponseItem, FieldDefinitionState } from "@redhat-developer/vscode-wizard";
 import { ClientAccessor, Cluster, SaslMechanism, SaslOption, SslOption } from "../client";
 import { ClusterSettings } from "../settings";
 import { validateAuthentificationUserName, validateBroker, validateClusterName, validateFile } from "./validators";
@@ -38,6 +38,7 @@ interface ValidationContext {
     clusterSettings: ClusterSettings;
     wizard: WebviewWizard | null;
 }
+
 // --- Wizard page fields
 
 // Fields for Page 1:
@@ -334,6 +335,7 @@ function createValidator(validationContext: ValidationContext) {
     return (parameters?: any) => {
         const clusterName = validationContext.wizard?.title;
         const diagnostics: Array<ValidatorResponseItem> = [];
+        const fieldRefresh = new Map<string, FieldDefinitionState>();
 
         // 1. Validate cluster name
         const clusterSettings = validationContext.clusterSettings;
@@ -370,7 +372,19 @@ function createValidator(validationContext: ValidationContext) {
         }
 
         // 3. Validate username if SASL is enabled
-        if (parameters[CLUSTER_SASL_MECHANISM_FIELD] !== 'none') {
+        function isSASLEnabled(data: any) {
+            return data[CLUSTER_SASL_MECHANISM_FIELD] && data[CLUSTER_SASL_MECHANISM_FIELD] !== 'none';
+        }
+
+        function isSSLEnabled(data: any) {
+            return (data[CLUSTER_SSL_FIELD] === true || data[CLUSTER_SSL_FIELD] === 'true');
+        }
+
+        const saslEnabled = isSASLEnabled(parameters);
+        const sslEnabled = isSSLEnabled(parameters);
+
+        if (saslEnabled) {
+
             const username = parameters[CLUSTER_SASL_USERNAME_FIELD];
             result = validateAuthentificationUserName(username);
             if (result) {
@@ -386,7 +400,7 @@ function createValidator(validationContext: ValidationContext) {
             }
 
             // check if SSL checkbox is checked
-            if (!(parameters[CLUSTER_SSL_FIELD] === true || parameters[CLUSTER_SSL_FIELD] === 'true')) {
+            if (!sslEnabled) {
                 diagnostics.push(
                     {
                         template: {
@@ -404,7 +418,15 @@ function createValidator(validationContext: ValidationContext) {
         validateCertificateFile(parameters, CLUSTER_SSL_KEY_FIELD, diagnostics);
         validateCertificateFile(parameters, CLUSTER_SSL_CERT_FIELD, diagnostics);
 
-        return { items: diagnostics };
+        // 5. Manage enabled state for SASL and SSL fields
+        fieldRefresh.set(CLUSTER_SASL_USERNAME_FIELD, { enabled: saslEnabled });
+        fieldRefresh.set(CLUSTER_SASL_PASSWORD_FIELD, { enabled: saslEnabled });
+
+        fieldRefresh.set(CLUSTER_SSL_CA_FIELD, { enabled: sslEnabled });
+        fieldRefresh.set(CLUSTER_SSL_KEY_FIELD, { enabled: sslEnabled });
+        fieldRefresh.set(CLUSTER_SSL_CERT_FIELD, { enabled: sslEnabled });
+
+        return { items: diagnostics, fieldRefresh };
     };
 }
 
