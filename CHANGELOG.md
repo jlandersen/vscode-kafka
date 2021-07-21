@@ -11,6 +11,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 - Refresh Cluster Provider API when extensions are installed/uninstalled. See [#137](https://github.com/jlandersen/vscode-kafka/issues/137).
 - Edit cluster configuration. See [#25](https://github.com/jlandersen/vscode-kafka/issues/25).
 - Added SSL configuration. See [#86](https://github.com/jlandersen/vscode-kafka/issues/86).
+- "Select cluster command" provides the option to create a new cluster. See [#103](https://github.com/jlandersen/vscode-kafka/issues/103).
 
 ### Changed
 - Hide internal [strimzi](https://strimzi.io/) topics/consumers by default. See [#176](https://github.com/jlandersen/vscode-kafka/pull/176).
