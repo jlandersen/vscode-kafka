@@ -8,17 +8,17 @@ import { KafkaExplorer } from "../explorer";
 import { ClusterProvider, defaultClusterProviderId, getClusterProviders } from "../kafka-extensions/registry";
 import { showErrorMessage } from "./multiStepInput";
 
-export function openClusterWizard(clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext) {
+export function openClusterWizard(clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext, selectCluster = false) {
     const providers = getClusterProviders();
     if (providers.length === 1) {
-        return openClusterForm(undefined, clusterSettings, clientAccessor, explorer, context);
+        return openClusterForm(undefined, clusterSettings, clientAccessor, explorer, context, selectCluster);
     }
-    const wiz: WebviewWizard = createClusterWizard(providers, clusterSettings, clientAccessor, explorer, context);
+    const wiz: WebviewWizard = createClusterWizard(providers, clusterSettings, clientAccessor, explorer, context, selectCluster);
     wiz.open();
 }
 
-export function openClusterForm(cluster: Cluster | undefined, clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext) {
-    const wiz: WebviewWizard = createEditClusterForm(cluster, clusterSettings, clientAccessor, explorer, context);
+export function openClusterForm(cluster: Cluster | undefined, clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext, selectCluster: boolean) {
+    const wiz: WebviewWizard = createEditClusterForm(cluster, clusterSettings, clientAccessor, explorer, context, selectCluster);
     wiz.open();
 }
 
@@ -63,7 +63,7 @@ const CLUSTER_SSL_CERT_FIELD = "ssl.cert";
 const CLUSTER_PROVIDER_PAGE = 'cluster-provider-page';
 const CLUSTER_FORM_PAGE = 'cluster-form-page';
 
-function createClusterWizard(providers: ClusterProvider[], clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext): WebviewWizard {
+function createClusterWizard(providers: ClusterProvider[], clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext, selectCluster: boolean): WebviewWizard {
     const valiationContext = {
         clusterSettings: clusterSettings,
         wizard: null
@@ -132,9 +132,9 @@ function createClusterWizard(providers: ClusterProvider[], clusterSettings: Clus
                 const page = wizard.getCurrentPage();
                 if (page?.getId() === CLUSTER_FORM_PAGE) {
                     const cluster = createCluster(data);
-                    saveCluster(false, data, cluster, clusterSettings, clientAccessor, explorer);
+                    saveCluster(false, data, cluster, clusterSettings, clientAccessor, explorer, selectCluster);
                     // Open the cluster in form page
-                    openClusterForm(cluster, clusterSettings, clientAccessor, explorer, context);
+                    openClusterForm(cluster, clusterSettings, clientAccessor, explorer, context, false);
                 } else {
                     const provider = getSelectedClusterProvider(data, providers);
                     if (provider) {
@@ -151,7 +151,7 @@ function createClusterWizard(providers: ClusterProvider[], clusterSettings: Clus
                             return null;
                         }
                         // Save clusters.
-                        saveClusters(false, clusters, clusterSettings, clientAccessor, explorer);
+                        saveClusters(false, clusters, clusterSettings, clientAccessor, explorer, selectCluster);
                     }
                 }
                 return null;
@@ -167,7 +167,7 @@ function getSelectedClusterProvider(data: any, providers: ClusterProvider[]): Cl
     return providers.find(provider => provider.id === data[CLUSTER_PROVIDER_ID_FIELD]);
 }
 
-function createEditClusterForm(cluster: Cluster | undefined, clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext): WebviewWizard {
+function createEditClusterForm(cluster: Cluster | undefined, clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext, selectCluster: boolean): WebviewWizard {
     const valiationContext = {
         clusterSettings: clusterSettings,
         wizard: null
@@ -196,7 +196,8 @@ function createEditClusterForm(cluster: Cluster | undefined, clusterSettings: Cl
                     cluster = createCluster(data);
                 }
                 // Save cluster
-                saveCluster(true, data, cluster, clusterSettings, clientAccessor, explorer);
+                saveCluster(true, data, cluster, clusterSettings, clientAccessor, explorer, selectCluster);
+                selectCluster = false;
 
                 // Update tab title
                 let newTitle: string = cluster.name;
@@ -430,15 +431,15 @@ function createValidator(validationContext: ValidationContext) {
     };
 }
 
-function saveCluster(update: boolean, data: any, cluster: Cluster, clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer) {
+function saveCluster(update: boolean, data: any, cluster: Cluster, clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, selectCluster: boolean) {
     cluster.name = data[CLUSTER_NAME_FIELD];
     cluster.bootstrap = data[CLUSTER_BOOTSTRAP_FIELD];
     cluster.saslOption = createSaslOption(data);
     cluster.ssl = createSsl(data);
-    saveClusters(update, [cluster], clusterSettings, clientAccessor, explorer);
+    saveClusters(update, [cluster], clusterSettings, clientAccessor, explorer, selectCluster);
 }
 
-function saveClusters(update: boolean, clusters: Cluster[], clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer) {
+function saveClusters(update: boolean, clusters: Cluster[], clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, selectCluster: boolean) {
     try {
         // Save collected clusters in settings.
         let createdClusterNames = '';
@@ -463,8 +464,12 @@ function saveClusters(update: boolean, clusters: Cluster[], clusterSettings: Clu
         setTimeout(() => {
             if (clusters) {
                 explorer.selectClusterByName(clusters[0].name);
+                if (selectCluster) {
+                    clusterSettings.selected = clusters[0];
+                }
             }
         }, 1000);
+
     }
     catch (error) {
         showErrorMessage(`Error while ${update ? 'updating' : 'creating'} cluster`, error);

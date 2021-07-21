@@ -3,8 +3,9 @@ import * as vscode from "vscode";
 import { Broker, Topic, ClientAccessor, Cluster, Client } from "../client";
 import { CommonMessages } from "../constants";
 import { ClusterSettings } from "../settings";
+import { AddClusterCommandHandler } from "./cluster";
 
-export async function pickClient(clientAccessor: ClientAccessor, clusterId?: string) : Promise<Client| undefined> {
+export async function pickClient(clientAccessor: ClientAccessor, clusterId?: string): Promise<Client | undefined> {
     let client: Client | undefined = undefined;
 
     if (clusterId) {
@@ -18,19 +19,34 @@ export async function pickClient(clientAccessor: ClientAccessor, clusterId?: str
     }
     return client;
 }
-export async function pickCluster(clusterSettings: ClusterSettings): Promise<Cluster | undefined> {
+export async function pickCluster(clusterSettings: ClusterSettings, addClusterCommandHandler: AddClusterCommandHandler | undefined = undefined): Promise<Cluster | undefined> {
     const clusters = clusterSettings.getAll();
 
-    const clusterQuickPickItems = clusters.map((cluster) => {
+    const clusterQuickPickItems: { label: string; description?: string; cluster: Cluster | null; }[] = clusters.map((cluster) => {
         return {
             label: cluster.name,
-            describe: cluster.bootstrap,
+            description: `(${cluster.bootstrap})`,
             cluster,
         };
     });
+    if (addClusterCommandHandler) {
+        clusterQuickPickItems.push({
+            label: "New Cluster...",
+            cluster: null
+        });
+    }
 
     const pickedCluster = await vscode.window.showQuickPick(clusterQuickPickItems, { placeHolder: "Select cluster" });
-    return pickedCluster?.cluster;
+    if (!pickedCluster) {
+        return;
+    }
+    if (pickedCluster.cluster !== null) {
+        return pickedCluster.cluster;
+    }
+    // New Cluster, open the wizard to create a cluster.
+    if (addClusterCommandHandler) {
+        addClusterCommandHandler.execute(true);
+    }
 }
 
 export async function pickTopic(client: Client): Promise<Topic | undefined> {
@@ -51,7 +67,8 @@ export async function pickConsumerGroupId(client: Client): Promise<string | unde
     const groupIds = await client.getConsumerGroupIds();
     const groupIdQuickPickItems = groupIds.map((groupId) => {
         return {
-            label: groupId        };
+            label: groupId
+        };
     });
 
     const pickedGroupId = await vscode.window.showQuickPick(groupIdQuickPickItems);

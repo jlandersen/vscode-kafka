@@ -76,7 +76,7 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     const deleteConsumerGroupCommandHandler = new DeleteConsumerGroupCommandHandler(clientAccessor, explorer);
     const addClusterCommandHandler = new AddClusterCommandHandler(clusterSettings, clientAccessor, explorer, context);
     const deleteClusterCommandHandler = new DeleteClusterCommandHandler(clusterSettings, clientAccessor, explorer);
-    const selectClusterCommandHandler = new SelectClusterCommandHandler(clusterSettings);
+    const selectClusterCommandHandler = new SelectClusterCommandHandler(clusterSettings, addClusterCommandHandler);
     const editClusterCommandHandler = new EditClusterCommandHandler(clusterSettings, clientAccessor, explorer, context);
     const dumpTopicMetadataCommandHandler = new DumpTopicMetadataCommandHandler(clientAccessor, outputChannelProvider);
     const dumpClusterMetadataCommandHandler = new DumpClusterMetadataCommandHandler(clientAccessor, outputChannelProvider);
@@ -89,7 +89,7 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
         "vscode-kafka.explorer.createtopic",
         handleErrors((topicGroupItem?: TopicGroupItem) => createTopicCommandHandler.execute(topicGroupItem?.getParent().cluster.id))));
     context.subscriptions.push(vscode.commands.registerCommand(
-        "vscode-kafka.explorer.addcluster",
+        AddClusterCommandHandler.commandId,
         handleErrors(() => addClusterCommandHandler.execute())));
     context.subscriptions.push(vscode.commands.registerCommand(
         SelectClusterCommandHandler.commandId,
