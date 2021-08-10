@@ -26,6 +26,7 @@ export interface WorkspaceSettings extends vscode.Disposable {
     producerFakerJSEnabled: boolean;
     producerFakerJSLocale: string;
     onDidChangeSettings: vscode.Event<undefined>;
+    consumerHeadersPrint: boolean;
 }
 
 class VsCodeWorkspaceSettings implements WorkspaceSettings {
@@ -42,6 +43,7 @@ class VsCodeWorkspaceSettings implements WorkspaceSettings {
     public producerFakerJSLocale = DEFAULT_PRODUCER_LOCALE;
     public topicFilters = DEFAULT_TOPIC_FILTER;
     public consumerFilters = DEFAULT_CONSUMER_FILTER;
+    public consumerHeadersPrint = false;
 
     private constructor() {
         this.configurationChangeHandlerDisposable = vscode.workspace.onDidChangeConfiguration(
@@ -65,6 +67,7 @@ class VsCodeWorkspaceSettings implements WorkspaceSettings {
         this.producerFakerJSLocale = configuration.get<string>("producers.fakerjs.locale", DEFAULT_PRODUCER_LOCALE);
         this.topicFilters = configuration.get<string[]>("explorer.topics.filter", DEFAULT_TOPIC_FILTER);
         this.consumerFilters = configuration.get<string[]>("explorer.consumers.filter", DEFAULT_CONSUMER_FILTER);
+        this.consumerHeadersPrint = configuration.get<boolean>("consumers.headers.print", false);
     }
 
     dispose(): void {

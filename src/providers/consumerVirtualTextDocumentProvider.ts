@@ -1,8 +1,10 @@
+import { IHeaders } from "kafkajs";
 import * as vscode from "vscode";
 
 import { ConsumedRecord, Consumer, ConsumerChangedStatusEvent, ConsumerCollection, ConsumerCollectionChangedEvent, ConsumerLaunchState, RecordReceivedEvent } from "../client";
 import { SerializationSetting } from "../client/serialization";
 import { CommonMessages } from "../constants";
+import { getWorkspaceSettings } from "../settings";
 import { ClusterSettings } from "../settings/clusters";
 
 export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentContentProvider, vscode.Disposable {
@@ -124,6 +126,16 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
             return;
         }
         let line = `Key: ${message.key}\nPartition: ${message.partition}\nOffset: ${message.offset}\n`;
+        
+        const headersPrint = getWorkspaceSettings().consumerHeadersPrint;
+        if (headersPrint && message.headers) {
+            const keys = Object.keys(message.headers);
+            const headers = message.headers;
+            line += 'Headers:\n'
+            keys.forEach(key => {
+                line += `  - ${key}: ${headers[key]}\n`;
+            });
+        }
         line = line + `Value:\n${message.value}\n\n`;
         this.updateBuffer(uri, line);
     }

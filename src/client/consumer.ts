@@ -1,4 +1,4 @@
-import { Consumer as KafkaJsConsumer, PartitionAssigner, Assignment, PartitionAssigners, AssignerProtocol, SeekEntry } from "kafkajs";
+import { Consumer as KafkaJsConsumer, PartitionAssigner, Assignment, PartitionAssigners, AssignerProtocol, SeekEntry, IHeaders } from "kafkajs";
 import { URLSearchParams } from "url";
 import * as vscode from "vscode";
 import { ClientAccessor } from ".";
@@ -28,6 +28,12 @@ export interface ConsumedRecord {
     offset?: string;
     partition?: number;
     key?: string | Buffer | SerializationdResult;
+    headers?: IHeaders;
+}
+
+export interface ConsumerHeader {
+    name: string;
+    value: string | Buffer | null | SerializationdResult
 }
 
 export interface ConsumerChangedStatusEvent {
