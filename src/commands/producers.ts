@@ -58,8 +58,8 @@ export class ProduceRecordCommandHandler {
 
             const messages = [...Array(times).keys()].map(() => {
 
-                let messageHeaders: IHeaders = {}
-                headers.forEach((val, idx) => {
+                const messageHeaders: IHeaders = {}
+                headers?.forEach((val, idx) => {
                     messageHeaders[idx] = val;
                 });
                 

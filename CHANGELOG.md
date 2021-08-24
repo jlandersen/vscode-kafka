@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
+## [0.14.0]
+### Added
+- Send and print headers of message. See [#209](https://github.com/jlandersen/vscode-kafka/pull/209)
+
 ## [0.13.0] - 2021-07-27
 ### Added
 - Show cluster state in kafka file. See [#175](https://github.com/jlandersen/vscode-kafka/pull/175).
