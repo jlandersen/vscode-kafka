@@ -134,3 +134,5 @@ You can configure start offset for new consumers in settings (earliest, latest).
 ### `kafka.consumers.headers.print`
 
 You can configure printing headers of message to view in settings (default: false).
+
+![Headers](assets/kafka-consumer-headers.png)

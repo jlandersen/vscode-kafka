@@ -77,7 +77,7 @@
                 "kafka.consumers.headers.print" : {
                     "type": "boolean",
                     "default": "false",
-                    "markdownDescription": "Print headers of message"
+                    "markdownDescription": "Print headers of message. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Consuming%22%2C%22section%22%3A%22kafkaconsumersheadersprint%22%7D%5D)"
                 },
                 "kafka.explorer.topics.sort": {
                     "type": "string",
