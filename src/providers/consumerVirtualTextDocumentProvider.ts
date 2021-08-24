@@ -1,4 +1,3 @@
-import { IHeaders } from "kafkajs";
 import * as vscode from "vscode";
 
 import { ConsumedRecord, Consumer, ConsumerChangedStatusEvent, ConsumerCollection, ConsumerCollectionChangedEvent, ConsumerLaunchState, RecordReceivedEvent } from "../client";
