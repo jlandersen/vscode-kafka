@@ -114,7 +114,7 @@ export class KafkaFileCodeLenses {
         let keyFormatSettings: Array<SerializationSetting> | undefined;
         let valueFormat;
         let valueFormatSettings: Array<SerializationSetting> | undefined;
-        let headers: Map<String, String> = new Map();
+        let headers: Map<String, String> | undefined;
         block.properties.forEach(property => {
             switch (property.propertyName) {
                 case 'topic':
@@ -136,9 +136,7 @@ export class KafkaFileCodeLenses {
                     break;
                 }
                 case 'headers': {
-                    if (property.propertyValue) {
-                        this.parseHeaders(property.propertyValue, headers);
-                    }
+                    headers = this.parseHeaders(property.propertyValue);
                     break;
                 }
             }
@@ -155,7 +153,7 @@ export class KafkaFileCodeLenses {
             headers
         } as ProduceRecordCommand;
     }
-    
+
     private getSerializationSettings(callee: CalleeFunction): SerializationSetting[] | undefined {
         const parameters = callee.parameters;
         if (parameters.length > 0) {
@@ -261,14 +259,17 @@ export class KafkaFileCodeLenses {
         } as LaunchConsumerCommand;
     }
 
-    private parseHeaders(propertyValue: string, headers: Map<String, String>) {
-        propertyValue
-            .split(',')
-            .map(it => it.split('=', 2))
-            .forEach(it => {
-                if (it.length == 2) {
-                    headers.set(it[0].trim(), it[1].trimStart());
-                }
-            });
+    private parseHeaders(propertyValue?: string): Map<string, string> | undefined {
+        if (propertyValue) {
+            const headers = propertyValue
+                .split(',')
+                .map(it => it.trim().split('=', 2))
+                .filter(it => it.length == 2)
+                .map(it => [it[0].trim(), it[1].trim()] as [string, string]);
+
+            return new Map(headers);
+        }
+
+        return undefined;
     }
 }

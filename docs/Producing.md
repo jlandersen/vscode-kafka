@@ -112,7 +112,7 @@ For instance:
 
 PRODUCER keyed-message
 topic: fakerjs-topic
-headers: messageId={{random.uuid}}
+headers: messageId={{random.uuid}}, version={{system.semver}}
 key: dept-{{random.number(5)}}
 {
     "dept":"{{random.number(5)}}",
