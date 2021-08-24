@@ -156,6 +156,10 @@ const producerProperties = [
         description: "The key *[optional]*."
     },
     {
+        name: "headers",
+        description: "The headers of message *[optional]*."
+    },
+    {
         name: "key-format",
         description: `[Serializer](${getDocumentationPageUri('Producing', 'serializer')}) to use for the key *[optional]*.`,
         enum: [

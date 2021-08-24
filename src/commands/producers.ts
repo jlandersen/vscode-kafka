@@ -9,7 +9,7 @@ import { WorkspaceSettings } from "../settings";
 import { pickClient } from "./common";
 import { MessageFormat, SerializationSetting, serialize } from "../client/serialization";
 import { createProducerUri, ProducerCollection, ProducerInfoUri, ProducerLaunchState } from "../client/producer";
-import { ProducerRecord } from "kafkajs";
+import { IHeaders, ProducerRecord } from "kafkajs";
 import { ProducerValidator } from "../validators/producer";
 import { getErrorMessage } from "../errors";
 
@@ -42,7 +42,7 @@ export class ProduceRecordCommandHandler {
         try {
             ProducerValidator.validate(command);
 
-            const { topicId, key, value } = command;
+            const { topicId, key, value, headers } = command;
             const channel = this.channelProvider.getChannel("Kafka Producer Log");
             if (topicId === undefined) {
                 channel.appendLine("No topic");
@@ -57,6 +57,12 @@ export class ProduceRecordCommandHandler {
             }
 
             const messages = [...Array(times).keys()].map(() => {
+
+                let messageHeaders: IHeaders = {}
+                headers.forEach((val, idx) => {
+                    messageHeaders[idx] = val;
+                });
+                
                 if (this.settings.producerFakerJSEnabled) {
                     //Use same seed for key and value so we can generate content like
                     // key: customer-{{random.uuid}} // same value as in id
@@ -66,16 +72,21 @@ export class ProduceRecordCommandHandler {
                     const randomizedKey = (key) ? faker.fake(key) : key;
                     faker.seed(seed);
                     const randomizedValue = faker.fake(value);
+                    if (headers && headers.size > 0) {
+                        Object.keys(messageHeaders).forEach(val => messageHeaders[val] = faker.fake(messageHeaders[val] as string));
+                    }
                     return {
                         key: serialize(randomizedKey, command.messageKeyFormat, command.messageKeyFormatSettings),
-                        value: serialize(randomizedValue, command.messageValueFormat, command.messageValueFormatSettings)
+                        value: serialize(randomizedValue, command.messageValueFormat, command.messageValueFormatSettings),
+                        headers: messageHeaders
                     };
                 }
-
+                
                 // Return key/value message as-is
                 return {
                     key: serialize(key, command.messageKeyFormat, command.messageKeyFormatSettings),
-                    value: serialize(value, command.messageValueFormat, command.messageValueFormatSettings)
+                    value: serialize(value, command.messageValueFormat, command.messageValueFormatSettings),
+                    headers: messageHeaders
                 };
             });
 

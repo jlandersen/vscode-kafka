@@ -185,6 +185,7 @@ export interface ProducerInfoUri {
     topicId?: string;
     key?: string;
     value?: string;
+    headers: Map<string, string>;
 }
 
 const TOPIC_QUERY_PARAMETER = 'topic';

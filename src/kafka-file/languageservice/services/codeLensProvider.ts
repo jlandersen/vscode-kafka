@@ -114,6 +114,7 @@ export class KafkaFileCodeLenses {
         let keyFormatSettings: Array<SerializationSetting> | undefined;
         let valueFormat;
         let valueFormatSettings: Array<SerializationSetting> | undefined;
+        let headers: Map<String, String> = new Map();
         block.properties.forEach(property => {
             switch (property.propertyName) {
                 case 'topic':
@@ -134,6 +135,12 @@ export class KafkaFileCodeLenses {
                     valueFormatSettings = this.getSerializationSettings(callee);
                     break;
                 }
+                case 'headers': {
+                    if (property.propertyValue) {
+                        this.parseHeaders(property.propertyValue, headers);
+                    }
+                    break;
+                }
             }
         });
         return {
@@ -144,10 +151,11 @@ export class KafkaFileCodeLenses {
             messageKeyFormat: keyFormat,
             messageKeyFormatSettings: keyFormatSettings,
             messageValueFormat: valueFormat,
-            messageValueFormatSettings: valueFormatSettings
+            messageValueFormatSettings: valueFormatSettings,
+            headers
         } as ProduceRecordCommand;
     }
-
+    
     private getSerializationSettings(callee: CalleeFunction): SerializationSetting[] | undefined {
         const parameters = callee.parameters;
         if (parameters.length > 0) {
@@ -251,5 +259,16 @@ export class KafkaFileCodeLenses {
             messageKeyFormatSettings: keyFormatSettings,
             messageValueFormatSettings: valueFormatSettings
         } as LaunchConsumerCommand;
+    }
+
+    private parseHeaders(propertyValue: string, headers: Map<String, String>) {
+        propertyValue
+            .split(',')
+            .map(it => it.split('=', 2))
+            .forEach(it => {
+                if (it.length == 2) {
+                    headers.set(it[0].trim(), it[1].trimStart());
+                }
+            });
     }
 }
