@@ -6,6 +6,7 @@ Define simple producers in a [.kafka](KafkaFile.md#kafkafile) file, using the fo
 PRODUCER keyed-message
 topic: my-topic
 key: mykeyq
+headers: header1=value1, header2=value2
 record content
 
 ###
@@ -28,6 +29,7 @@ The `PRODUCER` block defines:
  * `keyed message` which is declared after PRODUCER *[optional]*.
  * `key`: the key *[optional]*.
  * `key-format` : [serializer](#Serializer) to use for the key *[optional]*.
+ * `headers`: the headers of message comma separated list in format `key=value` *[optional]*
  * `value-format` : [serializer](#Serializer) to use for the value *[optional]*.
  
  * the rest of the content is the value until `###`.
@@ -99,7 +101,7 @@ Here is an example of hover on topic:
 
 Record content can be randomized by injecting mustache-like placeholders of [faker.js properties](https://github.com/Marak/faker.js#api-methods), like ``{{name.lastName}}`` or ``{{random.number}}``. Some randomized properties can be localized via the `kafka.producers.fakerjs.locale` setting.
 
-The same seed is used for randomizing the key and the value, so the same randomized content can be injected in both places, as long as the same field is injected first in the message body.
+The same seed is used for randomizing the key, the headers and the value, so the same randomized content can be injected in all places, as long as the same field is injected first in the message body.
 
 For instance:
 
@@ -110,6 +112,7 @@ For instance:
 
 PRODUCER keyed-message
 topic: fakerjs-topic
+headers: messageId={{random.uuid}}
 key: dept-{{random.number(5)}}
 {
     "dept":"{{random.number(5)}}",
