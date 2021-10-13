@@ -73,7 +73,10 @@ export class ProduceRecordCommandHandler {
                     faker.seed(seed);
                     const randomizedValue = faker.fake(value);
                     if (headers && headers.size > 0) {
-                        Object.keys(messageHeaders).forEach(val => messageHeaders[val] = faker.fake(messageHeaders[val] as string));
+                        Object.keys(messageHeaders).forEach(val => {
+                            faker.seed(seed);
+                            messageHeaders[val] = faker.fake(messageHeaders[val] as string);
+                        });
                     }
                     return {
                         key: serialize(randomizedKey, command.messageKeyFormat, command.messageKeyFormatSettings),
