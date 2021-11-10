@@ -81,7 +81,8 @@ suite("Kafka File PRODUCER CodeLens Test Suite", () => {
                         messageValueFormat: undefined,
                         messageValueFormatSettings: undefined,
                         topicId: undefined,
-                        value: undefined
+                        value: undefined,
+                        headers: undefined
                     }  as ProduceRecordCommand,
                     1
                 ]
@@ -98,7 +99,8 @@ suite("Kafka File PRODUCER CodeLens Test Suite", () => {
                         messageValueFormat: undefined,
                         messageValueFormatSettings: undefined,
                         topicId: undefined,
-                        value: undefined
+                        value: undefined,
+                        headers: undefined
                     } as ProduceRecordCommand,
                     10
                 ]
@@ -129,7 +131,8 @@ suite("Kafka File PRODUCER CodeLens Test Suite", () => {
                         messageValueFormat: 'string',
                         messageValueFormatSettings: undefined,
                         topicId: 'abcd',
-                        value: 'ABCD\nEFGH'
+                        value: 'ABCD\nEFGH',
+                        headers: undefined
                     } as ProduceRecordCommand,
                     1
                 ]
@@ -146,7 +149,8 @@ suite("Kafka File PRODUCER CodeLens Test Suite", () => {
                         messageValueFormat: 'string',
                         messageValueFormatSettings: undefined,
                         topicId: 'abcd',
-                        value: 'ABCD\nEFGH'
+                        value: 'ABCD\nEFGH',
+                        headers: undefined
                     } as ProduceRecordCommand,
                     10
                 ]
@@ -185,7 +189,8 @@ suite("Kafka File PRODUCER CodeLens Test Suite", () => {
                         messageValueFormat: 'string',
                         messageValueFormatSettings: [{ value: 'ascii' }],
                         topicId: 'abcd',
-                        value: 'ABCD\nEFGH'
+                        value: 'ABCD\nEFGH',
+                        headers: undefined
                     } as ProduceRecordCommand,
                     1
                 ]
@@ -202,7 +207,8 @@ suite("Kafka File PRODUCER CodeLens Test Suite", () => {
                         messageValueFormat: 'string',
                         messageValueFormatSettings: [{ value: 'ascii' }],
                         topicId: 'abcd',
-                        value: 'ABCD\nEFGH'
+                        value: 'ABCD\nEFGH',
+                        headers: undefined
                     } as ProduceRecordCommand,
                     10
                 ]
