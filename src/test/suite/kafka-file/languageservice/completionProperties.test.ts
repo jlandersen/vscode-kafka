@@ -556,6 +556,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                         range: range(position(1, 0), position(1, 0))
                     },
                     {
+                        label: 'headers', kind: CompletionItemKind.Property,
+                        insertText: 'headers: ${1:headers}',
+                        range: range(position(1, 0), position(1, 0))
+                    },
+                    {
                         label: 'key-format', kind: CompletionItemKind.Property,
                         insertText: 'key-format: ${1|string,double,float,integer,long,short|}',
                         range: range(position(1, 0), position(1, 0))
@@ -584,6 +589,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     {
                         label: 'key', kind: CompletionItemKind.Property,
                         insertText: 'key: ${1:key}',
+                        range: range(position(1, 0), position(1, 1))
+                    },
+                    {
+                        label: 'headers', kind: CompletionItemKind.Property,
+                        insertText: 'headers: ${1:headers}',
                         range: range(position(1, 0), position(1, 1))
                     },
                     {
@@ -617,6 +627,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                         range: range(position(1, 0), position(1, 5))
                     },
                     {
+                        label: 'headers', kind: CompletionItemKind.Property,
+                        insertText: 'headers: ${1:headers}',
+                        range: range(position(1, 0), position(1, 5))
+                    },
+                    {
                         label: 'key-format', kind: CompletionItemKind.Property,
                         insertText: 'key-format: ${1|string,double,float,integer,long,short|}',
                         range: range(position(1, 0), position(1, 5))
@@ -644,6 +659,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     {
                         label: 'key', kind: CompletionItemKind.Property,
                         insertText: 'key: ${1:key}',
+                        range: range(position(1, 0), position(1, 6))
+                    },
+                    {
+                        label: 'headers', kind: CompletionItemKind.Property,
+                        insertText: 'headers: ${1:headers}',
                         range: range(position(1, 0), position(1, 6))
                     },
                     {
@@ -677,6 +697,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                         range: range(position(1, 0), position(1, 6))
                     },
                     {
+                        label: 'headers', kind: CompletionItemKind.Property,
+                        insertText: 'headers: ${1:headers}',
+                        range: range(position(1, 0), position(1, 6))
+                    },
+                    {
                         label: 'key-format', kind: CompletionItemKind.Property,
                         insertText: 'key-format: ${1|string,double,float,integer,long,short|}',
                         range: range(position(1, 0), position(1, 6))
@@ -704,6 +729,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     {
                         label: 'key', kind: CompletionItemKind.Property,
                         insertText: 'key: ${1:key}',
+                        range: range(position(1, 0), position(1, 11))
+                    },
+                    {
+                        label: 'headers', kind: CompletionItemKind.Property,
+                        insertText: 'headers: ${1:headers}',
                         range: range(position(1, 0), position(1, 11))
                     },
                     {
@@ -738,6 +768,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                         insertText: 'key: ${1:key}',
                         range: range(position(2, 0), position(2, 5))
                     },*/
+                    {
+                        label: 'headers', kind: CompletionItemKind.Property,
+                        insertText: 'headers: ${1:headers}',
+                        range: range(position(2, 0), position(2, 5))
+                    },
                     {
                         label: 'key-format', kind: CompletionItemKind.Property,
                         insertText: 'key-format: ${1|string,double,float,integer,long,short|}',

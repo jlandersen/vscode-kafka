@@ -85,8 +85,10 @@ class MementoClusterSettings implements ClusterSettings {
     }
 
     private sortByNameAscending(a: Cluster, b: Cluster): -1 | 0 | 1 {
-        if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
-        if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
+        if (a.name && b.name) {
+            if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
+            if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
+        }
         return 0;
     }
 
