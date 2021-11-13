@@ -83,6 +83,50 @@ suite("Kafka File Parser PRODUCER Test Suite", () => {
             )
         ]);
     });
+    
+    test("PRODUCER with headers parsing", async () => {
+        await assertParseBlock(
+            'PRODUCER header\n' +
+            'topic:abcd\n' +
+            'headers: a, b=c, d=f,h g=, \n' +
+            '{}', [
+            block(BlockType.producer, position(0, 0), position(3, 2),
+                [
+                    {
+                        propertyName: 'topic',
+                        key: {
+                            content: 'topic',
+                            start: position(1, 0),
+                            end: position(1, 5)
+                        },
+                        value: {
+                            content: 'abcd',
+                            start: position(1, 6),
+                            end: position(1, 10)
+                        }
+                    },
+                    {
+                        propertyName: "headers",
+                        key: {
+                            content: "headers",
+                            start: position(2,0),
+                            end: position(2,7)
+                        },
+                        value: {
+                            content: " a, b=c, d=f,h g=, ",
+                            start: position(2,8),
+                            end: position(2,27)
+                        }
+                    }
+                ]
+                , {
+                    content: '{}',
+                    start: position(3, 0),
+                    end: position(4, 0)
+                }
+            )
+        ]);
+    });
 });
 
 suite("Kafka File Parser CONSUMER Test Suite", () => {
@@ -124,5 +168,4 @@ suite("Kafka File Parser CONSUMER Test Suite", () => {
                 ])
         ]);
     });
-
 });
