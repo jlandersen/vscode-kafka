@@ -1,9 +1,13 @@
 # Change Log
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
-## [0.14.0]
+=======
+## [0.14.0] - 2021-11-16
 ### Added
 - Send and print headers of message. See [#209](https://github.com/jlandersen/vscode-kafka/pull/209)
+
+### Changed
+- Cluster Wizard fails loading assets ERR_ABORTED 404. See [#211](https://github.com/jlandersen/vscode-kafka/issues/211).
 
 ## [0.13.0] - 2021-07-27
 ### Added
