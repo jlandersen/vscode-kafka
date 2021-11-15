@@ -4,7 +4,7 @@
     "description": "Interact with Apache Kafka® directly in VS Code",
     "publisher": "jeppeandersen",
     "license": "MIT",
-    "version": "0.13.0",
+    "version": "0.14.0",
     "engines": {
         "vscode": "^1.37.0"
     },
@@ -74,7 +74,7 @@
                     "default": "latest",
                     "markdownDescription": "Initial offset to read from for new consumers. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Consuming%22%2C%22section%22%3A%22kafkaconsumersoffset%22%7D%5D) for more information."
                 },
-                "kafka.consumers.headers.print" : {
+                "kafka.consumers.headers.print": {
                     "type": "boolean",
                     "default": "false",
                     "markdownDescription": "Print headers of message. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Consuming%22%2C%22section%22%3A%22kafkaconsumersheadersprint%22%7D%5D)"
@@ -469,7 +469,7 @@
         "test": "node ./out/test/runTest.js"
     },
     "dependencies": {
-        "@redhat-developer/vscode-wizard": "^0.2.18",
+        "@redhat-developer/vscode-wizard": "^0.2.21",
         "faker": "^5.5.2",
         "fs-extra": "^8.1.0",
         "glob": "^7.1.6",
