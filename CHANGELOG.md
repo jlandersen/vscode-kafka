@@ -2,7 +2,7 @@
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 =======
-## [0.14.0] - 2021-11-16
+## [0.14.0] - 2021-11-17
 ### Added
 - Send and print headers of message. See [#209](https://github.com/jlandersen/vscode-kafka/pull/209)
 
