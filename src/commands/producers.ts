@@ -58,11 +58,11 @@ export class ProduceRecordCommandHandler {
 
             const messages = [...Array(times).keys()].map(() => {
 
-                const messageHeaders: IHeaders = {}
+                const messageHeaders: IHeaders = {};
                 headers?.forEach((val, idx) => {
                     messageHeaders[idx] = val;
                 });
-                
+
                 if (this.settings.producerFakerJSEnabled) {
                     //Use same seed for key and value so we can generate content like
                     // key: customer-{{random.uuid}} // same value as in id
@@ -84,7 +84,7 @@ export class ProduceRecordCommandHandler {
                         headers: messageHeaders
                     };
                 }
-                
+
                 // Return key/value message as-is
                 return {
                     key: serialize(key, command.messageKeyFormat, command.messageKeyFormatSettings),
@@ -144,7 +144,7 @@ async function startProducerWithProgress(producerUri: vscode.Uri, record: Produc
             if (explorer) {
                 explorer.refresh();
             }
-        } catch (error) {
+        } catch (error: any) {
             const finishedOperation = performance.now();
             const elapsed = (finishedOperation - startOperation).toFixed(2);
             channel.appendLine(`Failed to produce record(s) (${elapsed}ms)`);

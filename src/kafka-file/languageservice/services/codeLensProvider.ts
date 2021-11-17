@@ -264,7 +264,7 @@ export class KafkaFileCodeLenses {
             const headers = propertyValue
                 .split(',')
                 .map(it => it.trim().split('=', 2))
-                .filter(it => it.length == 2)
+                .filter(it => it.length === 2)
                 .map(it => [it[0].trim(), it[1].trim()] as [string, string]);
 
             return new Map(headers);

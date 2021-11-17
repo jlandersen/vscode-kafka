@@ -125,12 +125,12 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
             return;
         }
         let line = `Key: ${message.key}\nPartition: ${message.partition}\nOffset: ${message.offset}\n`;
-        
+
         const headersPrint = getWorkspaceSettings().consumerHeadersPrint;
         if (headersPrint && message.headers) {
             const keys = Object.keys(message.headers);
             const headers = message.headers;
-            line += 'Headers:\n'
+            line += 'Headers:\n';
             keys.forEach(key => {
                 line += `  - ${key}: ${headers[key]}\n`;
             });
