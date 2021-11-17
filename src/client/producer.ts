@@ -77,7 +77,7 @@ export class ProducerCollection implements vscode.Disposable {
             this.changeState(producer, ProducerLaunchState.connected);
         }
         catch (e) {
-            this.handleProducerError(producer, e);
+            this.handleProducerError(producer, e as Error);
         }
 
         return producer;
@@ -145,7 +145,7 @@ export class ProducerCollection implements vscode.Disposable {
             this.changeState(producer, ProducerLaunchState.sent);
         }
         catch (e) {
-            this.handleProducerError(producer, e);
+            this.handleProducerError(producer, e as Error);
         }
     }
 
