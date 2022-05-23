@@ -21,8 +21,11 @@ export class InlineCommandActivationCommandHandler {
             return;
         }
         const currentLens = this.languageService.getCodeLenses(document, kafkaFileDocument).find((lens) => lens.range.start.line === currentBlock.start.line);
-        if (currentLens !== undefined) {
-            vscode.commands.executeCommand(currentLens.command!.command, currentLens.command?.arguments![0]);
+        const command = currentLens?.command;
+        const commandArguments = command?.arguments;
+        if (currentLens === undefined || command === undefined || commandArguments === undefined) {
+            return;
         }
+        vscode.commands.executeCommand(command.command, ...commandArguments);
     }
 }
