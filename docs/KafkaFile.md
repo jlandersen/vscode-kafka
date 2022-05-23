@@ -30,3 +30,14 @@ Declare `CONSUMER` blocks  to start/stop consumer groups on a topic, with option
 ![Kafka file / CONSUMER](assets/kafka-file-consumer.png)
 
 See [Consuming messages](Consuming.md#kafka-file) for more information.
+
+## Inline activation
+
+Its possible to trigger the `CONSUMER` and `PRODUCER` blocks without using the mouse.
+
+Use the `vscode-kafka.inline.activate` command to activate the block the cursor is currently in.
+
+
+![Kafka file / inline activation](assets/kafka-inline-activation.png)
+Notice the cursor is inside the red block
+
