@@ -13,6 +13,7 @@ import { ClientAccessor, isVisible, sortTopics, Topic } from "../client";
 import { BrokerConfigs } from "../client/config";
 import { KafkaModelProvider } from "../explorer/models/kafka";
 import { ClusterItem } from "../explorer/models/cluster";
+import { handleErrors, InlineCommandActivationCommandHandler } from "../commands";
 
 class ClusterInfo {
 
@@ -128,6 +129,10 @@ export function startLanguageClient(
 
     // Create the Kafka file language service.
     const languageService = createLanguageService(clusterSettings, clientAccessor, producerCollection, consumerCollection, modelProvider);
+
+    const inlineCommandActivationCommandHandler = new InlineCommandActivationCommandHandler(languageService);
+    context.subscriptions.push(vscode.commands.registerCommand(InlineCommandActivationCommandHandler.commandId,
+    handleErrors(() => inlineCommandActivationCommandHandler.execute())));
 
     const documentSelector = [
         { language: "kafka", scheme: "file" },

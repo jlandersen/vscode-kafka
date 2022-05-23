@@ -211,6 +211,11 @@
         ],
         "commands": [
             {
+                "command": "vscode-kafka.inline.activate",
+                "title": "Inline activate - produce or start/stop consumer",
+                "category": "Kafka"
+            },
+            {
                 "command": "vscode-kafka.open.docs.home",
                 "title": "Open Documentation",
                 "category": "Kafka"
