@@ -132,7 +132,7 @@ export function getLanguageService(producerLaunchStateProvider: ProducerLaunchSt
             if (!clusterId) {
                 return;
             }
-            executeInlineCommand(kafkaFileDocument, clusterId);
+            executeInlineCommand(kafkaFileDocument, clusterId, consumerLaunchStateProvider);
         },
     };
 }

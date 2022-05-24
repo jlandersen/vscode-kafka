@@ -1,18 +1,25 @@
 import * as vscode from "vscode";
-import { ToggleConsumerCommandHandler } from "../../commands/consumers";
+import { ConsumerLaunchState } from "../../client";
+import { StartConsumerCommandHandler, StopConsumerCommandHandler } from "../../commands/consumers";
 import { ProduceRecordCommandHandler } from "../../commands/producers";
-import { KafkaFileDocument } from "./parser/kafkaFileParser";
+import { ConsumerLaunchStateProvider } from "./kafkaFileLanguageService";
+import { KafkaFileDocument, NodeKind } from "./parser/kafkaFileParser";
 import { isConsumerBlock, isProducerBlock } from "./services/common";
 import { createLaunchConsumerCommand } from "./services/consumer";
 import { createProduceRecordCommand } from "./services/producer";
 
-
-export async function executeInlineCommand(kafkaFileDocument: KafkaFileDocument, clusterId: string) {
+export async function executeInlineCommand(kafkaFileDocument: KafkaFileDocument, clusterId: string, consumerLaunchStateProvider: ConsumerLaunchStateProvider) {
     const editor = vscode.window.activeTextEditor;
     const curPos = editor!.selection.active;
-    const node = kafkaFileDocument.findNodeBefore(curPos);
-    if (!node) {
+    let node = kafkaFileDocument.findNodeBefore(curPos);
+    if (node === undefined) {
         return;
+    }
+    if (![NodeKind.producerBlock, NodeKind.consumerBlock].includes(node.kind)) {
+        if (node.parent === undefined) {
+            return;
+        }
+        node = node.parent;
     }
     
     let command: string | undefined;
@@ -22,7 +29,8 @@ export async function executeInlineCommand(kafkaFileDocument: KafkaFileDocument,
         command = ProduceRecordCommandHandler.commandId;
         commandArguments = [createProduceRecordCommand(node, clusterId), 1];
     }else if (isConsumerBlock(node)) {
-        command = ToggleConsumerCommandHandler.commandId;
+        const consumerState = consumerLaunchStateProvider.getConsumerLaunchState(clusterId, node.consumerGroupId!.content);
+        command = consumerState === ConsumerLaunchState.started ? StopConsumerCommandHandler.commandId : StartConsumerCommandHandler.commandId;
         commandArguments = [createLaunchConsumerCommand(node, clusterId)];
     }
 
