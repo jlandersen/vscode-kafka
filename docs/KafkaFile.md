@@ -33,9 +33,9 @@ See [Consuming messages](Consuming.md#kafka-file) for more information.
 
 ## Inline activation
 
-Its possible to trigger the `CONSUMER` and `PRODUCER` blocks without using the mouse.
+Its possible to trigger the `CONSUMER` and `PRODUCER` blocks without clicking on codelens (without using the mouse).
 
-Use the `vscode-kafka.inline.activate` command to activate the block the cursor is currently in.
+Use the `Inline activate - produce or start/stop consumer` command to activate the block the cursor is currently in.
 
 
 ![Kafka file / inline activation](assets/kafka-inline-activation.png)
