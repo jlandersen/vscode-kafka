@@ -130,15 +130,16 @@ export function startLanguageClient(
     // Create the Kafka file language service.
     const languageService = createLanguageService(clusterSettings, clientAccessor, producerCollection, consumerCollection, modelProvider);
 
-    const inlineCommandActivationCommandHandler = new InlineCommandActivationCommandHandler(languageService);
-    context.subscriptions.push(vscode.commands.registerCommand(InlineCommandActivationCommandHandler.commandId,
-    handleErrors(() => inlineCommandActivationCommandHandler.execute())));
-
     const documentSelector = [
         { language: "kafka", scheme: "file" },
         { language: "kafka", scheme: "untitled" },
         { language: "kafka", scheme: "kafka" },
     ];
+
+    // Inline activation
+    const inlineActivationProvider = new InlineCommandActivationCommandHandler(kafkaFileDocuments, languageService);
+    context.subscriptions.push(vscode.commands.registerCommand(InlineCommandActivationCommandHandler.commandId,
+        handleErrors(async () => inlineActivationProvider.execute())));
 
     // Code Lenses
     const codeLensProvider = new KafkaFileCodeLensProvider(kafkaFileDocuments, languageService);
@@ -239,7 +240,7 @@ function createLanguageService(clusterSettings: ClusterSettings, clientAccessor:
     return getLanguageService(producerLaunchStateProvider, consumerLaunchStateProvider, selectedClusterProvider, topicProvider);
 }
 
-class AbstractKafkaFileFeature {
+export class AbstractKafkaFileFeature {
 
     constructor(
         private kafkaFileDocuments: LanguageModelCache<KafkaFileDocument>,
