@@ -4,8 +4,6 @@ import { createProducerUri, ProducerLaunchState } from "../../../client/producer
 import { ProduceRecordCommandHandler, SelectClusterCommandHandler, StartConsumerCommandHandler, StopConsumerCommandHandler } from "../../../commands";
 import { ConsumerLaunchStateProvider, ProducerLaunchStateProvider, SelectedClusterProvider } from "../kafkaFileLanguageService";
 import { Block, BlockType, ConsumerBlock, KafkaFileDocument, ProducerBlock } from "../parser/kafkaFileParser";
-import { createLaunchConsumerCommand } from "./consumer";
-import { createProduceRecordCommand } from "./producer";
 
 /**
  * Kafka file codeLens support.
@@ -60,7 +58,7 @@ export class KafkaFileCodeLenses {
     private createProducerLens(block: ProducerBlock, lineRange: Range, range: Range, clusterName: string | undefined, clusterId: string | undefined, clusterState: ClientState | undefined): CodeLens[] {
         const lenses: CodeLens[] = [];
         if (clusterId) {
-            const produceRecordCommand = createProduceRecordCommand(block, clusterId);
+            const produceRecordCommand = block.createCommand(clusterId);
             const producerUri = createProducerUri(produceRecordCommand);
             const producerState = this.producerLaunchStateProvider.getProducerLaunchState(producerUri);
             switch (producerState) {
@@ -108,7 +106,7 @@ export class KafkaFileCodeLenses {
     }
 
     private createConsumerLens(block: ConsumerBlock, lineRange: Range, range: Range, clusterName: string | undefined, clusterId: string | undefined, clusterState: ClientState | undefined): CodeLens[] {
-        const launchCommand = createLaunchConsumerCommand(block, clusterId);
+        const launchCommand = block.createCommand(clusterId);
         const lenses: CodeLens[] = [];
         if (clusterName) {
             const consumerState = this.consumerLaunchStateProvider.getConsumerLaunchState(launchCommand.clusterId, launchCommand.consumerGroupId);

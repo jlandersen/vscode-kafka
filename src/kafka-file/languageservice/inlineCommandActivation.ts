@@ -3,10 +3,15 @@ import { ConsumerLaunchState } from "../../client";
 import { StartConsumerCommandHandler, StopConsumerCommandHandler } from "../../commands/consumers";
 import { ProduceRecordCommandHandler } from "../../commands/producers";
 import { ConsumerLaunchStateProvider } from "./kafkaFileLanguageService";
-import { KafkaFileDocument, NodeKind } from "./parser/kafkaFileParser";
-import { isConsumerBlock, isProducerBlock } from "./services/common";
-import { createLaunchConsumerCommand } from "./services/consumer";
-import { createProduceRecordCommand } from "./services/producer";
+import { ConsumerBlock, KafkaFileDocument, Node, NodeKind, ProducerBlock } from "./parser/kafkaFileParser";
+
+export function isProducerBlock(node: Node): node is ProducerBlock {
+    return node.kind === NodeKind.producerBlock;
+}
+  
+export function isConsumerBlock(node: Node): node is ConsumerBlock {
+    return node.kind === NodeKind.consumerBlock;
+}
 
 export async function executeInlineCommand(kafkaFileDocument: KafkaFileDocument, clusterId: string, consumerLaunchStateProvider: ConsumerLaunchStateProvider) {
     const editor = vscode.window.activeTextEditor;
@@ -27,11 +32,11 @@ export async function executeInlineCommand(kafkaFileDocument: KafkaFileDocument,
     
     if (isProducerBlock(node)) {
         command = ProduceRecordCommandHandler.commandId;
-        commandArguments = [createProduceRecordCommand(node, clusterId), 1];
+        commandArguments = [node.createCommand(clusterId), 1];
     }else if (isConsumerBlock(node)) {
         const consumerState = consumerLaunchStateProvider.getConsumerLaunchState(clusterId, node.consumerGroupId!.content);
         command = consumerState === ConsumerLaunchState.started ? StopConsumerCommandHandler.commandId : StartConsumerCommandHandler.commandId;
-        commandArguments = [createLaunchConsumerCommand(node, clusterId)];
+        commandArguments = [node.createCommand(clusterId)];
     }
 
     if (command !== undefined && commandArguments !== undefined) {
