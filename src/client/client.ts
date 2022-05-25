@@ -301,7 +301,7 @@ class KafkaJsClient implements Client {
         return producer;
     }
 
-    public async consumer(config?: ConsumerConfig): Promise<Consumer> {
+    public async consumer(config: ConsumerConfig): Promise<Consumer> {
         return (await this.getkafkaClient()).consumer(config);
     }
 
