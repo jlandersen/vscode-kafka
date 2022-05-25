@@ -1,10 +1,9 @@
-import { TextDocument, CodeLens, Range } from "vscode";
+import { CodeLens, Range, TextDocument } from "vscode";
 import { ClientState, ConsumerLaunchState } from "../../../client";
 import { createProducerUri, ProducerLaunchState } from "../../../client/producer";
-import { SerializationSetting } from "../../../client/serialization";
-import { LaunchConsumerCommand, ProduceRecordCommand, ProduceRecordCommandHandler, SelectClusterCommandHandler, StartConsumerCommandHandler, StopConsumerCommandHandler } from "../../../commands";
-import { ProducerLaunchStateProvider, ConsumerLaunchStateProvider, SelectedClusterProvider } from "../kafkaFileLanguageService";
-import { Block, BlockType, ConsumerBlock, KafkaFileDocument, CalleeFunction, ProducerBlock } from "../parser/kafkaFileParser";
+import { ProduceRecordCommandHandler, SelectClusterCommandHandler, StartConsumerCommandHandler, StopConsumerCommandHandler } from "../../../commands";
+import { ConsumerLaunchStateProvider, ProducerLaunchStateProvider, SelectedClusterProvider } from "../kafkaFileLanguageService";
+import { Block, BlockType, ConsumerBlock, KafkaFileDocument, ProducerBlock } from "../parser/kafkaFileParser";
 
 /**
  * Kafka file codeLens support.
@@ -59,7 +58,7 @@ export class KafkaFileCodeLenses {
     private createProducerLens(block: ProducerBlock, lineRange: Range, range: Range, clusterName: string | undefined, clusterId: string | undefined, clusterState: ClientState | undefined): CodeLens[] {
         const lenses: CodeLens[] = [];
         if (clusterId) {
-            const produceRecordCommand = this.createProduceRecordCommand(block, range, clusterId);
+            const produceRecordCommand = block.createCommand(clusterId);
             const producerUri = createProducerUri(produceRecordCommand);
             const producerState = this.producerLaunchStateProvider.getProducerLaunchState(producerUri);
             switch (producerState) {
@@ -106,63 +105,8 @@ export class KafkaFileCodeLenses {
         }
     }
 
-    private createProduceRecordCommand(block: ProducerBlock, range: Range, clusterId: string): ProduceRecordCommand {
-        let topicId;
-        let key;
-        let value = block.value?.content;
-        let keyFormat;
-        let keyFormatSettings: Array<SerializationSetting> | undefined;
-        let valueFormat;
-        let valueFormatSettings: Array<SerializationSetting> | undefined;
-        let headers: Map<String, String> | undefined;
-        block.properties.forEach(property => {
-            switch (property.propertyName) {
-                case 'topic':
-                    topicId = property.propertyValue;
-                    break;
-                case 'key':
-                    key = property.propertyValue;
-                    break;
-                case 'key-format': {
-                    const callee = <CalleeFunction>property.value;
-                    keyFormat = callee.functionName;
-                    keyFormatSettings = this.getSerializationSettings(callee);
-                    break;
-                }
-                case 'value-format': {
-                    const callee = <CalleeFunction>property.value;
-                    valueFormat = callee.functionName;
-                    valueFormatSettings = this.getSerializationSettings(callee);
-                    break;
-                }
-                case 'headers': {
-                    headers = this.parseHeaders(property.propertyValue);
-                    break;
-                }
-            }
-        });
-        return {
-            clusterId,
-            topicId,
-            key,
-            value,
-            messageKeyFormat: keyFormat,
-            messageKeyFormatSettings: keyFormatSettings,
-            messageValueFormat: valueFormat,
-            messageValueFormatSettings: valueFormatSettings,
-            headers
-        } as ProduceRecordCommand;
-    }
-
-    private getSerializationSettings(callee: CalleeFunction): SerializationSetting[] | undefined {
-        const parameters = callee.parameters;
-        if (parameters.length > 0) {
-            return parameters.map(p => { return { value: p.value }; });
-        }
-    }
-
     private createConsumerLens(block: ConsumerBlock, lineRange: Range, range: Range, clusterName: string | undefined, clusterId: string | undefined, clusterState: ClientState | undefined): CodeLens[] {
-        const launchCommand = this.createLaunchConsumerCommand(block, range, clusterId);
+        const launchCommand = block.createCommand(clusterId);
         const lenses: CodeLens[] = [];
         if (clusterName) {
             const consumerState = this.consumerLaunchStateProvider.getConsumerLaunchState(launchCommand.clusterId, launchCommand.consumerGroupId);
@@ -209,67 +153,5 @@ export class KafkaFileCodeLenses {
             default:
                 return 'Stopped';
         }
-    }
-
-    private createLaunchConsumerCommand(block: ConsumerBlock, range: Range, selectedClusterId: string | undefined): LaunchConsumerCommand {
-        let consumerGroupId = block.consumerGroupId?.content;
-        let topicId;
-        let partitions;
-        let offset;
-        let keyFormat;
-        let keyFormatSettings;
-        let valueFormat;
-        let valueFormatSettings;
-        block.properties.forEach(property => {
-            switch (property.propertyName) {
-                case 'topic':
-                    topicId = property.propertyValue;
-                    break;
-                case 'from':
-                    offset = property.propertyValue;
-                    break;
-                case 'partitions':
-                    partitions = property.propertyValue;
-                    break;
-                case 'key-format': {
-                    const callee = <CalleeFunction>property.value;
-                    keyFormat = callee.functionName;
-                    keyFormatSettings = this.getSerializationSettings(callee);
-                    break;
-                }
-                case 'value-format': {
-                    const callee = <CalleeFunction>property.value;
-                    valueFormat = callee.functionName;
-                    valueFormatSettings = this.getSerializationSettings(callee);
-                    break;
-                }
-            }
-        });
-
-        return {
-            clusterId: selectedClusterId,
-            consumerGroupId,
-            topicId: topicId || '',
-            fromOffset: offset,
-            partitions,
-            messageKeyFormat: keyFormat,
-            messageValueFormat: valueFormat,
-            messageKeyFormatSettings: keyFormatSettings,
-            messageValueFormatSettings: valueFormatSettings
-        } as LaunchConsumerCommand;
-    }
-
-    private parseHeaders(propertyValue?: string): Map<string, string> | undefined {
-        if (propertyValue) {
-            const headers = propertyValue
-                .split(',')
-                .map(it => it.trim().split('=', 2))
-                .filter(it => it.length === 2)
-                .map(it => [it[0].trim(), it[1].trim()] as [string, string]);
-
-            return new Map(headers);
-        }
-
-        return undefined;
     }
 }

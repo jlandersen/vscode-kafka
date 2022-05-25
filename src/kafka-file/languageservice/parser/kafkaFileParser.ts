@@ -1,4 +1,7 @@
 import { Position, Range, TextDocument } from "vscode";
+import { SerializationSetting } from "../../../client/serialization";
+import { LaunchConsumerCommand } from "../../../commands/consumers";
+import { ProduceRecordCommand } from "../../../commands/producers";
 import { findFirst } from "../../utils/arrays";
 import { consumerModel, Model, producerModel } from "../model";
 
@@ -218,6 +221,56 @@ export class ProducerBlock extends Block {
         super(start, end, BlockType.producer, producerModel);
     }
 
+    createCommand(
+        clusterId: string
+    ): ProduceRecordCommand {
+        let topicId;
+        let key;
+        let value = this.value?.content;
+        let keyFormat;
+        let keyFormatSettings: Array<SerializationSetting> | undefined;
+        let valueFormat;
+        let valueFormatSettings: Array<SerializationSetting> | undefined;
+        let headers: Map<String, String> | undefined;
+        this.properties.forEach((property) => {
+            switch (property.propertyName) {
+                case "topic":
+                    topicId = property.propertyValue;
+                    break;
+                case "key":
+                    key = property.propertyValue;
+                    break;
+                case "key-format": {
+                    const callee = <CalleeFunction>property.value;
+                    keyFormat = callee.functionName;
+                    keyFormatSettings = getSerializationSettings(callee);
+                    break;
+                }
+                case "value-format": {
+                    const callee = <CalleeFunction>property.value;
+                    valueFormat = callee.functionName;
+                    valueFormatSettings = getSerializationSettings(callee);
+                    break;
+                }
+                case "headers": {
+                    headers = parseHeaders(property.propertyValue);
+                    break;
+                }
+            }
+        });
+        return {
+            clusterId,
+            topicId,
+            key,
+            value,
+            messageKeyFormat: keyFormat,
+            messageKeyFormatSettings: keyFormatSettings,
+            messageValueFormat: valueFormat,
+            messageValueFormatSettings: valueFormatSettings,
+            headers,
+        } as ProduceRecordCommand;
+    }
+
 }
 
 export class ConsumerBlock extends Block {
@@ -226,6 +279,54 @@ export class ConsumerBlock extends Block {
 
     constructor(start: Position, end: Position) {
         super(start, end, BlockType.consumer, consumerModel);
+    }
+
+    createCommand(selectedClusterId: string | undefined): LaunchConsumerCommand {
+        let consumerGroupId = this.consumerGroupId?.content;
+        let topicId;
+        let partitions;
+        let offset;
+        let keyFormat;
+        let keyFormatSettings;
+        let valueFormat;
+        let valueFormatSettings;
+        this.properties.forEach(property => {
+            switch (property.propertyName) {
+                case 'topic':
+                    topicId = property.propertyValue;
+                    break;
+                case 'from':
+                    offset = property.propertyValue;
+                    break;
+                case 'partitions':
+                    partitions = property.propertyValue;
+                    break;
+                case 'key-format': {
+                    const callee = <CalleeFunction>property.value;
+                    keyFormat = callee.functionName;
+                    keyFormatSettings = getSerializationSettings(callee);
+                    break;
+                }
+                case 'value-format': {
+                    const callee = <CalleeFunction>property.value;
+                    valueFormat = callee.functionName;
+                    valueFormatSettings = getSerializationSettings(callee);
+                    break;
+                }
+            }
+        });
+    
+        return {
+            clusterId: selectedClusterId,
+            consumerGroupId,
+            topicId: topicId || '',
+            fromOffset: offset,
+            partitions,
+            messageKeyFormat: keyFormat,
+            messageValueFormat: valueFormat,
+            messageKeyFormatSettings: keyFormatSettings,
+            messageValueFormatSettings: valueFormatSettings
+        } as LaunchConsumerCommand;
     }
 }
 
@@ -682,3 +783,27 @@ function getBestIndexForClosingExpression(edges: ExpressionEdge[], start: number
     return edges.length;
 }
 
+function getSerializationSettings(
+    callee: CalleeFunction
+  ): SerializationSetting[] | undefined {
+    const parameters = callee.parameters;
+    if (parameters.length > 0) {
+        return parameters.map((p) => {
+            return { value: p.value };
+        });
+    }
+}
+
+function parseHeaders(propertyValue?: string): Map<string, string> | undefined {
+    if (propertyValue) {
+        const headers = propertyValue
+            .split(",")
+            .map((it) => it.trim().split("=", 2))
+            .filter((it) => it.length === 2)
+            .map((it) => [it[0].trim(), it[1].trim()] as [string, string]);
+
+        return new Map(headers);
+    }
+
+    return undefined;
+}

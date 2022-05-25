@@ -13,6 +13,7 @@ import { ClientAccessor, isVisible, sortTopics, Topic } from "../client";
 import { BrokerConfigs } from "../client/config";
 import { KafkaModelProvider } from "../explorer/models/kafka";
 import { ClusterItem } from "../explorer/models/cluster";
+import { handleErrors, InlineCommandActivationCommandHandler } from "../commands";
 
 class ClusterInfo {
 
@@ -135,6 +136,11 @@ export function startLanguageClient(
         { language: "kafka", scheme: "kafka" },
     ];
 
+    // Inline activation
+    const inlineActivationProvider = new InlineCommandActivationCommandHandler(kafkaFileDocuments, languageService);
+    context.subscriptions.push(vscode.commands.registerCommand(InlineCommandActivationCommandHandler.commandId,
+        handleErrors(async () => inlineActivationProvider.execute())));
+
     // Code Lenses
     const codeLensProvider = new KafkaFileCodeLensProvider(kafkaFileDocuments, languageService);
     context.subscriptions.push(
@@ -234,7 +240,7 @@ function createLanguageService(clusterSettings: ClusterSettings, clientAccessor:
     return getLanguageService(producerLaunchStateProvider, consumerLaunchStateProvider, selectedClusterProvider, topicProvider);
 }
 
-class AbstractKafkaFileFeature {
+export class AbstractKafkaFileFeature {
 
     constructor(
         private kafkaFileDocuments: LanguageModelCache<KafkaFileDocument>,

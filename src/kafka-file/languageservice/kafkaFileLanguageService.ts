@@ -2,6 +2,7 @@ import { CodeLens, CompletionList, Diagnostic, Hover, Position, TextDocument, Ur
 import { ClientState, ConsumerLaunchState } from "../../client";
 import { BrokerConfigs } from "../../client/config";
 import { ProducerLaunchState } from "../../client/producer";
+import { executeInlineCommand } from "./inlineCommandActivation";
 import { KafkaFileDocument, parseKafkaFile } from "./parser/kafkaFileParser";
 import { KafkaFileCodeLenses } from "./services/codeLensProvider";
 import { KafkaFileCompletion } from "./services/completion";
@@ -96,6 +97,14 @@ export interface LanguageService {
      * @param position the position where the hover was triggered.
      */
     doHover(document: TextDocument, kafkaFileDocument: KafkaFileDocument, position: Position): Promise<Hover | undefined>;
+
+    /**
+     * Executes the currently selected block
+     * 
+     * @param document 
+     * @param kafkaFileDocument 
+     */
+    executeInlineCommand(kafkaFileDocument: KafkaFileDocument): Promise<void>;
 }
 
 /**
@@ -117,7 +126,14 @@ export function getLanguageService(producerLaunchStateProvider: ProducerLaunchSt
         getCodeLenses: codeLenses.getCodeLenses.bind(codeLenses),
         doComplete: completion.doComplete.bind(completion),
         doDiagnostics: diagnostics.doDiagnostics.bind(diagnostics),
-        doHover: hover.doHover.bind(hover)
+        doHover: hover.doHover.bind(hover),
+        executeInlineCommand: async (kafkaFileDocument) => {
+            const { clusterId } = selectedClusterProvider.getSelectedCluster();
+            if (!clusterId) {
+                return;
+            }
+            executeInlineCommand(kafkaFileDocument, clusterId, consumerLaunchStateProvider);
+        },
     };
 }
 

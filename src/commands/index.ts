@@ -21,3 +21,4 @@ export * from "./consumers";
 export * from "./topics";
 export * from "./producers";
 export * from "./cluster";
+export * from "./inlineCommandActivationCommand";
