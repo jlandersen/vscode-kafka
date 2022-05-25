@@ -5,11 +5,11 @@ import { ProduceRecordCommandHandler } from "../../commands/producers";
 import { ConsumerLaunchStateProvider } from "./kafkaFileLanguageService";
 import { ConsumerBlock, KafkaFileDocument, Node, NodeKind, ProducerBlock } from "./parser/kafkaFileParser";
 
-export function isProducerBlock(node: Node): node is ProducerBlock {
+function isProducerBlock(node: Node): node is ProducerBlock {
     return node.kind === NodeKind.producerBlock;
 }
   
-export function isConsumerBlock(node: Node): node is ConsumerBlock {
+function isConsumerBlock(node: Node): node is ConsumerBlock {
     return node.kind === NodeKind.consumerBlock;
 }
 
