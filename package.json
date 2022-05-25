@@ -480,7 +480,7 @@
         "glob": "^7.1.6",
         "handlebars": "^4.7.3",
         "js-yaml": "^3.14.0",
-        "kafkajs": "^1.15.0"
+        "kafkajs": "^2.0.1"
     },
     "devDependencies": {
         "@types/faker": "^5.1.5",
