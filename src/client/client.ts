@@ -86,12 +86,22 @@ export interface ConsumerGroup {
     protocol: string;
     protocolType: string;
     members: ConsumerGroupMember[];
+    offsets: ConsumerGroupOffset[];
 }
 
 export interface ConsumerGroupMember {
     memberId: string;
     clientId: string;
     clientHost: string;
+}
+
+export interface ConsumerGroupOffset {
+    topic: string;
+    partition: number;
+    start: string;
+    end: string;
+    offset: string;
+    lag: string;
 }
 
 export interface Client extends Disposable {
@@ -388,7 +398,26 @@ class KafkaJsClient implements Client {
     }
 
     async getConsumerGroupDetails(groupId: string): Promise<ConsumerGroup> {
-        const describeGroupResponse = await (await this.getkafkaAdminClient()).describeGroups([groupId]);
+        var admin = await this.getkafkaAdminClient();
+        const describeGroupResponse = await admin.describeGroups([groupId]);
+
+        var groupfetchOffsets = await admin.fetchOffsets({ groupId: groupId });
+        var consumerGroupOffsets = new Array<ConsumerGroupOffset>();
+        for (let groupfetchOffset of groupfetchOffsets) {
+            var topicOffsets = await admin.fetchTopicOffsets(groupfetchOffset.topic);
+            for (let topicOffset of topicOffsets) {
+                var groupTopicOffset = groupfetchOffset.partitions.find(p => p.partition === topicOffset.partition);
+                let consumerGroupOffset: ConsumerGroupOffset = {
+                    topic: groupfetchOffset.topic,
+                    partition: topicOffset.partition,
+                    start: topicOffset.low,
+                    end: topicOffset.high,
+                    offset: groupTopicOffset?.offset ?? "",
+                    lag: (parseInt(topicOffset.high || '0') - parseInt(groupTopicOffset?.offset || '0')) as any
+                };
+                consumerGroupOffsets.push(consumerGroupOffset);
+            }
+        }
 
         const consumerGroup: ConsumerGroup = {
             groupId: groupId,
@@ -402,6 +431,7 @@ class KafkaJsClient implements Client {
                     clientHost: m.clientHost,
                 };
             }),
+            offsets: consumerGroupOffsets,
         };
 
         return consumerGroup;
@@ -481,13 +511,13 @@ function createSaslOption(connectionOptions: ConnectionOptions): SASLOptions | u
     }
 }
 
-function createSsl(connectionOptions: ConnectionOptions):  tls.ConnectionOptions | boolean | undefined {
+function createSsl(connectionOptions: ConnectionOptions): tls.ConnectionOptions | boolean | undefined {
     if (connectionOptions.ssl) {
-        const sslOption = <SslOption> connectionOptions.ssl;
+        const sslOption = <SslOption>connectionOptions.ssl;
         if (sslOption) {
-            const ca = sslOption.ca ?  fs.readFileSync(sslOption.ca) : undefined;
-            const key = sslOption.key ?  fs.readFileSync(sslOption.key) : undefined;
-            const cert = sslOption.cert ?  fs.readFileSync(sslOption.cert) : undefined;
+            const ca = sslOption.ca ? fs.readFileSync(sslOption.ca) : undefined;
+            const key = sslOption.key ? fs.readFileSync(sslOption.key) : undefined;
+            const cert = sslOption.cert ? fs.readFileSync(sslOption.cert) : undefined;
             return {
                 ca,
                 key,

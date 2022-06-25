@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import { ConsumerGroupMember } from "../../client";
+import { ConsumerGroupMember, ConsumerGroupOffset } from "../../client";
 import { Icons } from "../../constants";
 import { getWorkspaceSettings } from "../../settings";
 import { NodeBase } from "./nodeBase";
@@ -60,15 +60,27 @@ export class ConsumerGroupItem extends NodeBase {
         const client = this.getParent().getParent().client;
         const groupDetails = await client.getConsumerGroupDetails(this.consumerGroupId);
         const members = groupDetails.members.sort(this.sortByMemberIdAscending);
+        const offsets = groupDetails.offsets.sort(this.sortByTopicAndPartitionAscending);
         return [
             new ConsumerGroupDetailsItem("State", groupDetails.state, this),
             new ConsumerGroupMembersItem(members, this),
+            new ConsumerGroupOffsetsItem(offsets, this),
         ];
     }
 
     private sortByMemberIdAscending(a: ConsumerGroupMember, b: ConsumerGroupMember): -1 | 0 | 1 {
         if (a.memberId.toLowerCase() < b.memberId.toLowerCase()) { return -1; }
         if (a.memberId.toLowerCase() > b.memberId.toLowerCase()) { return 1; }
+        return 0;
+    }
+
+    private sortByTopicAndPartitionAscending(a: ConsumerGroupOffset, b: ConsumerGroupOffset): -1 | 0 | 1 {
+        if (a.topic.toLowerCase() < b.topic.toLowerCase()) { return -1; }
+        if (a.topic.toLowerCase() > b.topic.toLowerCase()) { return 1; }
+        if (a.topic.toLowerCase() === b.topic.toLowerCase()) {
+            if (a.partition < b.partition) { return -1; }
+            if (a.partition > b.partition) { return 1; }
+        }
         return 0;
     }
 
@@ -114,5 +126,31 @@ class ConsumerGroupMemberItem extends NodeBase {
         super(parent);
         this.label = `${member.clientId} (${member.clientHost})`;
         this.description = member.memberId;
+    }
+}
+
+class ConsumerGroupOffsetsItem extends NodeBase {
+    public label = "Offsets";
+    public contextValue = "consumergroupoffsetsitem";
+    public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+
+    constructor(private members: ConsumerGroupOffset[], parent: ConsumerGroupItem) {
+        super(parent);
+    }
+
+    computeChildren(): Promise<NodeBase[]> {
+        const members = this.members.map((member) => (new ConsumerGroupOffsetItem(member, this)));
+        return Promise.resolve(members);
+    }
+}
+
+class ConsumerGroupOffsetItem extends NodeBase {
+    public contextValue = "consumergroupoffsetitem";
+    public collapsibleState = vscode.TreeItemCollapsibleState.None;
+
+    constructor(offset: ConsumerGroupOffset, parent: ConsumerGroupOffsetsItem) {
+        super(parent);
+        this.label = `${offset.topic} (${offset.partition})`;
+        this.description = `start:${offset.start} end:${offset.end} offset:${offset.offset} lag:${offset.lag}`;
     }
 }
