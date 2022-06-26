@@ -398,22 +398,22 @@ class KafkaJsClient implements Client {
     }
 
     async getConsumerGroupDetails(groupId: string): Promise<ConsumerGroup> {
-        var admin = await this.getkafkaAdminClient();
+        const admin = await this.getkafkaAdminClient();
         const describeGroupResponse = await admin.describeGroups([groupId]);
 
-        var groupfetchOffsets = await admin.fetchOffsets({ groupId: groupId });
-        var consumerGroupOffsets = new Array<ConsumerGroupOffset>();
-        for (let groupfetchOffset of groupfetchOffsets) {
-            var topicOffsets = await admin.fetchTopicOffsets(groupfetchOffset.topic);
-            for (let topicOffset of topicOffsets) {
-                var groupTopicOffset = groupfetchOffset.partitions.find(p => p.partition === topicOffset.partition);
+        const groupTopicOffsets = await admin.fetchOffsets({ groupId: groupId });
+        let consumerGroupOffsets = new Array<ConsumerGroupOffset>();
+        for (let groupTopicOffset of groupTopicOffsets) {
+            const topicOffsets = await admin.fetchTopicOffsets(groupTopicOffset.topic);
+            for (let topicPartitionOffset of topicOffsets) {
+                const groupTopicPartitionOffset = groupTopicOffset.partitions.find(p => p.partition === topicPartitionOffset.partition);
                 let consumerGroupOffset: ConsumerGroupOffset = {
-                    topic: groupfetchOffset.topic,
-                    partition: topicOffset.partition,
-                    start: topicOffset.low,
-                    end: topicOffset.high,
-                    offset: groupTopicOffset?.offset ?? "",
-                    lag: (parseInt(topicOffset.high || '0') - parseInt(groupTopicOffset?.offset || '0')) as any
+                    topic: groupTopicOffset.topic,
+                    partition: topicPartitionOffset.partition,
+                    start: topicPartitionOffset.low,
+                    end: topicPartitionOffset.high,
+                    offset: groupTopicPartitionOffset?.offset ?? "",
+                    lag: (parseInt(topicPartitionOffset.high || '0') - parseInt(groupTopicPartitionOffset?.offset || '0')) as any
                 };
                 consumerGroupOffsets.push(consumerGroupOffset);
             }
