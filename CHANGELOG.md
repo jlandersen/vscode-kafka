@@ -2,6 +2,14 @@
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 =======
+## [0.15.0] - 2022-06-28
+### Added
+- Added offset nodes to Consumer Group nodes. See [#225](https://github.com/jlandersen/vscode-kafka/pull/225).
+- Added inline command activation to Produce Record / Start Consumer. See [Doc](https://github.com/jlandersen/vscode-kafka/blob/master/docs/KafkaFile.md#inline-activation), [#220](https://github.com/jlandersen/vscode-kafka/issues/220).
+
+### Changed
+- Updated KafkaJS to 2.0.1 . See [#223](https://github.com/jlandersen/vscode-kafka/pull/223).
+
 ## [0.14.0] - 2021-11-17
 ### Added
 - Send and print headers of message. See [#209](https://github.com/jlandersen/vscode-kafka/pull/209)
