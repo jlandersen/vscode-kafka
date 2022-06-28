@@ -474,7 +474,7 @@
 		"test": "node ./out/test/runTest.js"
 	},
 	"dependencies": {
-		"@redhat-developer/vscode-wizard": "^0.2.21",
+		"@redhat-developer/vscode-wizard": "^0.2.30",
 		"faker": "^5.5.2",
 		"fs-extra": "^8.1.0",
 		"glob": "^7.1.6",
