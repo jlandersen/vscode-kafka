@@ -1,505 +1,505 @@
 {
-    "name": "vscode-kafka",
-    "displayName": "Tools for Apache Kafka®",
-    "description": "Interact with Apache Kafka® directly in VS Code",
-    "publisher": "jeppeandersen",
-    "license": "MIT",
-    "version": "0.14.0",
-    "engines": {
-        "vscode": "^1.37.0"
-    },
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/jlandersen/vscode-kafka"
-    },
-    "icon": "images/icon.png",
-    "galleryBanner": {
-        "color": "#1d1c1c",
-        "theme": "dark"
-    },
-    "categories": [
-        "Other"
-    ],
-    "keywords": [
-        "kafka"
-    ],
-    "activationEvents": [
-        "onCommand:vscode-kafka.open.docs.home",
-        "onCommand:vscode-kafka.open.docs.page",
-        "onCommand:vscode-kafka.api.saveclusters",
-        "onCommand:vscode-kafka.api.deleteclusters",
-        "onCommand:vscode-kafka.explorer.addcluster",
-        "onCommand:vscode-kafka.explorer.selectcluster",
-        "onCommand:vscode-kafka.explorer.editcluster",
-        "onCommand:vscode-kafka.cluster.delete",
-        "onCommand:vscode-kafka.explorer.createtopic",
-        "onCommand:vscode-kafka.explorer.refresh",
-        "onCommand:vscode-kafka.explorer.dumptopicmetadata",
-        "onCommand:vscode-kafka.topic.delete",
-        "onCommand:vscode-kafka.explorer.dumpbrokermetadata",
-        "onCommand:vscode-kafka.explorer.dumpclustermetadata",
-        "onCommand:vscode-kafka.explorer.copylabel",
-        "onCommand:vscode-kafka.explorer.deleteselected",
-        "onCommand:vscode-kafka.consumer.start",
-        "onCommand:vscode-kafka.consumer.stop",
-        "onCommand:vscode-kafka.consumer.list",
-        "onCommand:vscode-kafka.consumer.toggle",
-        "onCommand:vscode-kafka.consumer.clear",
-        "onCommand:vscode-kafa.consumer.deletegroup",
-        "onCommand:vscode-kafka.discover.clusterproviders",
-        "onView:kafkaExplorer",
-        "onLanguage:kafka",
-        "onDebug"
-    ],
-    "main": "./dist/extension",
-    "contributes": {
-        "kafka": {
-            "clusterProviders": [
-                {
-                    "id": "vscode-kafka.manual",
-                    "name": "Configure manually"
-                }
-            ]
-        },
-        "configuration": {
-            "type": "object",
-            "title": "Kafka",
-            "properties": {
-                "kafka.consumers.offset": {
-                    "type": "string",
-                    "enum": [
-                        "earliest",
-                        "latest"
-                    ],
-                    "default": "latest",
-                    "markdownDescription": "Initial offset to read from for new consumers. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Consuming%22%2C%22section%22%3A%22kafkaconsumersoffset%22%7D%5D) for more information."
-                },
-                "kafka.consumers.headers.print": {
-                    "type": "boolean",
-                    "default": "false",
-                    "markdownDescription": "Print headers of message. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Consuming%22%2C%22section%22%3A%22kafkaconsumersheadersprint%22%7D%5D)"
-                },
-                "kafka.explorer.topics.sort": {
-                    "type": "string",
-                    "enum": [
-                        "name",
-                        "partitions"
-                    ],
-                    "default": "name",
-                    "markdownDescription": "Choose sorting for topics in explorer. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Explorer%22%2C%22section%22%3A%22kafkaexplorertopicssort%22%7D%5D) for more information."
-                },
-                "kafka.explorer.topics.filter": {
-                    "type": "array",
-                    "default": [
-                        "__consumer_offsets",
-                        "__transaction_state",
-                        "_schemas",
-                        "__strimzi*"
-                    ],
-                    "markdownDescription": "Glob patterns filtering topics out of the Kafka explorer. `*` matches any string, `?` matches a single character. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Explorer%22%2C%22section%22%3A%22kafkaexplorertopicsfilter%22%7D%5D) for more information."
-                },
-                "kafka.explorer.consumers.filter": {
-                    "type": "array",
-                    "default": [
-                        "strimzi-canary*"
-                    ],
-                    "markdownDescription": "Glob patterns filtering consumer groups out of the Kafka explorer. `*` matches any string, `?` matches a single character. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Explorer%22%2C%22section%22%3A%22kafkaexplorerconsumersfilter%22%7D%5D) for more information."
-                },
-                "kafka.producers.fakerjs.enabled": {
-                    "type": "boolean",
-                    "default": true,
-                    "markdownDescription": "Enable injection of [faker.js](https://github.com/marak/Faker.js/#api-methods)-randomized data in record templates, using the mustache syntax. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Producing%22%2C%22section%22%3A%22kafkaproducersfakerjsenabled%22%7D%5D) for more information."
-                },
-                "kafka.producers.fakerjs.locale": {
-                    "type": "string",
-                    "enum": [
-                        "az",
-                        "ar",
-                        "cz",
-                        "de",
-                        "de_AT",
-                        "de_CH",
-                        "en",
-                        "en_AU",
-                        "en_AU_ocker",
-                        "en_BORK",
-                        "en_CA",
-                        "en_GB",
-                        "en_IE",
-                        "en_IND",
-                        "en_US",
-                        "en_ZA",
-                        "es",
-                        "es_MX",
-                        "fa",
-                        "fi",
-                        "fr",
-                        "fr_CA",
-                        "fr_CH",
-                        "ge",
-                        "id_ID",
-                        "it",
-                        "ja",
-                        "ko",
-                        "nb_NO",
-                        "nep",
-                        "nl",
-                        "nl_BE",
-                        "pl",
-                        "pt_BR",
-                        "pt_PT",
-                        "ro",
-                        "ru",
-                        "sk",
-                        "sv",
-                        "tr",
-                        "uk",
-                        "vi",
-                        "zh_CN",
-                        "zh_TW"
-                    ],
-                    "default": "en",
-                    "markdownDescription": "[experimental] The locale used to generate [faker.js](https://github.com/marak/Faker.js/#api-methods)-randomized data in record templates. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Producing%22%2C%22section%22%3A%22kafkaproducersfakerjslocale%22%7D%5D) for more information."
-                }
-            }
-        },
-        "languages": [
-            {
-                "id": "kafka",
-                "extensions": [
-                    ".kafka"
-                ],
-                "aliases": [
-                    "kafka"
-                ],
-                "configuration": "./language-configuration.json"
-            },
-            {
-                "id": "kafka-consumer",
-                "aliases": [
-                    "Kafka Consumer"
-                ]
-            }
-        ],
-        "grammars": [
-            {
-                "language": "kafka",
-                "scopeName": "source.kafka",
-                "path": "./syntaxes/kafka.tmLanguage.json"
-            },
-            {
-                "language": "kafka-consumer",
-                "scopeName": "source.kafka.consumer",
-                "path": "./syntaxes/kafka-consumer.tmLanguage.json"
-            }
-        ],
-        "snippets": [
-            {
-                "language": "kafka",
-                "path": "./snippets/producers.json"
-            },
-            {
-                "language": "kafka",
-                "path": "./snippets/consumers.json"
-            }
-        ],
-        "jsonValidation": [
-            {
-                "fileMatch": "package.json",
-                "url": "./schemas/package.schema.json"
-            }
-        ],
-        "commands": [
-            {
-                "command": "vscode-kafka.inline.activate",
-                "title": "Inline activate - produce or start/stop consumer",
-                "category": "Kafka"
-            },
-            {
-                "command": "vscode-kafka.open.docs.home",
-                "title": "Open Documentation",
-                "category": "Kafka"
-            },
-            {
-                "command": "vscode-kafka.explorer.addcluster",
-                "title": "Add Cluster",
-                "category": "Kafka",
-                "icon": {
-                    "light": "images/light/add.svg",
-                    "dark": "images/dark/add.svg"
-                }
-            },
-            {
-                "command": "vscode-kafka.explorer.copylabel",
-                "title": "Copy Label",
-                "category": "Kafka"
-            },
-            {
-                "command": "vscode-kafka.explorer.deleteselected",
-                "title": "Delete",
-                "category": "Kafka",
-                "icon": {
-                    "light": "images/light/trashcan.svg",
-                    "dark": "images/dark/trashcan.svg"
-                }
-            },
-            {
-                "command": "vscode-kafka.cluster.delete",
-                "title": "Delete Cluster",
-                "category": "Kafka"
-            },
-            {
-                "command": "vscode-kafka.explorer.refresh",
-                "title": "Refresh",
-                "category": "Kafka",
-                "icon": {
-                    "light": "images/light/refresh.svg",
-                    "dark": "images/dark/refresh.svg"
-                }
-            },
-            {
-                "command": "vscode-kafka.explorer.createtopic",
-                "title": "Create Topic",
-                "category": "Kafka",
-                "icon": {
-                    "light": "images/light/add.svg",
-                    "dark": "images/dark/add.svg"
-                }
-            },
-            {
-                "command": "vscode-kafka.explorer.dumptopicmetadata",
-                "title": "Dump Topic Metadata",
-                "category": "Kafka"
-            },
-            {
-                "command": "vscode-kafka.topic.delete",
-                "title": "Delete Topic",
-                "category": "Kafka"
-            },
-            {
-                "command": "vscode-kafka.explorer.dumpbrokermetadata",
-                "title": "Dump Broker Metadata",
-                "category": "Kafka"
-            },
-            {
-                "command": "vscode-kafka.explorer.dumpclustermetadata",
-                "title": "Dump Cluster Metadata",
-                "category": "Kafka"
-            },
-            {
-                "command": "vscode-kafka.explorer.selectcluster",
-                "title": "Select Cluster",
-                "category": "Kafka"
-            },
-            {
-                "command": "vscode-kafka.explorer.editcluster",
-                "title": "Edit Cluster",
-                "category": "Kafka"
-            },
-            {
-                "command": "vscode-kafka.consumer.start",
-                "title": "Start Consumer (UTF-8 record values)",
-                "category": "Kafka"
-            },
-            {
-                "command": "vscode-kafka.consumer.stop",
-                "title": "Stop Consumer",
-                "category": "Kafka"
-            },
-            {
-                "command": "vscode-kafka.consumer.list",
-                "title": "View Consumers",
-                "category": "Kafka"
-            },
-            {
-                "command": "vscode-kafka.consumer.toggle",
-                "title": "Start/Stop Consumer",
-                "category": "Kafka",
-                "icon": {
-                    "light": "images/light/toggle.svg",
-                    "dark": "images/dark/toggle.svg"
-                }
-            },
-            {
-                "command": "vscode-kafka.consumer.clear",
-                "title": "Clear Consumer View",
-                "category": "Kafka",
-                "icon": {
-                    "light": "images/light/clear-all.svg",
-                    "dark": "images/dark/clear-all.svg"
-                }
-            },
-            {
-                "command": "vscode-kafka.consumer.deletegroup",
-                "title": "Delete Consumer Group",
-                "category": "Kafka"
-            },
-            {
-                "command": "vscode-kafka.discover.clusterproviders",
-                "title": "Discover Cluster Providers",
-                "category": "Kafka",
-                "icon": "$(extensions)"
-            }
-        ],
-        "menus": {
-            "view/title": [
-                {
-                    "command": "vscode-kafka.explorer.refresh",
-                    "when": "view == kafkaExplorer",
-                    "group": "navigation"
-                },
-                {
-                    "command": "vscode-kafka.explorer.addcluster",
-                    "when": "view == kafkaExplorer",
-                    "group": "navigation"
-                },
-                {
-                    "command": "vscode-kafka.discover.clusterproviders",
-                    "when": "view == kafkaExplorer",
-                    "group": "navigation"
-                }
-            ],
-            "view/item/context": [
-                {
-                    "command": "vscode-kafka.explorer.createtopic",
-                    "when": "view == kafkaExplorer && viewItem == topics && !listMultiSelection",
-                    "group": "inline"
-                },
-                {
-                    "command": "vscode-kafka.consumer.start",
-                    "when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
-                    "group": "1_kafka"
-                },
-                {
-                    "command": "vscode-kafka.explorer.dumptopicmetadata",
-                    "when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
-                    "group": "1_kafka"
-                },
-                {
-                    "command": "vscode-kafka.explorer.dumpclustermetadata",
-                    "when": "view == kafkaExplorer && viewItem == broker && !listMultiSelection",
-                    "group": "1_kafka"
-                },
-                {
-                    "command": "vscode-kafka.explorer.dumpbrokermetadata",
-                    "when": "view == kafkaExplorer && viewItem == broker && !listMultiSelection",
-                    "group": "1_kafka"
-                },
-                {
-                    "command": "vscode-kafka.explorer.selectcluster",
-                    "when": "view == kafkaExplorer && viewItem =~ /^cluster.*$/ && !listMultiSelection",
-                    "group": "1_kafka"
-                },
-                {
-                    "command": "vscode-kafka.explorer.editcluster",
-                    "when": "view == kafkaExplorer && viewItem =~ /^cluster$|^selectedCluster$/ && !listMultiSelection",
-                    "group": "1_kafka"
-                },
-                {
-                    "command": "vscode-kafka.explorer.copylabel",
-                    "when": "view == kafkaExplorer",
-                    "group": "2_cutcopypaste"
-                },
-                {
-                    "command": "vscode-kafka.explorer.deleteselected",
-                    "when": "view == kafkaExplorer && viewItem =~ /^cluster.*$|^selectedCluster.*$|^topic$|^consumergroupitem$/ && !listMultiSelection",
-                    "group": "inline"
-                },
-                {
-                    "command": "vscode-kafka.explorer.deleteselected",
-                    "when": "view == kafkaExplorer && viewItem =~ /^cluster.*$|^selectedCluster.*$|^topic$|^consumergroupitem$/ && !listMultiSelection",
-                    "group": "3_modification"
-                }
-            ],
-            "editor/title": [
-                {
-                    "command": "vscode-kafka.consumer.toggle",
-                    "group": "navigation",
-                    "when": "resourceScheme == kafka"
-                },
-                {
-                    "command": "vscode-kafka.consumer.clear",
-                    "group": "navigation",
-                    "when": "resourceScheme == kafka"
-                }
-            ]
-        },
-        "viewsContainers": {
-            "activitybar": [
-                {
-                    "icon": "images/kafka.svg",
-                    "id": "kafkaView",
-                    "title": "Kafka"
-                }
-            ]
-        },
-        "views": {
-            "kafkaView": [
-                {
-                    "id": "kafkaExplorer",
-                    "name": "Explorer"
-                }
-            ]
-        },
-        "viewsWelcome": [
-            {
-                "view": "kafkaExplorer",
-                "contents": "No Kafka clusters found.\n[Add new cluster](command:vscode-kafka.explorer.addcluster)"
-            }
-        ],
-        "keybindings": [
-            {
-                "command": "vscode-kafka.explorer.copylabel",
-                "key": "Ctrl+C",
-                "mac": "Cmd+C",
-                "when": "focusedView == kafkaExplorer"
-            },
-            {
-                "command": "vscode-kafka.explorer.deleteselected",
-                "key": "delete",
-                "mac": "cmd+backspace",
-                "when": "focusedView == kafkaExplorer && !listMultiSelection"
-            }
-        ]
-    },
-    "scripts": {
-        "vscode:prepublish": "npm run package",
-        "compile": "webpack --config ./build/node-extension.webpack.config.js",
-        "watch": "webpack --watch --config ./build/node-extension.webpack.config.js",
-        "package": "webpack --mode production --devtool hidden-source-map --config ./build/node-extension.webpack.config.js",
-        "test-compile": "tsc -p ./",
-        "test-watch": "tsc -watch -p ./",
-        "pretest": "npm run test-compile && npm run lint",
-        "lint": "eslint src --ext ts",
-        "test": "node ./out/test/runTest.js"
-    },
-    "dependencies": {
-        "@redhat-developer/vscode-wizard": "^0.2.21",
-        "faker": "^5.5.2",
-        "fs-extra": "^8.1.0",
-        "glob": "^7.1.6",
-        "handlebars": "^4.7.3",
-        "js-yaml": "^3.14.0",
-        "kafkajs": "^2.0.1"
-    },
-    "devDependencies": {
-        "@types/faker": "^5.1.5",
-        "@types/fs-extra": "^8.0.0",
-        "@types/glob": "^7.1.3",
-        "@types/js-yaml": "^3.12.4",
-        "@types/mocha": "^8.2.2",
-        "@types/node": "^12.11.7",
-        "@types/vscode": "^1.37.0",
-        "@typescript-eslint/eslint-plugin": "^4.9.0",
-        "@typescript-eslint/parser": "^4.9.0",
-        "copy-webpack-plugin": "^9.0.1",
-        "eslint": "^7.15.0",
-        "mocha": "^9.1.3",
-        "ts-loader": "^8.0.11",
-        "typescript": "^4.1.2",
-        "vsce": "^1.88.0",
-        "vscode-test": "^1.4.1",
-        "webpack": "^5.10.0",
-        "webpack-cli": "^4.2.0"
-    }
+	"name": "vscode-kafka",
+	"displayName": "Tools for Apache Kafka®",
+	"description": "Interact with Apache Kafka® directly in VS Code",
+	"publisher": "jeppeandersen",
+	"license": "MIT",
+	"version": "0.15.0",
+	"engines": {
+		"vscode": "^1.37.0"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/jlandersen/vscode-kafka"
+	},
+	"icon": "images/icon.png",
+	"galleryBanner": {
+		"color": "#1d1c1c",
+		"theme": "dark"
+	},
+	"categories": [
+		"Other"
+	],
+	"keywords": [
+		"kafka"
+	],
+	"activationEvents": [
+		"onCommand:vscode-kafka.open.docs.home",
+		"onCommand:vscode-kafka.open.docs.page",
+		"onCommand:vscode-kafka.api.saveclusters",
+		"onCommand:vscode-kafka.api.deleteclusters",
+		"onCommand:vscode-kafka.explorer.addcluster",
+		"onCommand:vscode-kafka.explorer.selectcluster",
+		"onCommand:vscode-kafka.explorer.editcluster",
+		"onCommand:vscode-kafka.cluster.delete",
+		"onCommand:vscode-kafka.explorer.createtopic",
+		"onCommand:vscode-kafka.explorer.refresh",
+		"onCommand:vscode-kafka.explorer.dumptopicmetadata",
+		"onCommand:vscode-kafka.topic.delete",
+		"onCommand:vscode-kafka.explorer.dumpbrokermetadata",
+		"onCommand:vscode-kafka.explorer.dumpclustermetadata",
+		"onCommand:vscode-kafka.explorer.copylabel",
+		"onCommand:vscode-kafka.explorer.deleteselected",
+		"onCommand:vscode-kafka.consumer.start",
+		"onCommand:vscode-kafka.consumer.stop",
+		"onCommand:vscode-kafka.consumer.list",
+		"onCommand:vscode-kafka.consumer.toggle",
+		"onCommand:vscode-kafka.consumer.clear",
+		"onCommand:vscode-kafa.consumer.deletegroup",
+		"onCommand:vscode-kafka.discover.clusterproviders",
+		"onView:kafkaExplorer",
+		"onLanguage:kafka",
+		"onDebug"
+	],
+	"main": "./dist/extension",
+	"contributes": {
+		"kafka": {
+			"clusterProviders": [
+				{
+					"id": "vscode-kafka.manual",
+					"name": "Configure manually"
+				}
+			]
+		},
+		"configuration": {
+			"type": "object",
+			"title": "Kafka",
+			"properties": {
+				"kafka.consumers.offset": {
+					"type": "string",
+					"enum": [
+						"earliest",
+						"latest"
+					],
+					"default": "latest",
+					"markdownDescription": "Initial offset to read from for new consumers. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Consuming%22%2C%22section%22%3A%22kafkaconsumersoffset%22%7D%5D) for more information."
+				},
+				"kafka.consumers.headers.print": {
+					"type": "boolean",
+					"default": "false",
+					"markdownDescription": "Print headers of message. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Consuming%22%2C%22section%22%3A%22kafkaconsumersheadersprint%22%7D%5D)"
+				},
+				"kafka.explorer.topics.sort": {
+					"type": "string",
+					"enum": [
+						"name",
+						"partitions"
+					],
+					"default": "name",
+					"markdownDescription": "Choose sorting for topics in explorer. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Explorer%22%2C%22section%22%3A%22kafkaexplorertopicssort%22%7D%5D) for more information."
+				},
+				"kafka.explorer.topics.filter": {
+					"type": "array",
+					"default": [
+						"__consumer_offsets",
+						"__transaction_state",
+						"_schemas",
+						"__strimzi*"
+					],
+					"markdownDescription": "Glob patterns filtering topics out of the Kafka explorer. `*` matches any string, `?` matches a single character. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Explorer%22%2C%22section%22%3A%22kafkaexplorertopicsfilter%22%7D%5D) for more information."
+				},
+				"kafka.explorer.consumers.filter": {
+					"type": "array",
+					"default": [
+						"strimzi-canary*"
+					],
+					"markdownDescription": "Glob patterns filtering consumer groups out of the Kafka explorer. `*` matches any string, `?` matches a single character. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Explorer%22%2C%22section%22%3A%22kafkaexplorerconsumersfilter%22%7D%5D) for more information."
+				},
+				"kafka.producers.fakerjs.enabled": {
+					"type": "boolean",
+					"default": true,
+					"markdownDescription": "Enable injection of [faker.js](https://github.com/marak/Faker.js/#api-methods)-randomized data in record templates, using the mustache syntax. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Producing%22%2C%22section%22%3A%22kafkaproducersfakerjsenabled%22%7D%5D) for more information."
+				},
+				"kafka.producers.fakerjs.locale": {
+					"type": "string",
+					"enum": [
+						"az",
+						"ar",
+						"cz",
+						"de",
+						"de_AT",
+						"de_CH",
+						"en",
+						"en_AU",
+						"en_AU_ocker",
+						"en_BORK",
+						"en_CA",
+						"en_GB",
+						"en_IE",
+						"en_IND",
+						"en_US",
+						"en_ZA",
+						"es",
+						"es_MX",
+						"fa",
+						"fi",
+						"fr",
+						"fr_CA",
+						"fr_CH",
+						"ge",
+						"id_ID",
+						"it",
+						"ja",
+						"ko",
+						"nb_NO",
+						"nep",
+						"nl",
+						"nl_BE",
+						"pl",
+						"pt_BR",
+						"pt_PT",
+						"ro",
+						"ru",
+						"sk",
+						"sv",
+						"tr",
+						"uk",
+						"vi",
+						"zh_CN",
+						"zh_TW"
+					],
+					"default": "en",
+					"markdownDescription": "[experimental] The locale used to generate [faker.js](https://github.com/marak/Faker.js/#api-methods)-randomized data in record templates. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Producing%22%2C%22section%22%3A%22kafkaproducersfakerjslocale%22%7D%5D) for more information."
+				}
+			}
+		},
+		"languages": [
+			{
+				"id": "kafka",
+				"extensions": [
+					".kafka"
+				],
+				"aliases": [
+					"kafka"
+				],
+				"configuration": "./language-configuration.json"
+			},
+			{
+				"id": "kafka-consumer",
+				"aliases": [
+					"Kafka Consumer"
+				]
+			}
+		],
+		"grammars": [
+			{
+				"language": "kafka",
+				"scopeName": "source.kafka",
+				"path": "./syntaxes/kafka.tmLanguage.json"
+			},
+			{
+				"language": "kafka-consumer",
+				"scopeName": "source.kafka.consumer",
+				"path": "./syntaxes/kafka-consumer.tmLanguage.json"
+			}
+		],
+		"snippets": [
+			{
+				"language": "kafka",
+				"path": "./snippets/producers.json"
+			},
+			{
+				"language": "kafka",
+				"path": "./snippets/consumers.json"
+			}
+		],
+		"jsonValidation": [
+			{
+				"fileMatch": "package.json",
+				"url": "./schemas/package.schema.json"
+			}
+		],
+		"commands": [
+			{
+				"command": "vscode-kafka.inline.activate",
+				"title": "Inline activate - produce or start/stop consumer",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.open.docs.home",
+				"title": "Open Documentation",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.explorer.addcluster",
+				"title": "Add Cluster",
+				"category": "Kafka",
+				"icon": {
+					"light": "images/light/add.svg",
+					"dark": "images/dark/add.svg"
+				}
+			},
+			{
+				"command": "vscode-kafka.explorer.copylabel",
+				"title": "Copy Label",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.explorer.deleteselected",
+				"title": "Delete",
+				"category": "Kafka",
+				"icon": {
+					"light": "images/light/trashcan.svg",
+					"dark": "images/dark/trashcan.svg"
+				}
+			},
+			{
+				"command": "vscode-kafka.cluster.delete",
+				"title": "Delete Cluster",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.explorer.refresh",
+				"title": "Refresh",
+				"category": "Kafka",
+				"icon": {
+					"light": "images/light/refresh.svg",
+					"dark": "images/dark/refresh.svg"
+				}
+			},
+			{
+				"command": "vscode-kafka.explorer.createtopic",
+				"title": "Create Topic",
+				"category": "Kafka",
+				"icon": {
+					"light": "images/light/add.svg",
+					"dark": "images/dark/add.svg"
+				}
+			},
+			{
+				"command": "vscode-kafka.explorer.dumptopicmetadata",
+				"title": "Dump Topic Metadata",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.topic.delete",
+				"title": "Delete Topic",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.explorer.dumpbrokermetadata",
+				"title": "Dump Broker Metadata",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.explorer.dumpclustermetadata",
+				"title": "Dump Cluster Metadata",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.explorer.selectcluster",
+				"title": "Select Cluster",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.explorer.editcluster",
+				"title": "Edit Cluster",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.consumer.start",
+				"title": "Start Consumer (UTF-8 record values)",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.consumer.stop",
+				"title": "Stop Consumer",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.consumer.list",
+				"title": "View Consumers",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.consumer.toggle",
+				"title": "Start/Stop Consumer",
+				"category": "Kafka",
+				"icon": {
+					"light": "images/light/toggle.svg",
+					"dark": "images/dark/toggle.svg"
+				}
+			},
+			{
+				"command": "vscode-kafka.consumer.clear",
+				"title": "Clear Consumer View",
+				"category": "Kafka",
+				"icon": {
+					"light": "images/light/clear-all.svg",
+					"dark": "images/dark/clear-all.svg"
+				}
+			},
+			{
+				"command": "vscode-kafka.consumer.deletegroup",
+				"title": "Delete Consumer Group",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.discover.clusterproviders",
+				"title": "Discover Cluster Providers",
+				"category": "Kafka",
+				"icon": "$(extensions)"
+			}
+		],
+		"menus": {
+			"view/title": [
+				{
+					"command": "vscode-kafka.explorer.refresh",
+					"when": "view == kafkaExplorer",
+					"group": "navigation"
+				},
+				{
+					"command": "vscode-kafka.explorer.addcluster",
+					"when": "view == kafkaExplorer",
+					"group": "navigation"
+				},
+				{
+					"command": "vscode-kafka.discover.clusterproviders",
+					"when": "view == kafkaExplorer",
+					"group": "navigation"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "vscode-kafka.explorer.createtopic",
+					"when": "view == kafkaExplorer && viewItem == topics && !listMultiSelection",
+					"group": "inline"
+				},
+				{
+					"command": "vscode-kafka.consumer.start",
+					"when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
+					"group": "1_kafka"
+				},
+				{
+					"command": "vscode-kafka.explorer.dumptopicmetadata",
+					"when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
+					"group": "1_kafka"
+				},
+				{
+					"command": "vscode-kafka.explorer.dumpclustermetadata",
+					"when": "view == kafkaExplorer && viewItem == broker && !listMultiSelection",
+					"group": "1_kafka"
+				},
+				{
+					"command": "vscode-kafka.explorer.dumpbrokermetadata",
+					"when": "view == kafkaExplorer && viewItem == broker && !listMultiSelection",
+					"group": "1_kafka"
+				},
+				{
+					"command": "vscode-kafka.explorer.selectcluster",
+					"when": "view == kafkaExplorer && viewItem =~ /^cluster.*$/ && !listMultiSelection",
+					"group": "1_kafka"
+				},
+				{
+					"command": "vscode-kafka.explorer.editcluster",
+					"when": "view == kafkaExplorer && viewItem =~ /^cluster$|^selectedCluster$/ && !listMultiSelection",
+					"group": "1_kafka"
+				},
+				{
+					"command": "vscode-kafka.explorer.copylabel",
+					"when": "view == kafkaExplorer",
+					"group": "2_cutcopypaste"
+				},
+				{
+					"command": "vscode-kafka.explorer.deleteselected",
+					"when": "view == kafkaExplorer && viewItem =~ /^cluster.*$|^selectedCluster.*$|^topic$|^consumergroupitem$/ && !listMultiSelection",
+					"group": "inline"
+				},
+				{
+					"command": "vscode-kafka.explorer.deleteselected",
+					"when": "view == kafkaExplorer && viewItem =~ /^cluster.*$|^selectedCluster.*$|^topic$|^consumergroupitem$/ && !listMultiSelection",
+					"group": "3_modification"
+				}
+			],
+			"editor/title": [
+				{
+					"command": "vscode-kafka.consumer.toggle",
+					"group": "navigation",
+					"when": "resourceScheme == kafka"
+				},
+				{
+					"command": "vscode-kafka.consumer.clear",
+					"group": "navigation",
+					"when": "resourceScheme == kafka"
+				}
+			]
+		},
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"icon": "images/kafka.svg",
+					"id": "kafkaView",
+					"title": "Kafka"
+				}
+			]
+		},
+		"views": {
+			"kafkaView": [
+				{
+					"id": "kafkaExplorer",
+					"name": "Explorer"
+				}
+			]
+		},
+		"viewsWelcome": [
+			{
+				"view": "kafkaExplorer",
+				"contents": "No Kafka clusters found.\n[Add new cluster](command:vscode-kafka.explorer.addcluster)"
+			}
+		],
+		"keybindings": [
+			{
+				"command": "vscode-kafka.explorer.copylabel",
+				"key": "Ctrl+C",
+				"mac": "Cmd+C",
+				"when": "focusedView == kafkaExplorer"
+			},
+			{
+				"command": "vscode-kafka.explorer.deleteselected",
+				"key": "delete",
+				"mac": "cmd+backspace",
+				"when": "focusedView == kafkaExplorer && !listMultiSelection"
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run package",
+		"compile": "webpack --config ./build/node-extension.webpack.config.js",
+		"watch": "webpack --watch --config ./build/node-extension.webpack.config.js",
+		"package": "webpack --mode production --devtool hidden-source-map --config ./build/node-extension.webpack.config.js",
+		"test-compile": "tsc -p ./",
+		"test-watch": "tsc -watch -p ./",
+		"pretest": "npm run test-compile && npm run lint",
+		"lint": "eslint src --ext ts",
+		"test": "node ./out/test/runTest.js"
+	},
+	"dependencies": {
+		"@redhat-developer/vscode-wizard": "^0.2.21",
+		"faker": "^5.5.2",
+		"fs-extra": "^8.1.0",
+		"glob": "^7.1.6",
+		"handlebars": "^4.7.3",
+		"js-yaml": "^3.14.0",
+		"kafkajs": "^2.0.1"
+	},
+	"devDependencies": {
+		"@types/faker": "^5.1.5",
+		"@types/fs-extra": "^8.0.0",
+		"@types/glob": "^7.1.3",
+		"@types/js-yaml": "^3.12.4",
+		"@types/mocha": "^8.2.2",
+		"@types/node": "^12.11.7",
+		"@types/vscode": "^1.37.0",
+		"@typescript-eslint/eslint-plugin": "^4.9.0",
+		"@typescript-eslint/parser": "^4.9.0",
+		"copy-webpack-plugin": "^9.0.1",
+		"eslint": "^7.15.0",
+		"mocha": "^9.1.3",
+		"ts-loader": "^8.0.11",
+		"typescript": "^4.1.2",
+		"vsce": "^1.88.0",
+		"vscode-test": "^1.4.1",
+		"webpack": "^5.10.0",
+		"webpack-cli": "^4.2.0"
+	}
 }
