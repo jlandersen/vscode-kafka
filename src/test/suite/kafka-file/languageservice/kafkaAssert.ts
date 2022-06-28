@@ -136,10 +136,10 @@ export async function testCompletion(value: string, expected: CompletionList, pa
         }
         expected.items.forEach((expectedItem, i) => {
             const actualItem = items[i];
-            assert.deepStrictEqual(actualItem?.label, expectedItem.label);
-            assert.deepStrictEqual(actualItem?.kind, expectedItem.kind);
-            assert.deepStrictEqual((<SnippetString>actualItem?.insertText)?.value, expectedItem.insertText);
-            assert.deepStrictEqual(actualItem?.range, expectedItem.range);
+            assert.deepStrictEqual(actualItem?.label, expectedItem.label, "Unexpected label");
+            assert.deepStrictEqual(actualItem?.kind, expectedItem.kind, "Unexpected kind");
+            assert.deepStrictEqual((<SnippetString>actualItem?.insertText)?.value, expectedItem.insertText, "Unexpected insertText");
+            assert.deepStrictEqual(actualItem?.range, expectedItem.range, "Unexpected range");
         });
     }
 }
