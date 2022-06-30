@@ -7,7 +7,7 @@ Contributions are essential for keeping this extension great. We try to keep it 
 ### Installation Prerequisites:
 
   * latest [Visual Studio Code](https://code.visualstudio.com/)
-  * [Node.js](https://nodejs.org/) v4.0.0 or higher
+  * [Node.js](https://nodejs.org/) v14.0.0 or higher
 
 ### Steps
 
