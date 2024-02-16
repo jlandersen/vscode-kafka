@@ -44,6 +44,7 @@ Define simple producers in a [.kafka](https://github.com/jlandersen/vscode-kafka
 PRODUCER keyed-message
 topic: my-topic
 key: mykeyq
+headers: header1=value1, header2=value2
 record content
 
 ###
