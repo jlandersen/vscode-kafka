@@ -34,7 +34,7 @@ export namespace ConsumerValidator {
         try {
             parsePartitions(partitions);
         }
-        catch (e) {
+        catch (e:any) {
             return e.message;
         }
     }

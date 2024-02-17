@@ -203,7 +203,7 @@ class StringDeserializer implements Deserializer {
             return null;
         }
         const encoding = settings?.[0].value;
-        return data.toString(encoding);
+        return data.toString(encoding as BufferEncoding);
     }
 }
 

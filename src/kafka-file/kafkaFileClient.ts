@@ -103,7 +103,7 @@ class DataModelTopicProvider implements TopicProvider {
                     return info;
                 }
             }
-            catch (e) {
+            catch (e:any) {
                 info = new ClusterInfo(e);
                 this.cache.set(clusterId, info);
                 return info;

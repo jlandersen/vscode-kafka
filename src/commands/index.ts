@@ -6,7 +6,7 @@ export const handleErrors = (handler: Handler): ((...args: any[]) => Promise<any
     return async (...args: any[]): Promise<any> => {
         try {
             await handler(...args);
-        } catch (error) {
+        } catch (error:any) {
             if (error.message) {
                 vscode.window.showErrorMessage(error.message);
             } else {
