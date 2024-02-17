@@ -14,8 +14,8 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v1
         with:
-          node-version: 12.x
-      - run: npm install
+          node-version: 14.x
+      - run: npm ci
       - name: Lint
         run: npm run lint
       - name: Build .vsix package

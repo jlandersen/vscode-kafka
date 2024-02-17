@@ -788,11 +788,15 @@ function getSerializationSettings(
   ): SerializationSetting[] | undefined {
     const parameters = callee.parameters;
     if (parameters.length > 0) {
-        return parameters.map((p) => {
-            return { value: p.value };
+        return parameters.filter(p => isBufferEncoding(p.value)).map((p) => {
+            return { value: p.value as BufferEncoding };
         });
     }
 }
+
+function isBufferEncoding(value: string): value is BufferEncoding {
+    return ["ascii" , "utf8" , "utf-8" , "utf16le" , "ucs2" , "ucs-2" , "base64" , "base64url" , "latin1" , "binary" , "hex"].includes(value);
+  }
 
 function parseHeaders(propertyValue?: string): Map<string, string> | undefined {
     if (propertyValue) {

@@ -6,7 +6,7 @@ export class SerializationException extends Error { }
 
 export interface SerializationSetting {
     name?: string;
-    value?: string;
+    value?: BufferEncoding;
 }
 
 // ---------------- Serializers ----------------
