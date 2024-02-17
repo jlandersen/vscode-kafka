@@ -14,10 +14,10 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v1
         with:
-          node-version: 12.x
+          node-version: 20.x
       - run: npm install
       - name: Publish to VSCode Marketplace
-        run: npx vsce publish -p $VSCE_TOKEN
+        run: npx @vscode/vsce publish -p $VSCE_TOKEN
         env:
           VSCE_TOKEN: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
       - name: Publish to Open VSX

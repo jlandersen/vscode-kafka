@@ -81,7 +81,7 @@ export class DeleteTopicCommandHandler {
             await client.deleteTopic({ topics: [topicToDelete.id] });
             this.explorer.refresh();
             vscode.window.showInformationMessage(`Topic '${topicToDelete.id}' deleted successfully`);
-        } catch (error) {
+        } catch (error:any) {
             if (error.message) {
                 vscode.window.showErrorMessage(error.message);
             } else {

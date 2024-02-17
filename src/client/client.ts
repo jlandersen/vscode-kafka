@@ -212,7 +212,7 @@ class EnsureConnectedDecorator implements Client {
             clientAccessor.changeState(this, ClientState.connecting);
             await this.client.connect();
             clientAccessor.changeState(this, ClientState.connected);
-        } catch (error) {
+        } catch (error: any) {
             clientAccessor.changeState(this, ClientState.invalid);
             if (error.message) {
                 throw new Error(`Failed operation - ${error.message}`);

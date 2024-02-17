@@ -253,7 +253,7 @@ export class DeleteConsumerGroupCommandHandler {
             await client.deleteConsumerGroups([consumerGroupToDelete]);
             this.explorer.refresh();
             vscode.window.showInformationMessage(`Consumer group '${consumerGroupToDelete}' deleted successfully`);
-        } catch (error) {
+        } catch (error: any) {
             if (error.message) {
                 vscode.window.showErrorMessage(error.message);
             } else {

@@ -123,7 +123,7 @@ export class KafkaExplorer implements KafkaModelProvider, vscode.Disposable, vsc
         });
     }
 
-    public async copyLabelsToClipboard(nodes: NodeBase[] | undefined): Promise<void> {
+    public async copyLabelsToClipboard(nodes: readonly NodeBase[] | undefined): Promise<void> {
         if (!nodes) {
             //get selected tree items (command was executed via keyboard shortcut)
             nodes = this.tree?.selection;
@@ -141,7 +141,7 @@ export class KafkaExplorer implements KafkaModelProvider, vscode.Disposable, vsc
     }
 
     // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-    public async deleteSelectedItem(item: any, nodes: NodeBase[] | undefined): Promise<any> {
+    public async deleteSelectedItem(item: any, nodes: readonly NodeBase[] | undefined): Promise<any> {
         if (!nodes) {
             if (item instanceof NodeBase) {
                 // case when user click on the Trashcan icon

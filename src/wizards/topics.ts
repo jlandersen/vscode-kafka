@@ -207,7 +207,7 @@ async function setDefaultAndMaxReplicas(clientAccessor: ClientAccessor, state: P
                     }
                 }
             }
-        } catch (e) {
+        } catch (e:any) {
             console.log(`Failed to read replication factor configuration from broker: ${e.message}`);
         }
         if (defaultReplicationFactor < 0) {
