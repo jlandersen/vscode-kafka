@@ -3,6 +3,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [0.17.0] - 2026-01-11
 ### Changed
+- This is a servicing release to address security vulnerabilities in dependencies.
 - **BREAKING**: Minimum VS Code version is now 1.75.0 (was 1.37.0).
 - **BREAKING**: Migrated from abandoned `faker` package to `@faker-js/faker`. Template syntax has changed:
   - `name.*` → `person.*` (e.g., `{{name.firstName}}` → `{{person.firstName}}`)
