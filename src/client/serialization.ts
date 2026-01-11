@@ -202,7 +202,7 @@ class StringDeserializer implements Deserializer {
         if (data === null) {
             return null;
         }
-        const encoding = settings?.[0].value;
+        const encoding = settings?.[0].value as BufferEncoding | undefined;
         return data.toString(encoding);
     }
 }

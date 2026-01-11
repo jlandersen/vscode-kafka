@@ -7,7 +7,7 @@
             "PRODUCER ${1:keyed-message}",
             "topic: ${2:topic_name}",
             "key: ${3:mykeyq}",
-            "${4:{{random.words}}}",
+            "${4:{{lorem.words}}}",
             "",
             "###",
             ""
@@ -23,7 +23,7 @@
             "topic: ${2:topic_name}",
             "key: ${3:mykeyq}",
             "{",
-            "\t\"${4:key}\": \"${5:{{random.number}}}\"",
+            "\t\"${4:key}\": \"${5:{{number.int}}}\"",
             "}",
             "",
             "###",

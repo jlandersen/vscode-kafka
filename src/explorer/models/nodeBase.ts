@@ -4,7 +4,7 @@ export abstract class NodeBase {
     public label?: string;
     public abstract contextValue: string;
     public abstract collapsibleState: vscode.TreeItemCollapsibleState;
-    public iconPath?: string | { light: string | vscode.Uri; dark: string | vscode.Uri };
+    public iconPath?: vscode.Uri | { light: vscode.Uri; dark: vscode.Uri } | vscode.ThemeIcon;
     public description?: string;
     protected children: NodeBase[] | null = null;
 

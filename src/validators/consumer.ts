@@ -35,7 +35,7 @@ export namespace ConsumerValidator {
             parsePartitions(partitions);
         }
         catch (e) {
-            return e.message;
+            return e instanceof Error ? e.message : String(e);
         }
     }
 

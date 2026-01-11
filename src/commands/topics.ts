@@ -82,10 +82,11 @@ export class DeleteTopicCommandHandler {
             this.explorer.refresh();
             vscode.window.showInformationMessage(`Topic '${topicToDelete.id}' deleted successfully`);
         } catch (error) {
-            if (error.message) {
-                vscode.window.showErrorMessage(error.message);
+            const message = error instanceof Error ? error.message : String(error);
+            if (error instanceof Error && error.message) {
+                vscode.window.showErrorMessage(message);
             } else {
-                vscode.window.showErrorMessage(error);
+                vscode.window.showErrorMessage(message);
             }
         }
     }

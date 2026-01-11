@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import * as faker from "faker";
+import { allFakers, Faker } from "@faker-js/faker";
 
 import { performance } from "perf_hooks";
 import { ClientAccessor } from "../client";
@@ -52,9 +52,10 @@ export class ProduceRecordCommandHandler {
                 channel.appendLine("No value");
                 return;
             }
-            if (this.settings.producerFakerJSEnabled) {
-                faker.setLocale(this.settings.producerFakerJSLocale);
-            }
+            // Get the faker instance for the configured locale (defaults to 'en')
+            const faker: Faker = this.settings.producerFakerJSEnabled
+                ? (allFakers[this.settings.producerFakerJSLocale as keyof typeof allFakers] ?? allFakers.en)
+                : allFakers.en;
 
             const messages = [...Array(times).keys()].map(() => {
 
@@ -65,17 +66,17 @@ export class ProduceRecordCommandHandler {
 
                 if (this.settings.producerFakerJSEnabled) {
                     //Use same seed for key and value so we can generate content like
-                    // key: customer-{{random.uuid}} // same value as in id
-                    // {"id": "{{random.uuid}}"}  // same value as in key
+                    // key: customer-{{string.uuid}} // same value as in id
+                    // {"id": "{{string.uuid}}"}  // same value as in key
                     const seed = Math.floor(Math.random() * 1000000);
                     faker.seed(seed);
-                    const randomizedKey = (key) ? faker.fake(key) : key;
+                    const randomizedKey = (key) ? faker.helpers.fake(key) : key;
                     faker.seed(seed);
-                    const randomizedValue = faker.fake(value);
+                    const randomizedValue = faker.helpers.fake(value);
                     if (headers && headers.size > 0) {
                         Object.keys(messageHeaders).forEach(val => {
                             faker.seed(seed);
-                            messageHeaders[val] = faker.fake(messageHeaders[val] as string);
+                            messageHeaders[val] = faker.helpers.fake(messageHeaders[val] as string);
                         });
                     }
                     return {

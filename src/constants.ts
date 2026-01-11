@@ -6,17 +6,17 @@ import { Context } from "./context";
 export const imagesPath = "images";
 export const INPUT_TITLE = 'Kafka Tools';
 
-type DarkLightPath = { light: string; dark: string};
+type DarkLightPath = { light: vscode.Uri; dark: vscode.Uri };
 
 const getDarkLightPath = (fileName: string): DarkLightPath => {
     return {
-        light: Context.current.asAbsolutePath(path.join(imagesPath, "light", fileName)),
-        dark: Context.current.asAbsolutePath(path.join(imagesPath, "dark", fileName)),
+        light: vscode.Uri.file(Context.current.asAbsolutePath(path.join(imagesPath, "light", fileName))),
+        dark: vscode.Uri.file(Context.current.asAbsolutePath(path.join(imagesPath, "dark", fileName))),
     };
 };
 
-const getIconPath = (fileName: string): string => {
-    return Context.current.asAbsolutePath(path.join(imagesPath, fileName));
+const getIconPath = (fileName: string): vscode.Uri => {
+    return vscode.Uri.file(Context.current.asAbsolutePath(path.join(imagesPath, fileName)));
 };
 
 export class Icons {
@@ -40,7 +40,7 @@ export class Icons {
         return getDarkLightPath("trashcan.svg");
     }
 
-    public static get Warning(): string {
+    public static get Warning(): vscode.Uri {
         return getIconPath("warning.svg");
     }
 

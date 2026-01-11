@@ -32,8 +32,8 @@ suite("Kafka File PRODUCER FakerJS Completion Test Suite", () => {
             , {
                 items: [
                     {
-                        label: 'address.zipCode', kind: CompletionItemKind.Variable,
-                        insertText: 'address.zipCode',
+                        label: 'airline.aircraftType', kind: CompletionItemKind.Variable,
+                        insertText: 'airline.aircraftType',
                         range: range(position(1, 7), position(1, 7))
                     }
                 ]
@@ -47,8 +47,8 @@ suite("Kafka File PRODUCER FakerJS Completion Test Suite", () => {
             , {
                 items: [
                     {
-                        label: 'address.zipCode', kind: CompletionItemKind.Variable,
-                        insertText: 'address.zipCode',
+                        label: 'airline.aircraftType', kind: CompletionItemKind.Variable,
+                        insertText: 'airline.aircraftType',
                         range: range(position(1, 2), position(1, 2))
                     }
                 ]
@@ -63,8 +63,8 @@ suite("Kafka File PRODUCER FakerJS Completion Test Suite", () => {
             , {
                 items: [
                     {
-                        label: 'address.zipCode', kind: CompletionItemKind.Variable,
-                        insertText: 'address.zipCode',
+                        label: 'airline.aircraftType', kind: CompletionItemKind.Variable,
+                        insertText: 'airline.aircraftType',
                         range: range(position(2, 2), position(2, 2))
                     }
                 ]
@@ -79,8 +79,8 @@ suite("Kafka File PRODUCER FakerJS Completion Test Suite", () => {
             , {
                 items: [
                     {
-                        label: 'address.zipCode', kind: CompletionItemKind.Variable,
-                        insertText: 'address.zipCode',
+                        label: 'airline.aircraftType', kind: CompletionItemKind.Variable,
+                        insertText: 'airline.aircraftType',
                         range: range(position(2, 2), position(2, 10))
                     }
                 ]
@@ -97,8 +97,8 @@ suite("Kafka File PRODUCER bad expression FakerJS Completion Test Suite", () => 
             , {
                 items: [
                     {
-                        label: 'address.zipCode', kind: CompletionItemKind.Variable,
-                        insertText: 'address.zipCode',
+                        label: 'airline.aircraftType', kind: CompletionItemKind.Variable,
+                        insertText: 'airline.aircraftType',
                         range: range(position(1, 7), position(1, 7))
                     }
                 ]

@@ -104,7 +104,7 @@ class DataModelTopicProvider implements TopicProvider {
                 }
             }
             catch (e) {
-                info = new ClusterInfo(e);
+                info = new ClusterInfo(undefined, e);
                 this.cache.set(clusterId, info);
                 return info;
             }

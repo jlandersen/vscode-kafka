@@ -198,17 +198,18 @@ async function setDefaultAndMaxReplicas(clientAccessor: ClientAccessor, state: P
             for (let i = 0; i < brokers.length && defaultReplicationFactor < 0; i++) {
                 const configs = await client.getBrokerConfigs(brokers[i].id);
                 let config = configs.find(ce => ce.configName === BrokerConfigs.OFFSETS_TOPIC_REPLICATION_FACTOR);
-                if (config) {
+                if (config && config.configValue !== null) {
                     defaultReplicationFactor = parseInt(config.configValue, 10);
                 } else {
                     config = configs.find(ce => ce.configName === BrokerConfigs.DEFAULT_REPLICATION_FACTOR);
-                    if (config) {
+                    if (config && config.configValue !== null) {
                         defaultReplicationFactor = parseInt(config.configValue, 10);
                     }
                 }
             }
         } catch (e) {
-            console.log(`Failed to read replication factor configuration from broker: ${e.message}`);
+            const message = e instanceof Error ? e.message : String(e);
+            console.log(`Failed to read replication factor configuration from broker: ${message}`);
         }
         if (defaultReplicationFactor < 0) {
             defaultReplicationFactor = Math.min(3, maxReplicas);

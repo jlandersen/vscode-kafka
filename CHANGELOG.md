@@ -1,7 +1,41 @@
 # Change Log
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
-=======
+## [0.17.0] - 2026-01-11
+### Changed
+- **BREAKING**: Minimum VS Code version is now 1.75.0 (was 1.37.0).
+- **BREAKING**: Migrated from abandoned `faker` package to `@faker-js/faker`. Template syntax has changed:
+  - `name.*` → `person.*` (e.g., `{{name.firstName}}` → `{{person.firstName}}`)
+  - `address.*` → `location.*` (e.g., `{{address.city}}` → `{{location.city}}`)
+  - `random.uuid` → `string.uuid`
+  - `random.number` → `number.int`
+  - `random.float` → `number.float`
+  - `phone.phoneNumber` → `phone.number`
+  - `company.companyName` → `company.name`
+  - See [@faker-js/faker migration guide](https://fakerjs.dev/guide/upgrading.html) for full details.
+- Updated all dependencies to latest versions for security and compatibility.
+- Updated CI to use Node.js 18.x (was 12.x).
+- Updated GitHub Actions to latest versions.
+- Simplified activationEvents (VS Code 1.74+ auto-generates most events).
+- Removed deprecated locale codes and added new ones for faker.js.
+
+### Fixed
+- Security vulnerabilities in json5, qs, loader-utils, and terser dependencies.
+- Typo in activationEvents (`vscode-kafa` → `vscode-kafka`).
+- Fixed "invalid tree item" error when viewing broker/topic configs with null values.
+- Fixed icon paths to use proper VS Code Uri format for tree items.
+
+### Development
+- Updated TypeScript to 5.x.
+- Updated ESLint to 8.x.
+- Migrated from `vscode-test` to `@vscode/test-electron`.
+- Migrated from `vsce` to `@vscode/vsce`.
+- Updated glob to 10.x with new async API.
+
+## [0.16.0] - 2022-06-28
+### Added
+- Added consumers filter. See [#226](https://github.com/jlandersen/vscode-kafka/pull/226).
+
 ## [0.15.0] - 2022-06-28
 ### Added
 - Added offset nodes to Consumer Group nodes. See [#225](https://github.com/jlandersen/vscode-kafka/pull/225).

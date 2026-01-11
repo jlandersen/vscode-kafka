@@ -52,7 +52,7 @@ record content
 PRODUCER non-keyed-json-message
 topic: json-events
 {
-    "type": "my_test_event-{{random.number}}"
+    "type": "my_test_event-{{number.int}}"
 }
 ```
 

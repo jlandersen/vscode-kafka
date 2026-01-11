@@ -66,7 +66,7 @@ export interface TopicPartition {
 
 export interface ConfigEntry {
     configName: string;
-    configValue: string;
+    configValue: string | null;
 }
 
 export interface CreateTopicRequest {
@@ -214,8 +214,9 @@ class EnsureConnectedDecorator implements Client {
             clientAccessor.changeState(this, ClientState.connected);
         } catch (error) {
             clientAccessor.changeState(this, ClientState.invalid);
-            if (error.message) {
-                throw new Error(`Failed operation - ${error.message}`);
+            const message = error instanceof Error ? error.message : undefined;
+            if (message) {
+                throw new Error(`Failed operation - ${message}`);
             } else {
                 throw new Error(`Failed operation`);
             }

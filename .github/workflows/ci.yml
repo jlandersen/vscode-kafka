@@ -10,11 +10,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Install Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v4
         with:
-          node-version: 12.x
+          node-version: 18.x
       - run: npm install
       - name: Lint
         run: npm run lint
@@ -25,16 +25,14 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          npx vsce package -o vscode-kafka-${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_NUMBER}.vsix
+          npx @vscode/vsce package -o vscode-kafka-${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_NUMBER}.vsix
       - name: Run tests
-        uses: GabrielBB/xvfb-action@v1.0
+        uses: coactions/setup-xvfb@v1
         with:
           run: npm test
       - name: Upload linux-built vsix
         if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: vscode-kafka
           path: vscode-kafka*.vsix
-
-

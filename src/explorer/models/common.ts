@@ -62,7 +62,8 @@ class ConfigEntryItem extends NodeBase {
     constructor(configEntry: ConfigEntry, parent: NodeBase) {
         super(parent);
         this.label = configEntry.configName;
-        this.description = configEntry.configValue;
+        // configValue may be null for sensitive configs, but TreeItem.description must be string | undefined
+        this.description = configEntry.configValue ?? undefined;
     }
 
     public toString(): string {

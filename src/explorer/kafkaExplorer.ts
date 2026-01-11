@@ -126,7 +126,7 @@ export class KafkaExplorer implements KafkaModelProvider, vscode.Disposable, vsc
     public async copyLabelsToClipboard(nodes: NodeBase[] | undefined): Promise<void> {
         if (!nodes) {
             //get selected tree items (command was executed via keyboard shortcut)
-            nodes = this.tree?.selection;
+            nodes = this.tree?.selection ? [...this.tree.selection] : undefined;
         }
         if (nodes && nodes.length > 0) {
             let output = '';
@@ -148,7 +148,7 @@ export class KafkaExplorer implements KafkaModelProvider, vscode.Disposable, vsc
                 nodes = [item];
             } else {
                 // get selected tree items (command was executed via keyboard shortcut)
-                nodes = this.tree?.selection;
+                nodes = this.tree?.selection ? [...this.tree.selection] : undefined;
             }
         }
         if (nodes && nodes.length > 0) {
