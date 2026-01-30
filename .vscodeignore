@@ -1,17 +1,48 @@
+# IDE and test directories
 .vscode/**
 .vscode-test/**
-out/test/**
+
+# Source files
 src/**
-.gitignore
-vsc-extension-quickstart.md
+out/test/**
+**/*.ts
+**/*.map
+
+# Build configuration
+build/**
+webpack.config.js
+**/*.webpack.config.js
 **/tsconfig.json
 **/tslint.json
 **/.eslintrc.json
-**/*.map
-**/*.ts
-assets/**
-out/
-src/
-webpack.config.js
+.editorconfig
 
+# Documentation
+docs/**
+CONTRIBUTING.md
+CHANGELOG.md
+vsc-extension-quickstart.md
+
+# Git
+.git
+.gitignore
+.github/**
+
+# Dependencies
 node_modules
+
+# Lock files
+package-lock.json
+yarn.lock
+
+# Development/Docker
+docker-compose.yml
+pages/**
+
+# Logs and cache
+*.log
+.eslintcache
+.DS_Store
+
+# Assets (if not needed in package)
+assets/**
