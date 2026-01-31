@@ -16,7 +16,7 @@ export class TopicGroupItem extends NodeBase {
     }
 
     public async computeChildren(): Promise<NodeBase[]> {
-        const client = this.getParent().client;
+        const client = await this.getParent().getClient();
         const allTopics = await client.getTopics();
         //Filter topics before sorting them
         let visibleTopics = allTopics.filter(t => isVisible(t));
@@ -47,7 +47,7 @@ export class TopicItem extends NodeBase {
     }
 
     async computeChildren(): Promise<NodeBase[]> {
-        const client = this.getParent().getParent().client;
+        const client = await this.getParent().getParent().getClient();
         const configNode = new ConfigsItem(() => client.getTopicConfigs(this.topic.id), this);
         const partitionNodes = Object.keys(this.topic.partitions).map((partition) => {
             return new TopicPartitionItem(this.topic.partitions[partition], this);

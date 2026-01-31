@@ -26,7 +26,7 @@ export class Producer implements vscode.Disposable {
 
     async start(): Promise<void> {
         const [clusterId] = this.uri.path.split("/");
-        const client = this.clientAccessor.get(clusterId);
+        const client = await this.clientAccessor.get(clusterId);
         this.producer = await client.producer();
         await this.producer.connect();
     }

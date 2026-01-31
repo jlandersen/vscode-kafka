@@ -30,9 +30,9 @@ export class ClientAccessor implements Disposable {
         this.clusterSettings = clusterSettings;
     }
 
-    public get(clusterId: string): Client {
+    public async get(clusterId: string): Promise<Client> {
         if (!this.has(clusterId)) {
-            const cluster = this.clusterSettings.get(clusterId);
+            const cluster = await this.clusterSettings.getWithCredentials(clusterId);
 
             if (!cluster) {
                 throw new Error("Unknown cluster when attempting to create client");
@@ -48,11 +48,11 @@ export class ClientAccessor implements Disposable {
         return this.clientsById.hasOwnProperty(clusterId);
     }
 
-    public getState(clusterId: string): ClientState {
+    public async getState(clusterId: string): Promise<ClientState> {
         if (!this.has(clusterId)) {
             return ClientState.disconnected;
         }
-        const client = this.get(clusterId);
+        const client = await this.get(clusterId);
         return client.state;
     }
 
@@ -63,42 +63,43 @@ export class ClientAccessor implements Disposable {
         });
     }
 
-    public getSelectedClusterClient(): Client | undefined {
+    public async getSelectedClusterClient(): Promise<Client | undefined> {
         const selectedCluster = this.clusterSettings.selected;
 
         if (!selectedCluster) {
             return undefined;
         }
 
-        return this.get(selectedCluster.id);
+        return await this.get(selectedCluster.id);
     }
 
-    public remove(clusterId: string): void {
+    public async remove(clusterId: string): Promise<void> {
         if (!this.has(clusterId)) {
             return;
         }
 
-        const client = this.get(clusterId);
+        const client = await this.get(clusterId);
         this.changeState(client, ClientState.disconnecting);
         client.dispose();
         this.changeState(client, ClientState.disconnected);
         delete this.clientsById[clusterId];
     }
 
-    public dispose(clusterProviderIds?: string[]): void {
+    public async dispose(clusterProviderIds?: string[]): Promise<void> {
         for (const clusterId of Object.keys(this.clientsById)) {
-            if (this.shouldBeDisposed(clusterId, clusterProviderIds)) {
-                this.remove(clusterId);
+            if (await this.shouldBeDisposed(clusterId, clusterProviderIds)) {
+                await this.remove(clusterId);
             }
         }
     }
 
-    private shouldBeDisposed(clusterId: string, clusterProviderIds?: string[] | undefined): boolean {
+    private async shouldBeDisposed(clusterId: string, clusterProviderIds?: string[] | undefined): Promise<boolean> {
         if (!clusterProviderIds) {
             return true;
         }
         if (this.has(clusterId)) {
-            const clusterProviderId = this.get(clusterId).cluster.clusterProviderId;
+            const client = await this.get(clusterId);
+            const clusterProviderId = client.cluster.clusterProviderId;
             if (!clusterProviderId) {
                 return true;
             }

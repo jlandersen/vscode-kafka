@@ -9,9 +9,9 @@ export async function pickClient(clientAccessor: ClientAccessor, clusterId?: str
     let client: Client | undefined = undefined;
 
     if (clusterId) {
-        client = clientAccessor.get(clusterId);
+        client = await clientAccessor.get(clusterId);
     } else {
-        client = clientAccessor.getSelectedClusterClient();
+        client = await clientAccessor.getSelectedClusterClient();
     }
 
     if (!client) {

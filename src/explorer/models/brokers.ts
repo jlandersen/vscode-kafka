@@ -16,7 +16,7 @@ export class BrokerGroupItem extends NodeBase {
     }
 
     public async computeChildren(): Promise<NodeBase[]> {
-        const client = this.getParent().client;
+        const client = await this.getParent().getClient();
         const brokers = (await client.getBrokers())
             .sort(this.sortByNameAscending);
         return brokers.map((broker) => {
@@ -49,8 +49,8 @@ export class BrokerItem extends NodeBase {
         this.iconPath = Icons.Server;
     }
 
-    computeChildren(): Promise<NodeBase[]> {
-        const client = this.getParent().getParent().client;
+    async computeChildren(): Promise<NodeBase[]> {
+        const client = await this.getParent().getParent().getClient();
         const configNode = new ConfigsItem(() => client.getBrokerConfigs(this.broker.id), this);
         return Promise.resolve([configNode]);
     }

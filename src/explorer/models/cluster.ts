@@ -22,8 +22,8 @@ export class ClusterItem extends NodeBase implements Disposable {
         this.description = cluster.bootstrap;
     }
 
-    public get client(): Client {
-        return this.clientAccessor.get(this.cluster.id);
+    public async getClient(): Promise<Client> {
+        return await this.clientAccessor.get(this.cluster.id);
     }
 
     async computeChildren(): Promise<NodeBase[]> {

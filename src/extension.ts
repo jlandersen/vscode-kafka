@@ -27,6 +27,7 @@ import {
     ToggleConsumerCommandHandler
 } from "./commands";
 import { Context } from "./context";
+import { SecretsStorage } from "./settings/secretsStorage";
 import { markdownPreviewProvider } from "./docs/markdownPreviewProvider";
 import { BrokerItem, KafkaExplorer, TopicItem } from "./explorer";
 import { ClusterItem } from "./explorer/models/cluster";
@@ -43,6 +44,12 @@ import { SelectedClusterStatusBarItem } from "./views/selectedClusterStatusBarIt
 
 export function activate(context: vscode.ExtensionContext): KafkaExtensionParticipant {
     Context.register(context);
+    
+    // Initialize SecretsStorage for secure credential storage
+    // Falls back to globalState if SecretStorage API is not available (e.g., in Eclipse Theia)
+    // Check for secrets API at runtime since some environments don't support it
+    const secrets = (context as any).secrets as vscode.SecretStorage | undefined;
+    SecretsStorage.initialize(secrets, context.globalState);
 
     // Settings, data etc.
     const workspaceSettings = getWorkspaceSettings();

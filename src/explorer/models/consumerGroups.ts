@@ -17,7 +17,7 @@ export class ConsumerGroupsItem extends NodeBase {
     }
 
     async computeChildren(): Promise<NodeBase[]> {
-        const client = this.getParent().client;
+        const client = await this.getParent().getClient();
         const settings = getWorkspaceSettings();
         const consumerGroupIds = (await client.getConsumerGroupIds())
             .filter(cg => this.isDisplayed(cg, settings.consumerFilters))
@@ -57,7 +57,7 @@ export class ConsumerGroupItem extends NodeBase {
     }
 
     async computeChildren(): Promise<NodeBase[]> {
-        const client = this.getParent().getParent().client;
+        const client = await this.getParent().getParent().getClient();
         const groupDetails = await client.getConsumerGroupDetails(this.consumerGroupId);
         const members = groupDetails.members.sort(this.sortByMemberIdAscending);
         const offsets = groupDetails.offsets.sort(this.sortByTopicAndPartitionAscending);

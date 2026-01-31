@@ -41,7 +41,8 @@ class ClusterInfo {
 
     private async loadTopics(): Promise<Topic[]> {
         if (this.cluster) {
-            return await this.cluster.client.getTopics();
+            const client = await this.cluster.getClient();
+            return await client.getTopics();
         }
         return [];
     }
@@ -62,7 +63,8 @@ class ClusterInfo {
 
     private async loadAutoCreateTopicEnabled(): Promise<BrokerConfigs.AutoCreateTopicResult> {
         if (this.cluster) {
-            return await BrokerConfigs.getAutoCreateTopicEnabled(this.cluster.client);
+            const client = await this.cluster.getClient();
+            return await BrokerConfigs.getAutoCreateTopicEnabled(client);
         }
         return { type: "unknown" };
     }

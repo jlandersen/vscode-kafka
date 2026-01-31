@@ -55,7 +55,7 @@ export async function addTopicWizard(clientAccessor: ClientAccessor, clusterSett
 
     const clusterName = clusterSettings.get(selectedClusterId)?.name || selectedClusterId;
     try {
-        const client = clientAccessor.get(selectedClusterId);
+        const client = await clientAccessor.get(selectedClusterId);
         const result = await client.createTopic({
             topic,
             partitions: parseInt(partitions, 10),
@@ -150,7 +150,7 @@ async function inputTopicName(input: MultiStepInput, state: Partial<CreateTopicS
 async function getExistingTopicNames(clientAccessor: ClientAccessor, clusterId?: string): Promise<string[] | undefined> {
     if (!clusterId) { return []; }
     try {
-        const client = clientAccessor.get(clusterId);
+        const client = await clientAccessor.get(clusterId);
         return (await client.getTopics()).map(topic => topic.id);
     }
     catch (error) {
@@ -188,7 +188,7 @@ async function inputReplicationFactor(input: MultiStepInput, state: Partial<Crea
     });
 }
 async function setDefaultAndMaxReplicas(clientAccessor: ClientAccessor, state: Partial<CreateTopicState>): Promise<void> {
-    const client = clientAccessor.get(state.clusterId!);
+    const client = await clientAccessor.get(state.clusterId!);
     const brokers = await client.getBrokers();
     let defaultReplicationFactor = -1;
     let maxReplicas = 1;

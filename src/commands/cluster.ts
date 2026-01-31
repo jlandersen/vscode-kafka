@@ -28,7 +28,7 @@ export class SaveClusterCommandHandler {
             let createdClusterNames = getNames(clusters);
             for (const cluster of clusters) {
                 update = update || !!this.clusterSettings.get(cluster.id);
-                this.clusterSettings.upsert(cluster);
+                await this.clusterSettings.upsert(cluster);
             }
             vscode.window.showInformationMessage(`${clusters.length > 1 ? `${clusters.length} clusters` : 'Cluster'} ${createdClusterNames} ${update ? 'updated' : 'created'} successfully`);
     
@@ -106,10 +106,10 @@ export class DeleteClusterCommandHandler {
                 return;
             }
         }
-        clusters.forEach(cluster => {
-            this.clusterSettings.remove(cluster!.id);
+        for (const cluster of clusters) {
+            await this.clusterSettings.remove(cluster!.id);
             this.clientAccessor.remove(cluster!.id);
-        });
+        }
         this.explorer.refresh();
     }
 }

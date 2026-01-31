@@ -110,7 +110,7 @@ export class Consumer implements vscode.Disposable {
         const fromOffset = this.options.fromOffset;
         const topic = this.options.topicId;
 
-        this.kafkaClient = this.clientAccessor.get(this.clusterId);
+        this.kafkaClient = await this.clientAccessor.get(this.clusterId);
         this.consumer = await this.kafkaClient.consumer({
             groupId: this.options.consumerGroupId, retry: { retries: 3 },
             partitionAssigners: [
