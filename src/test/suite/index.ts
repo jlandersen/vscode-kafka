@@ -11,7 +11,11 @@ export async function run(): Promise<void> {
 
     const testsRoot = path.resolve(__dirname, "..");
 
-    const files = await glob("**/**.test.js", { cwd: testsRoot });
+    // Match all .test.js files but exclude .integration.test.js files
+    const files = await glob("**/**.test.js", { 
+        cwd: testsRoot,
+        ignore: ["**/*.integration.test.js"]
+    });
 
     // Add files to the test suite
     files.forEach(f => mocha.addFile(path.resolve(testsRoot, f)));
