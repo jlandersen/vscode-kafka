@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 import { pickClient, pickConsumerGroupId, pickTopic } from "./common";
 import { ConsumerCollection, ClientAccessor, createConsumerUri, ConsumerInfoUri, ConsumerLaunchState } from "../client";
 import { KafkaExplorer } from "../explorer";
-import { ConsumerVirtualTextDocumentProvider } from "../providers";
+import { ConsumerVirtualTextDocumentProvider, ConsumerTableViewProvider } from "../providers";
 import { ProgressLocation, window } from "vscode";
 import { getErrorMessage } from "../errors";
 import { ConsumerValidator } from "../validators/consumer";
@@ -162,9 +162,34 @@ export class ClearConsumerViewCommandHandler {
     }
 }
 
+export class OpenConsumerTableViewCommandHandler {
+
+    public static commandId = 'vscode-kafka.consumer.viewtable';
+
+    constructor(private tableViewProvider: ConsumerTableViewProvider) {
+
+    }
+
+    async execute(): Promise<void> {
+        if (!vscode.window.activeTextEditor) {
+            return;
+        }
+
+        const { document } = vscode.window.activeTextEditor;
+        if (document.uri.scheme !== "kafka") {
+            vscode.window.showErrorMessage('This command is only available for Kafka consumer views');
+            return;
+        }
+
+        await this.tableViewProvider.show(document.uri);
+    }
+}
+
 enum ConsumerOption {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     Open,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    OpenAsTable,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     Close,
 }
@@ -176,12 +201,16 @@ export class ListConsumersCommandHandler {
             option: ConsumerOption.Open,
         },
         {
+            label: "Open as Table",
+            option: ConsumerOption.OpenAsTable,
+        },
+        {
             label: "Close",
             option: ConsumerOption.Close,
         },
     ];
 
-    constructor(private consumerCollection: ConsumerCollection) {
+    constructor(private consumerCollection: ConsumerCollection, private tableViewProvider?: ConsumerTableViewProvider) {
     }
 
     async execute(): Promise<void> {
@@ -209,6 +238,13 @@ export class ListConsumersCommandHandler {
         switch (pickedOption.option) {
             case ConsumerOption.Open:
                 openDocument(pickedConsumer.uri);
+                break;
+            case ConsumerOption.OpenAsTable:
+                if (this.tableViewProvider) {
+                    await this.tableViewProvider.show(pickedConsumer.uri);
+                } else {
+                    vscode.window.showErrorMessage('Table view provider not available');
+                }
                 break;
             case ConsumerOption.Close:
                 this.consumerCollection.close(pickedConsumer.uri);

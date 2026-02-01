@@ -3,6 +3,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [Unreleased]
 ### Added
+- **Consumer Table View**: Added ability to view consumed Kafka messages in an Excel-like table format. Click the "View as Table" button in the consumer editor to open a table view with columns for Key, Partition, Offset, Value, and Headers. See [#109](https://github.com/jlandersen/vscode-kafka/issues/109).
 - **Scheduled Message Production**: Added support for producing messages at regular intervals using the `every` property in .kafka files. Supports time units: `s` (seconds), `m` (minutes), `h` (hours). Example: `every: 3s`. See [#127](https://github.com/jlandersen/vscode-kafka/issues/127).
 - **SSL Hostname Verification Control**: Added ability to disable SSL certificate hostname verification in cluster configuration. This is useful for development environments with self-signed certificates or hostname mismatches. ⚠️ Should only be used in development environments. See [#224](https://github.com/jlandersen/vscode-kafka/issues/224).
 - **Delete Topic Records**: Added ability to delete all records from a topic (empty topic) via the "Delete Records" context menu option. This operation deletes all messages from all partitions of the selected topic. See [#31](https://github.com/jlandersen/vscode-kafka/issues/31).

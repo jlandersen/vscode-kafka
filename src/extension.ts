@@ -19,6 +19,7 @@ import {
     handleErrors,
     LaunchConsumerCommand,
     ListConsumersCommandHandler,
+    OpenConsumerTableViewCommandHandler,
     ProduceRecordCommand,
     ProduceRecordCommandHandler,
     SaveClusterCommandHandler,
@@ -38,7 +39,7 @@ import { TopicGroupItem } from "./explorer/models/topics";
 import { KafkaExtensionParticipant } from "./kafka-extensions/api";
 import { getDefaultKafkaExtensionParticipant, refreshClusterProviderDefinitions } from "./kafka-extensions/registry";
 import { startLanguageClient } from "./kafka-file/kafkaFileClient";
-import { ConsumerVirtualTextDocumentProvider, OutputChannelProvider } from "./providers";
+import { ConsumerVirtualTextDocumentProvider, ConsumerTableViewProvider, OutputChannelProvider } from "./providers";
 import { getClusterSettings, getWorkspaceSettings } from "./settings";
 import { ConsumerStatusBarItem } from "./views/consumerStatusBarItem";
 import { SelectedClusterStatusBarItem } from "./views/selectedClusterStatusBarItem";
@@ -74,6 +75,8 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     context.subscriptions.push(new ConsumerStatusBarItem(consumerCollection));
     context.subscriptions.push(new SelectedClusterStatusBarItem(clusterSettings));
     const consumerVirtualTextDocumentProvider = new ConsumerVirtualTextDocumentProvider(consumerCollection, clusterSettings);
+    const consumerTableViewProvider = new ConsumerTableViewProvider(context.extensionUri, consumerCollection, clusterSettings);
+    context.subscriptions.push(consumerTableViewProvider);
 
     // Commands
     const createTopicCommandHandler = new CreateTopicCommandHandler(clientAccessor, clusterSettings, explorer);
@@ -83,9 +86,10 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     const stopScheduledProducerCommandHandler = new StopScheduledProducerCommandHandler(producerCollection, outputChannelProvider, explorer);
     const startConsumerCommandHandler = new StartConsumerCommandHandler(clientAccessor, consumerCollection, explorer);
     const stopConsumerCommandHandler = new StopConsumerCommandHandler(clientAccessor, consumerCollection, explorer);
-    const listConsumersCommandHandler = new ListConsumersCommandHandler(consumerCollection);
+    const listConsumersCommandHandler = new ListConsumersCommandHandler(consumerCollection, consumerTableViewProvider);
     const toggleConsumerCommandHandler = new ToggleConsumerCommandHandler(consumerCollection);
     const clearConsumerViewCommandHandler = new ClearConsumerViewCommandHandler(consumerVirtualTextDocumentProvider);
+    const openConsumerTableViewCommandHandler = new OpenConsumerTableViewCommandHandler(consumerTableViewProvider);
     const deleteConsumerGroupCommandHandler = new DeleteConsumerGroupCommandHandler(clientAccessor, consumerCollection, explorer);
     const addClusterCommandHandler = new AddClusterCommandHandler(clusterSettings, clientAccessor, explorer, context);
     const saveClusterCommandHandler = new SaveClusterCommandHandler(clusterSettings, explorer);
@@ -150,6 +154,9 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     context.subscriptions.push(vscode.commands.registerCommand(
         ClearConsumerViewCommandHandler.commandId,
         handleErrors(() => clearConsumerViewCommandHandler.execute())));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        OpenConsumerTableViewCommandHandler.commandId,
+        handleErrors(() => openConsumerTableViewCommandHandler.execute())));
     context.subscriptions.push(vscode.commands.registerCommand(
         DeleteConsumerGroupCommandHandler.commandId,
         handleErrors((command: DeleteConsumerGroupCommand) => deleteConsumerGroupCommandHandler.execute(command))));

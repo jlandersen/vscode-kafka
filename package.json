@@ -338,6 +338,12 @@
 				}
 			},
 			{
+				"command": "vscode-kafka.consumer.viewtable",
+				"title": "View as Table",
+				"category": "Kafka",
+				"icon": "$(table)"
+			},
+			{
 				"command": "vscode-kafka.consumer.deletegroup",
 				"title": "Delete Consumer Group",
 				"category": "Kafka"
@@ -432,6 +438,11 @@
 				},
 				{
 					"command": "vscode-kafka.consumer.clear",
+					"group": "navigation",
+					"when": "resourceScheme == kafka"
+				},
+				{
+					"command": "vscode-kafka.consumer.viewtable",
 					"group": "navigation",
 					"when": "resourceScheme == kafka"
 				}
