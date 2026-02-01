@@ -2,6 +2,8 @@
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [Unreleased]
+
+## [0.19.0] - 2026-02-01
 ### Added
 - **SASL/OAUTHBEARER Authentication**: Added support for OAuth 2.0 authentication using the OAUTHBEARER mechanism. See [#27](https://github.com/jlandersen/vscode-kafka/issues/27).
 - **AWS MSK IAM Authentication**: Added support for connecting to AWS MSK clusters using IAM authentication. Supports temporary credentials with session tokens. See [#249](https://github.com/jlandersen/vscode-kafka/issues/249).
@@ -9,6 +11,10 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 - **Scheduled Message Production**: Added support for producing messages at regular intervals using the `every` property in .kafka files. Supports time units: `s` (seconds), `m` (minutes), `h` (hours). Example: `every: 3s`. See [#127](https://github.com/jlandersen/vscode-kafka/issues/127).
 - **SSL Hostname Verification Control**: Added ability to disable SSL certificate hostname verification in cluster configuration. This is useful for development environments with self-signed certificates or hostname mismatches. Should only be used in development environments. See [#224](https://github.com/jlandersen/vscode-kafka/issues/224).
 - **Delete Topic Records**: Added ability to delete all records from a topic (empty topic) via the "Delete Records" context menu option. This operation deletes all messages from all partitions of the selected topic. See [#31](https://github.com/jlandersen/vscode-kafka/issues/31).
+
+### Development
+- Added integration test infrastructure using Testcontainers for automated testing with real Kafka clusters.
+- Reorganized test clusters into dedicated `test-clusters/` directory with helper scripts for manual testing.
 
 ## [0.18.0] - 2026-02-01
 ### Added
