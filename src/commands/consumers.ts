@@ -229,6 +229,7 @@ export class DeleteConsumerGroupCommandHandler {
 
     constructor(
         private clientAccessor: ClientAccessor,
+        private consumerCollection: ConsumerCollection,
         private explorer: KafkaExplorer
     ) {
     }
@@ -244,10 +245,25 @@ export class DeleteConsumerGroupCommandHandler {
             return;
         }
         try {
-            const warning = `Are you sure you want to delete consumer group '${consumerGroupToDelete}'?`;
+            // Check if there are any active consumers using this consumer group
+            const activeConsumers = this.consumerCollection.getAllByConsumerGroupId(client.cluster.id, consumerGroupToDelete);
+            
+            let warning = `Are you sure you want to delete consumer group '${consumerGroupToDelete}'?`;
+            if (activeConsumers.length > 0) {
+                const consumerWord = activeConsumers.length === 1 ? 'consumer' : 'consumers';
+                warning += ` ${activeConsumers.length} active ${consumerWord} will be stopped first.`;
+            }
+            
             const deleteConfirmation = await vscode.window.showWarningMessage(warning, 'Cancel', 'Delete');
             if (deleteConfirmation !== 'Delete') {
                 return;
+            }
+
+            // Stop all active consumers using this consumer group before deleting
+            if (activeConsumers.length > 0) {
+                for (const consumer of activeConsumers) {
+                    await this.consumerCollection.close(consumer.uri);
+                }
             }
 
             await client.deleteConsumerGroups([consumerGroupToDelete]);

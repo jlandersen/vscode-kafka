@@ -82,7 +82,7 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     const listConsumersCommandHandler = new ListConsumersCommandHandler(consumerCollection);
     const toggleConsumerCommandHandler = new ToggleConsumerCommandHandler(consumerCollection);
     const clearConsumerViewCommandHandler = new ClearConsumerViewCommandHandler(consumerVirtualTextDocumentProvider);
-    const deleteConsumerGroupCommandHandler = new DeleteConsumerGroupCommandHandler(clientAccessor, explorer);
+    const deleteConsumerGroupCommandHandler = new DeleteConsumerGroupCommandHandler(clientAccessor, consumerCollection, explorer);
     const addClusterCommandHandler = new AddClusterCommandHandler(clusterSettings, clientAccessor, explorer, context);
     const saveClusterCommandHandler = new SaveClusterCommandHandler(clusterSettings, explorer);
     const deleteClusterCommandHandler = new DeleteClusterCommandHandler(clusterSettings, clientAccessor, explorer, consumerCollection);

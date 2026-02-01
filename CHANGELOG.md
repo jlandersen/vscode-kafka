@@ -14,6 +14,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 ### Fixed
 - Fixed cluster wizard title to display "New Cluster" or "Edit Cluster - [name]" for better context. See [#204](https://github.com/jlandersen/vscode-kafka/issues/204).
 - Fixed consumer count not being reset in status bar when deleting a cluster. Consumers are now properly closed when their cluster is deleted. See [#75](https://github.com/jlandersen/vscode-kafka/issues/75).
+- Deleting a consumer group now automatically stops all active consumers using that group. See [#110](https://github.com/jlandersen/vscode-kafka/issues/110).
 - **Improved Error Messages**: Error messages now include detailed context from KafkaJS errors. See [#108](https://github.com/jlandersen/vscode-kafka/issues/108).
   - Consumer group deletion errors now show group ID, error codes, and consumer state (e.g., "Group 'my-group': The consumer group is not empty (error code: 26)")
   - Protocol errors include error type and code information

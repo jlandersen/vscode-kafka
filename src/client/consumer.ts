@@ -314,6 +314,18 @@ export class ConsumerCollection implements vscode.Disposable {
     }
 
     /**
+     * Return all consumers for a given cluster and consumer group id.
+     * Multiple consumers can exist for the same consumer group (e.g., consuming from different topics).
+     *
+     * @param clusterId
+     * @param consumerGroupId
+     */
+    getAllByConsumerGroupId(clusterId: string, consumerGroupId: string): Consumer[] {
+        return this.getAll()
+            .filter(c => c.clusterId === clusterId && c.options.consumerGroupId === consumerGroupId);
+    }
+
+    /**
      * Return all consumers for a given cluster.
      *
      * @param clusterId
