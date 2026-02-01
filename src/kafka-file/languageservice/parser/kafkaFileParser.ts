@@ -232,6 +232,7 @@ export class ProducerBlock extends Block {
         let valueFormat;
         let valueFormatSettings: Array<SerializationSetting> | undefined;
         let headers: Map<String, String> | undefined;
+        let every;
         this.properties.forEach((property) => {
             switch (property.propertyName) {
                 case "topic":
@@ -256,9 +257,13 @@ export class ProducerBlock extends Block {
                     headers = parseHeaders(property.propertyValue);
                     break;
                 }
+                case "every": {
+                    every = property.propertyValue;
+                    break;
+                }
             }
         });
-        return {
+        const command: ProduceRecordCommand = {
             clusterId,
             topicId,
             key,
@@ -267,8 +272,12 @@ export class ProducerBlock extends Block {
             messageKeyFormatSettings: keyFormatSettings,
             messageValueFormat: valueFormat,
             messageValueFormatSettings: valueFormatSettings,
-            headers,
-        } as ProduceRecordCommand;
+            headers: headers as Map<string, string> | undefined,
+        };
+        if (every) {
+            command.every = every;
+        }
+        return command;
     }
 
 }

@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { processCustomHelpers } from "../../../commands/producers";
+import { processCustomHelpers, parseTimeInterval } from "../../../commands/producers";
 
 suite("Producer Custom Helpers Test Suite", () => {
     
@@ -73,5 +73,50 @@ suite("Producer Custom Helpers Test Suite", () => {
         const input = "just a regular string";
         const result = processCustomHelpers(input);
         assert.strictEqual(result, input, "String without placeholders should remain unchanged");
+    });
+});
+
+suite("Producer Time Interval Parser Test Suite", () => {
+    
+    test("should parse seconds correctly", () => {
+        assert.strictEqual(parseTimeInterval("1s"), 1000);
+        assert.strictEqual(parseTimeInterval("3s"), 3000);
+        assert.strictEqual(parseTimeInterval("30s"), 30000);
+        assert.strictEqual(parseTimeInterval("60s"), 60000);
+    });
+
+    test("should parse minutes correctly", () => {
+        assert.strictEqual(parseTimeInterval("1m"), 60000);
+        assert.strictEqual(parseTimeInterval("5m"), 300000);
+        assert.strictEqual(parseTimeInterval("10m"), 600000);
+        assert.strictEqual(parseTimeInterval("60m"), 3600000);
+    });
+
+    test("should parse hours correctly", () => {
+        assert.strictEqual(parseTimeInterval("1h"), 3600000);
+        assert.strictEqual(parseTimeInterval("2h"), 7200000);
+        assert.strictEqual(parseTimeInterval("24h"), 86400000);
+    });
+
+    test("should return undefined for invalid formats", () => {
+        assert.strictEqual(parseTimeInterval(""), undefined);
+        assert.strictEqual(parseTimeInterval("abc"), undefined);
+        assert.strictEqual(parseTimeInterval("10"), undefined);
+        assert.strictEqual(parseTimeInterval("s"), undefined);
+        assert.strictEqual(parseTimeInterval("10x"), undefined);
+        assert.strictEqual(parseTimeInterval("10 s"), undefined);
+        assert.strictEqual(parseTimeInterval("-5s"), undefined);
+    });
+
+    test("should handle leading zeros", () => {
+        assert.strictEqual(parseTimeInterval("01s"), 1000);
+        assert.strictEqual(parseTimeInterval("05m"), 300000);
+        assert.strictEqual(parseTimeInterval("001h"), 3600000);
+    });
+
+    test("should handle large numbers", () => {
+        assert.strictEqual(parseTimeInterval("100s"), 100000);
+        assert.strictEqual(parseTimeInterval("999m"), 59940000);
+        assert.strictEqual(parseTimeInterval("100h"), 360000000);
     });
 });

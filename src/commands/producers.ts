@@ -34,11 +34,37 @@ export function processCustomHelpers(template: string): string {
     return template;
 }
 
+/**
+ * Parse a time interval string like "3s", "5m", "1h" into milliseconds.
+ * Exported for testing purposes.
+ */
+export function parseTimeInterval(interval: string): number | undefined {
+    const match = interval.match(/^(\d+)(s|m|h)$/);
+    if (!match) {
+        return undefined;
+    }
+    
+    const value = parseInt(match[1], 10);
+    const unit = match[2];
+    
+    switch (unit) {
+        case 's':
+            return value * 1000;
+        case 'm':
+            return value * 60 * 1000;
+        case 'h':
+            return value * 60 * 60 * 1000;
+        default:
+            return undefined;
+    }
+}
+
 export interface ProduceRecordCommand extends ProducerInfoUri {
     messageKeyFormat?: MessageFormat;
     messageKeyFormatSettings?: SerializationSetting[];
     messageValueFormat?: MessageFormat;
     messageValueFormatSettings?: SerializationSetting[];
+    every?: string;
 }
 
 export class ProduceRecordCommandHandler {
@@ -60,6 +86,26 @@ export class ProduceRecordCommandHandler {
             return;
         }
 
+        // Check if this is a scheduled producer
+        if (command.every) {
+            const intervalMs = parseTimeInterval(command.every);
+            if (intervalMs === undefined) {
+                vscode.window.showErrorMessage(`Invalid time interval format: ${command.every}. Use format like: 3s, 5m, 1h`);
+                return;
+            }
+            // Don't start scheduled producer if already running
+            command.clusterId = client.cluster.id;
+            const producerUri = createProducerUri(command);
+            if (this.producerCollection.isScheduled(producerUri)) {
+                vscode.window.showWarningMessage(`Scheduled producer is already running. Stop it first.`);
+                return;
+            }
+            // Start scheduled production
+            await this.startScheduledProducer(command, intervalMs, client.cluster.id);
+            return;
+        }
+
+        // Non-scheduled single/batch production
         try {
             ProducerValidator.validate(command);
 
@@ -130,6 +176,151 @@ export class ProduceRecordCommandHandler {
         }
         catch (e) {
             vscode.window.showErrorMessage(`Error while producing: ${getErrorMessage(e)}`);
+        }
+    }
+
+    private async startScheduledProducer(command: ProduceRecordCommand, intervalMs: number, clusterId: string): Promise<void> {
+        try {
+            ProducerValidator.validate(command);
+
+            const { topicId, key, value, headers } = command;
+            const channel = this.channelProvider.getChannel("Kafka Producer Log");
+            if (topicId === undefined) {
+                channel.appendLine("No topic");
+                return;
+            }
+            if (value === undefined) {
+                channel.appendLine("No value");
+                return;
+            }
+
+            command.clusterId = clusterId;
+            const producerUri = createProducerUri(command);
+
+            // Get the faker instance for the configured locale
+            const faker: Faker = this.settings.producerFakerJSEnabled
+                ? (allFakers[this.settings.producerFakerJSLocale as keyof typeof allFakers] ?? allFakers.en)
+                : allFakers.en;
+
+            // Create and connect the producer once
+            await this.producerCollection.create(producerUri);
+            
+            // Mark as scheduled
+            this.producerCollection.changeState(
+                this.producerCollection.get(producerUri)!,
+                ProducerLaunchState.scheduled
+            );
+
+            channel.appendLine(`Started scheduled producer (every ${command.every}) for topic: ${topicId}`);
+            
+            // Set up interval to produce messages
+            const intervalId = setInterval(async () => {
+                const producer = this.producerCollection.get(producerUri);
+                if (!producer || !producer.hasInterval()) {
+                    return;
+                }
+
+                try {
+                    const messageHeaders: IHeaders = {};
+                    headers?.forEach((val, idx) => {
+                        messageHeaders[idx] = val;
+                    });
+
+                    let messageKey: Buffer | string | null | undefined;
+                    let messageValue: Buffer | string | null;
+
+                    if (this.settings.producerFakerJSEnabled) {
+                        const seed = Math.floor(Math.random() * 1000000);
+                        faker.seed(seed);
+                        const processedKey = key ? processCustomHelpers(key) : key;
+                        const processedValue = processCustomHelpers(value);
+                        const randomizedKey = processedKey ? faker.helpers.fake(processedKey) : processedKey;
+                        faker.seed(seed);
+                        const randomizedValue = faker.helpers.fake(processedValue);
+                        if (headers && headers.size > 0) {
+                            Object.keys(messageHeaders).forEach(val => {
+                                faker.seed(seed);
+                                const processedHeader = processCustomHelpers(messageHeaders[val] as string);
+                                messageHeaders[val] = faker.helpers.fake(processedHeader);
+                            });
+                        }
+                        messageKey = serialize(randomizedKey, command.messageKeyFormat, command.messageKeyFormatSettings);
+                        messageValue = serialize(randomizedValue, command.messageValueFormat, command.messageValueFormatSettings);
+                    } else {
+                        messageKey = serialize(key, command.messageKeyFormat, command.messageKeyFormatSettings);
+                        messageValue = serialize(value, command.messageValueFormat, command.messageValueFormatSettings);
+                    }
+
+                    const record = {
+                        topic: topicId,
+                        messages: [{
+                            key: messageKey,
+                            value: messageValue,
+                            headers: messageHeaders
+                        }],
+                    };
+
+                    await producer.send(record);
+                    const timestamp = new Date().toLocaleTimeString();
+                    channel.appendLine(`[${timestamp}] Produced scheduled message to ${topicId}`);
+                    
+                    if (this.explorer) {
+                        this.explorer.refresh();
+                    }
+                } catch (error: any) {
+                    channel.appendLine(`Error producing scheduled message: ${getErrorMessage(error)}`);
+                }
+            }, intervalMs);
+
+            // Store the interval ID in the producer
+            const producer = this.producerCollection.get(producerUri);
+            if (producer) {
+                producer.setInterval(intervalId);
+            }
+
+            if (this.explorer) {
+                this.explorer.refresh();
+            }
+        } catch (e) {
+            vscode.window.showErrorMessage(`Error starting scheduled producer: ${getErrorMessage(e)}`);
+        }
+    }
+}
+
+export class StopScheduledProducerCommandHandler {
+
+    public static commandId = 'vscode-kafka.producer.stopscheduled';
+
+    constructor(
+        private producerCollection: ProducerCollection,
+        private channelProvider: OutputChannelProvider,
+        private explorer?: KafkaExplorer
+    ) {
+    }
+
+    async execute(command: ProduceRecordCommand): Promise<void> {
+        try {
+            const producerUri = createProducerUri(command);
+            const producer = this.producerCollection.get(producerUri);
+            
+            if (!producer || !producer.hasInterval()) {
+                vscode.window.showWarningMessage('No scheduled producer found to stop.');
+                return;
+            }
+
+            const channel = this.channelProvider.getChannel("Kafka Producer Log");
+            channel.appendLine(`Stopping scheduled producer for topic: ${command.topicId}`);
+
+            // Close the producer (this will also clear the interval)
+            await this.producerCollection.close(producerUri);
+
+            channel.appendLine(`Stopped scheduled producer for topic: ${command.topicId}`);
+
+            if (this.explorer) {
+                this.explorer.refresh();
+            }
+        } catch (e) {
+            vscode.window.showErrorMessage(`Error stopping scheduled producer: ${getErrorMessage(e)}`);
         }
     }
 }

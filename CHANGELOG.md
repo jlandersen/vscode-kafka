@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
+## [Unreleased]
+### Added
+- **Scheduled Message Production**: Added support for producing messages at regular intervals using the `every` property in .kafka files. Supports time units: `s` (seconds), `m` (minutes), `h` (hours). Example: `every: 3s`. See [#127](https://github.com/jlandersen/vscode-kafka/issues/127).
+
 ## [0.18.0] - 2026-02-01
 ### Added
 - **Secure Credential Storage**: Cluster passwords are now stored securely using VS Code's SecretStorage API instead of plain text. Passwords are encrypted and stored in the operating system's keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service). See [#174](https://github.com/jlandersen/vscode-kafka/issues/174).

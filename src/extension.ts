@@ -24,6 +24,7 @@ import {
     SelectClusterCommandHandler,
     StartConsumerCommandHandler,
     StopConsumerCommandHandler,
+    StopScheduledProducerCommandHandler,
     ToggleConsumerCommandHandler
 } from "./commands";
 import { Context } from "./context";
@@ -77,6 +78,7 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     const createTopicCommandHandler = new CreateTopicCommandHandler(clientAccessor, clusterSettings, explorer);
     const deleteTopicCommandHandler = new DeleteTopicCommandHandler(clientAccessor, explorer);
     const produceRecordCommandHandler = new ProduceRecordCommandHandler(clientAccessor, producerCollection, outputChannelProvider, explorer, workspaceSettings);
+    const stopScheduledProducerCommandHandler = new StopScheduledProducerCommandHandler(producerCollection, outputChannelProvider, explorer);
     const startConsumerCommandHandler = new StartConsumerCommandHandler(clientAccessor, consumerCollection, explorer);
     const stopConsumerCommandHandler = new StopConsumerCommandHandler(clientAccessor, consumerCollection, explorer);
     const listConsumersCommandHandler = new ListConsumersCommandHandler(consumerCollection);
@@ -148,6 +150,9 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
         handleErrors((command: DeleteConsumerGroupCommand) => deleteConsumerGroupCommandHandler.execute(command))));
     context.subscriptions.push(vscode.commands.registerCommand(ProduceRecordCommandHandler.commandId,
         handleErrors((command: ProduceRecordCommand, times: number) => produceRecordCommandHandler.execute(command, times))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        StopScheduledProducerCommandHandler.commandId,
+        handleErrors((command: ProduceRecordCommand) => stopScheduledProducerCommandHandler.execute(command))));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.discover.clusterproviders", () => {
             return vscode.commands.executeCommand("workbench.extensions.search", "@tag:kafka-provider");

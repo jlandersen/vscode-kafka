@@ -218,6 +218,21 @@ const producerProperties = [
                 description: "Similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.ShortSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/ShortSerializer.java)."
             }
         ]
+    },
+    {
+        name: "every",
+        description: "Produce messages repeatedly at a given interval. Supports time units: `s` (seconds), `m` (minutes), `h` (hours). Examples: `3s`, `5m`, `1h` *[optional]*.",
+        enum: [
+            {
+                name: "3s"
+            },
+            {
+                name: "5m"
+            },
+            {
+                name: "1h"
+            }
+        ]
     }
 ] as ModelDefinition[];
 

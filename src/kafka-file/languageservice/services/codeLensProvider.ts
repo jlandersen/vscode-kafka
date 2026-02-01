@@ -1,7 +1,7 @@
 import { CodeLens, Range, TextDocument } from "vscode";
 import { ClientState, ConsumerLaunchState } from "../../../client";
 import { createProducerUri, ProducerLaunchState } from "../../../client/producer";
-import { ProduceRecordCommandHandler, SelectClusterCommandHandler, StartConsumerCommandHandler, StopConsumerCommandHandler } from "../../../commands";
+import { ProduceRecordCommandHandler, SelectClusterCommandHandler, StartConsumerCommandHandler, StopConsumerCommandHandler, StopScheduledProducerCommandHandler } from "../../../commands";
 import { ConsumerLaunchStateProvider, ProducerLaunchStateProvider, SelectedClusterProvider } from "../kafkaFileLanguageService";
 import { Block, BlockType, ConsumerBlock, KafkaFileDocument, ProducerBlock } from "../parser/kafkaFileParser";
 
@@ -61,6 +61,10 @@ export class KafkaFileCodeLenses {
             const produceRecordCommand = block.createCommand(clusterId);
             const producerUri = createProducerUri(produceRecordCommand);
             const producerState = this.producerLaunchStateProvider.getProducerLaunchState(producerUri);
+            
+            // Check if this is a scheduled producer (has 'every' property)
+            const isScheduled = produceRecordCommand.every !== undefined;
+            
             switch (producerState) {
                 case ProducerLaunchState.connecting:
                 case ProducerLaunchState.sending:
@@ -70,18 +74,35 @@ export class KafkaFileCodeLenses {
                         command: ''
                     }));
                     break;
+                case ProducerLaunchState.scheduled:
+                    // Show stop button for scheduled producers
+                    lenses.push(new CodeLens(lineRange, {
+                        title: `$(debug-stop) Stop scheduled producer (every ${produceRecordCommand.every})`,
+                        command: StopScheduledProducerCommandHandler.commandId,
+                        arguments: [produceRecordCommand]
+                    }));
+                    break;
                 default:
-                    // Add Produce lenses
-                    lenses.push(new CodeLens(lineRange, {
-                        title: "$(run) Produce record",
-                        command: ProduceRecordCommandHandler.commandId,
-                        arguments: [produceRecordCommand, 1]
-                    }));
-                    lenses.push(new CodeLens(lineRange, {
-                        title: "$(run-all) Produce record x 10",
-                        command: ProduceRecordCommandHandler.commandId,
-                        arguments: [produceRecordCommand, 10]
-                    }));
+                    if (isScheduled) {
+                        // Show start button for scheduled producers
+                        lenses.push(new CodeLens(lineRange, {
+                            title: `$(run) Start scheduled producer (every ${produceRecordCommand.every})`,
+                            command: ProduceRecordCommandHandler.commandId,
+                            arguments: [produceRecordCommand, 1]
+                        }));
+                    } else {
+                        // Show normal produce lenses for non-scheduled producers
+                        lenses.push(new CodeLens(lineRange, {
+                            title: "$(run) Produce record",
+                            command: ProduceRecordCommandHandler.commandId,
+                            arguments: [produceRecordCommand, 1]
+                        }));
+                        lenses.push(new CodeLens(lineRange, {
+                            title: "$(run-all) Produce record x 10",
+                            command: ProduceRecordCommandHandler.commandId,
+                            arguments: [produceRecordCommand, 10]
+                        }));
+                    }
                     break;
             }
         }
@@ -100,6 +121,8 @@ export class KafkaFileCodeLenses {
                 return 'Sending';
             case ProducerLaunchState.sent:
                 return 'Sent';
+            case ProducerLaunchState.scheduled:
+                return 'Scheduled';
             default:
                 return '';
         }

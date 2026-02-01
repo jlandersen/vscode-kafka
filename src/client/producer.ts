@@ -8,7 +8,8 @@ export enum ProducerLaunchState {
     connecting,
     connected,
     sending,
-    sent
+    sent,
+    scheduled
 }
 export interface ProducerCollectionChangedEvent {
     producers: Producer[];
@@ -19,6 +20,7 @@ export class Producer implements vscode.Disposable {
     public state: ProducerLaunchState = ProducerLaunchState.idle;
 
     private producer: KafkaJSProducer | undefined;
+    private intervalId: NodeJS.Timeout | undefined;
 
     constructor(public uri: vscode.Uri, private clientAccessor: ClientAccessor) {
 
@@ -37,7 +39,23 @@ export class Producer implements vscode.Disposable {
         }
     }
 
+    setInterval(intervalId: NodeJS.Timeout): void {
+        this.intervalId = intervalId;
+    }
+
+    clearInterval(): void {
+        if (this.intervalId) {
+            clearInterval(this.intervalId);
+            this.intervalId = undefined;
+        }
+    }
+
+    hasInterval(): boolean {
+        return this.intervalId !== undefined;
+    }
+
     async dispose(): Promise<void> {
+        this.clearInterval();
         if (this.producer) {
             this.producer = undefined;
         }
@@ -159,9 +177,34 @@ export class ProducerCollection implements vscode.Disposable {
             return;
         }
 
+        // Clear any running intervals
+        producer.clearInterval();
+
         // Fire an event to notify that producer is none
         this.changeState(producer, ProducerLaunchState.idle);
         delete this.producers[uri.toString()];
+    }
+
+    /**
+     * Stop a scheduled producer without closing it
+     */
+    stopScheduled(uri: vscode.Uri): void {
+        const producer = this.get(uri);
+
+        if (producer === null) {
+            return;
+        }
+
+        producer.clearInterval();
+        this.changeState(producer, ProducerLaunchState.idle);
+    }
+
+    /**
+     * Check if a producer has an active schedule
+     */
+    isScheduled(uri: vscode.Uri): boolean {
+        const producer = this.get(uri);
+        return producer !== null && producer.hasInterval();
     }
 
     private handleProducerError(producer: Producer, e: Error) {
@@ -170,7 +213,7 @@ export class ProducerCollection implements vscode.Disposable {
         throw e;
     }
 
-    private changeState(producer: Producer, state: ProducerLaunchState) {
+    changeState(producer: Producer, state: ProducerLaunchState): void {
         producer.state = state;
         this.onDidChangeCollectionEmitter.fire({
             producers: [producer]
@@ -186,6 +229,7 @@ export interface ProducerInfoUri {
     key?: string;
     value?: string;
     headers?: Map<string, string>;
+    every?: string;
 }
 
 const TOPIC_QUERY_PARAMETER = 'topic';
