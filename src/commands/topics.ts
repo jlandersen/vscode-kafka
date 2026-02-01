@@ -7,6 +7,7 @@ import { OutputChannelProvider } from "../providers";
 import { addTopicWizard } from "../wizards/topics";
 import { pickClient, pickTopic } from "./common";
 import { BrokerConfigs } from "../client/config";
+import { getErrorMessage } from "../errors";
 
 export class CreateTopicCommandHandler {
 
@@ -82,12 +83,7 @@ export class DeleteTopicCommandHandler {
             this.explorer.refresh();
             vscode.window.showInformationMessage(`Topic '${topicToDelete.id}' deleted successfully`);
         } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            if (error instanceof Error && error.message) {
-                vscode.window.showErrorMessage(message);
-            } else {
-                vscode.window.showErrorMessage(message);
-            }
+            vscode.window.showErrorMessage(`Error deleting topic: ${getErrorMessage(error)}`);
         }
     }
 }

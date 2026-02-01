@@ -254,12 +254,7 @@ export class DeleteConsumerGroupCommandHandler {
             this.explorer.refresh();
             vscode.window.showInformationMessage(`Consumer group '${consumerGroupToDelete}' deleted successfully`);
         } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            if (error instanceof Error && error.message) {
-                vscode.window.showErrorMessage(message);
-            } else {
-                vscode.window.showErrorMessage(message);
-            }
+            vscode.window.showErrorMessage(`Error deleting consumer group: ${getErrorMessage(error)}`);
         }
     }
 }

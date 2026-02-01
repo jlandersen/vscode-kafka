@@ -8,6 +8,7 @@
 // https://github.com/microsoft/vscode-extension-samples/blob/master/quickinput-sample/src/multiStepInput.ts
 // -------------------------------------------------------
 import { ConfigurationChangeEvent, Disposable, InputBox, QuickInput, QuickInputButton, QuickInputButtons, QuickPick, QuickPickItem, window, workspace } from 'vscode';
+import { getErrorMessage } from '../errors';
 
 class InputFlowAction {
     static back = new InputFlowAction();
@@ -258,6 +259,6 @@ export class MultiStepInput {
 
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export function showErrorMessage(description: string, error: any): void {
-    const message = description + ':' + (error.message ? error.message : error);
+    const message = `${description}: ${getErrorMessage(error)}`;
     window.showErrorMessage(message);
 }

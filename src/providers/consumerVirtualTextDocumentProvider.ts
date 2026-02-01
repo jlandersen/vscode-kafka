@@ -1,8 +1,7 @@
 import * as vscode from "vscode";
-
 import { ConsumedRecord, Consumer, ConsumerChangedStatusEvent, ConsumerCollection, ConsumerCollectionChangedEvent, ConsumerLaunchState, RecordReceivedEvent } from "../client";
 import { SerializationSetting } from "../client/serialization";
-import { CommonMessages } from "../constants";
+import { getErrorMessage } from "../errors";
 import { getWorkspaceSettings } from "../settings";
 import { ClusterSettings } from "../settings/clusters";
 
@@ -108,7 +107,7 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
         if (!this.isActive(uri)) {
             return;
         }
-        const line = `Error: ${error}\n\n`;
+        const line = `Error: ${getErrorMessage(error)}\n\n`;
         this.updateBuffer(uri, line);
     }
 
@@ -144,7 +143,7 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
     }
 
     private onDidReceiveError(error: any): void {
-        CommonMessages.showUnhandledError(error);
+        vscode.window.showErrorMessage(`Consumer error: ${getErrorMessage(error)}`);
     }
 
     private onDidCloseTextDocument(document: vscode.TextDocument): void {
