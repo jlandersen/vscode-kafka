@@ -13,6 +13,27 @@ import { IHeaders, ProducerRecord } from "kafkajs";
 import { ProducerValidator } from "../validators/producer";
 import { getErrorMessage } from "../errors";
 
+/**
+ * Process custom template helpers that are not part of FakerJS.
+ * These helpers are prefixed with $ to distinguish them from faker methods.
+ * Exported for testing purposes.
+ */
+export function processCustomHelpers(template: string): string {
+    // Replace {{$timestamp}} with current timestamp in milliseconds
+    template = template.replace(/\{\{\$timestamp\}\}/g, () => Date.now().toString());
+    
+    // Replace {{$date.now}} with current timestamp in milliseconds
+    template = template.replace(/\{\{\$date\.now\}\}/g, () => Date.now().toString());
+    
+    // Replace {{$date.iso}} with ISO 8601 formatted current date
+    template = template.replace(/\{\{\$date\.iso\}\}/g, () => new Date().toISOString());
+    
+    // Replace {{$date.unix}} with Unix timestamp in seconds
+    template = template.replace(/\{\{\$date\.unix\}\}/g, () => Math.floor(Date.now() / 1000).toString());
+    
+    return template;
+}
+
 export interface ProduceRecordCommand extends ProducerInfoUri {
     messageKeyFormat?: MessageFormat;
     messageKeyFormatSettings?: SerializationSetting[];
@@ -70,13 +91,17 @@ export class ProduceRecordCommandHandler {
                     // {"id": "{{string.uuid}}"}  // same value as in key
                     const seed = Math.floor(Math.random() * 1000000);
                     faker.seed(seed);
-                    const randomizedKey = (key) ? faker.helpers.fake(key) : key;
+                    // Process custom helpers before faker processing
+                    const processedKey = key ? processCustomHelpers(key) : key;
+                    const processedValue = processCustomHelpers(value);
+                    const randomizedKey = processedKey ? faker.helpers.fake(processedKey) : processedKey;
                     faker.seed(seed);
-                    const randomizedValue = faker.helpers.fake(value);
+                    const randomizedValue = faker.helpers.fake(processedValue);
                     if (headers && headers.size > 0) {
                         Object.keys(messageHeaders).forEach(val => {
                             faker.seed(seed);
-                            messageHeaders[val] = faker.helpers.fake(messageHeaders[val] as string);
+                            const processedHeader = processCustomHelpers(messageHeaders[val] as string);
+                            messageHeaders[val] = faker.helpers.fake(processedHeader);
                         });
                     }
                     return {

@@ -486,7 +486,12 @@ const fakerjsAPI = [
     { name: "word.preposition" },
     { name: "word.sample" },
     { name: "word.verb" },
-    { name: "word.words" }
+    { name: "word.words" },
+    // Custom helpers (prefixed with $ to distinguish from faker methods)
+    { name: "$timestamp", description: "Current timestamp in milliseconds" },
+    { name: "$date.now", description: "Current timestamp in milliseconds (alias for $timestamp)" },
+    { name: "$date.iso", description: "Current date in ISO 8601 format" },
+    { name: "$date.unix", description: "Current Unix timestamp in seconds" }
 ] as ModelDefinition[];
 
 export interface PartModelProvider {
