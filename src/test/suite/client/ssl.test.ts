@@ -20,6 +20,50 @@ suite("SSL Configuration Test Suite", () => {
         assert.strictEqual(sslOption.rejectUnauthorized, false);
     });
 
+    test("SslOption interface should accept passphrase field", () => {
+        const sslOption: SslOption = {
+            ca: "/path/to/ca.pem",
+            key: "/path/to/key.pem",
+            cert: "/path/to/cert.pem",
+            passphrase: "my-secret-passphrase",
+            rejectUnauthorized: true
+        };
+
+        assert.strictEqual(sslOption.ca, "/path/to/ca.pem");
+        assert.strictEqual(sslOption.key, "/path/to/key.pem");
+        assert.strictEqual(sslOption.cert, "/path/to/cert.pem");
+        assert.strictEqual(sslOption.passphrase, "my-secret-passphrase");
+        assert.strictEqual(sslOption.rejectUnauthorized, true);
+    });
+
+    test("SslOption with only passphrase (no other SSL fields)", () => {
+        const sslOption: SslOption = {
+            passphrase: "my-passphrase"
+        };
+
+        assert.strictEqual(sslOption.passphrase, "my-passphrase");
+        assert.strictEqual(sslOption.ca, undefined);
+        assert.strictEqual(sslOption.key, undefined);
+        assert.strictEqual(sslOption.cert, undefined);
+    });
+
+    test("ConnectionOptions should accept SslOption with passphrase", () => {
+        const connectionOptions: ConnectionOptions = {
+            bootstrap: "localhost:9092",
+            ssl: {
+                ca: "/path/to/ca.pem",
+                key: "/path/to/key.pem",
+                cert: "/path/to/cert.pem",
+                passphrase: "encrypted-key-password",
+                rejectUnauthorized: true
+            }
+        };
+
+        const ssl = connectionOptions.ssl as SslOption;
+        assert.strictEqual(ssl.passphrase, "encrypted-key-password");
+        assert.strictEqual(ssl.rejectUnauthorized, true);
+    });
+
     test("SslOption with rejectUnauthorized=true", () => {
         const sslOption: SslOption = {
             ca: "/path/to/ca.pem",

@@ -9,6 +9,7 @@ This directory contains Docker Compose configurations for testing the vscode-kaf
 | `plaintext` | 9092 | None | Simple Kafka cluster without authentication |
 | `sasl-plain` | 9093 | SASL/PLAIN | Kafka with username/password authentication |
 | `oauth` | 9092 | OAUTHBEARER | Kafka with OAuth 2.0 (includes Keycloak) |
+| `ssl` | 9093 | SSL/TLS (mTLS) | Kafka with mutual TLS and passphrase-protected keys |
 
 > **Note:** The `plaintext` and `oauth` clusters both use port 9092, so only run one at a time.
 
@@ -67,6 +68,23 @@ cd test-clusters/oauth && docker-compose up -d
 - **Keycloak Admin:** http://localhost:8080 (admin/admin)
 
 See [oauth/README.md](oauth/README.md) for more details on the OAuth setup.
+
+### SSL/TLS Cluster (mTLS with Passphrase)
+
+- **Bootstrap Server:** `localhost:9093`
+- **Authentication:** SSL/TLS (Mutual TLS)
+- **CA Certificate:** `test-clusters/ssl/ca-cert.pem`
+- **Client Certificate:** `test-clusters/ssl/client-cert.pem`
+- **Client Key (Encrypted):** `test-clusters/ssl/client-key.pem`
+- **Passphrase:** `test-passphrase`
+- **SSL:** Yes (required)
+
+Before using the SSL cluster, generate certificates:
+```bash
+cd test-clusters/ssl && ./generate-certs.sh
+```
+
+See [ssl/README.md](ssl/README.md) for more details on SSL certificate setup.
 
 ## Testing Different Authentication Methods
 

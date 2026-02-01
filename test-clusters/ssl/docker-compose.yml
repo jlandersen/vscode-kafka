@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    hostname: zookeeper
+    container_name: zookeeper-ssl
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    hostname: kafka
+    container_name: kafka-ssl
+    depends_on:
+      - zookeeper
+    ports:
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: SSL:SSL,PLAINTEXT:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: SSL://localhost:9093,PLAINTEXT://kafka:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      
+      # SSL Configuration
+      KAFKA_SSL_KEYSTORE_FILENAME: server.keystore.jks
+      KAFKA_SSL_KEYSTORE_CREDENTIALS: keystore_creds
+      KAFKA_SSL_KEY_CREDENTIALS: key_creds
+      KAFKA_SSL_TRUSTSTORE_FILENAME: server.truststore.jks
+      KAFKA_SSL_TRUSTSTORE_CREDENTIALS: truststore_creds
+      KAFKA_SSL_CLIENT_AUTH: required
+      KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+      
+    volumes:
+      - ./kafka-ssl-config:/etc/kafka/secrets
+    command: 
+      - bash
+      - -c
+      - |
+        # Create keystores from PEM files
+        mkdir -p /etc/kafka/secrets
+        cd /etc/kafka/secrets
+        
+        # Create server keystore
+        openssl pkcs12 -export \
+          -in /etc/kafka/secrets/server-cert.pem \
+          -inkey /etc/kafka/secrets/server-key.pem \
+          -out server.p12 \
+          -name kafka \
+          -passout pass:test-password
+        
+        keytool -importkeystore \
+          -srckeystore server.p12 \
+          -srcstoretype PKCS12 \
+          -srcstorepass test-password \
+          -destkeystore server.keystore.jks \
+          -deststoretype JKS \
+          -deststorepass test-password \
+          -noprompt
+        
+        # Create server truststore with CA
+        keytool -import \
+          -file /etc/kafka/secrets/ca-cert.pem \
+          -alias ca \
+          -keystore server.truststore.jks \
+          -storepass test-password \
+          -noprompt
+        
+        # Create credential files
+        echo "test-password" > keystore_creds
+        echo "test-password" > key_creds
+        echo "test-password" > truststore_creds
+        
+        # Start Kafka
+        /etc/confluent/docker/run

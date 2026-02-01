@@ -1,0 +1,5 @@
+# Ignore generated certificate files (regenerate using ./generate-certs.sh)
+*.pem
+*.jks
+*.p12
+*_creds
