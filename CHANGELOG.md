@@ -2,6 +2,9 @@
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [Unreleased]
+### Added
+- **SSL/TLS Passphrase Support**: Added support for using passphrase-protected (encrypted) private keys for mTLS authentication. You can now specify a passphrase in the cluster configuration wizard when using encrypted SSL private keys. See [#191](https://github.com/jlandersen/vscode-kafka/issues/191).
+
 ### Changed
 - **Cluster Storage in Settings**: Cluster configurations are now stored in VS Code settings.json (machine scope) instead of workspace state. Existing clusters are automatically migrated on first activation. See [#90](https://github.com/jlandersen/vscode-kafka/issues/90).
 
