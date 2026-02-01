@@ -1,0 +1,90 @@
+{
+  "realm": "kafka",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 300,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanUserAction": 300,
+  "accessCodeLifespanLogin": 1800,
+  "clients": [
+    {
+      "clientId": "kafka-client",
+      "name": "Kafka Client",
+      "description": "Client for vscode-kafka extension testing",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "kafka-client-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email"
+      ]
+    },
+    {
+      "clientId": "kafka-broker",
+      "name": "Kafka Broker",
+      "description": "Client for Kafka broker authentication",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "kafka-broker-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "defaultClientScopes": [
+        "openid",
+        "profile"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "kafka-admin",
+      "enabled": true,
+      "email": "kafka-admin@example.com",
+      "firstName": "Kafka",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "kafka-admin-password",
+          "temporary": false
+        }
+      ]
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "kafka-user",
+        "description": "Kafka user role"
+      },
+      {
+        "name": "kafka-admin",
+        "description": "Kafka admin role"
+      }
+    ]
+  }
+}

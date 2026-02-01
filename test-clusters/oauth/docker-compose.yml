@@ -1,0 +1,135 @@
+# Test setup for OAUTHBEARER authentication with Kafka and Keycloak
+# 
+# Usage:
+#   cd test-cluster
+#   docker-compose up -d
+#
+# Wait for services to start (~60-90 seconds), then test with vscode-kafka:
+#   - Bootstrap: localhost:9092
+#   - Auth: SASL/OAUTHBEARER
+#   - Token Endpoint: http://localhost:8080/realms/kafka/protocol/openid-connect/token
+#   - Client ID: kafka-client
+#   - Client Secret: kafka-client-secret
+#
+# Keycloak Admin Console: http://localhost:8080 (admin/admin)
+
+services:
+  # Keycloak - OAuth 2.0 / OpenID Connect Provider
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    command:
+      - start-dev
+      - --import-realm
+    volumes:
+      - ./keycloak-realm.json:/opt/keycloak/data/import/kafka-realm.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080;echo -e 'GET /health/ready HTTP/1.1\r\nhost: localhost\r\nConnection: close\r\n\r\n' >&3;if [ $? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    networks:
+      kafka-network:
+        aliases:
+          - keycloak
+
+  # Zookeeper
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - kafka-network
+
+  # Kafka with OAUTHBEARER authentication using Strimzi
+  kafka:
+    image: quay.io/strimzi/kafka:0.38.0-kafka-3.6.0
+    container_name: kafka
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      zookeeper:
+        condition: service_started
+    ports:
+      - "9092:9092"
+    environment:
+      LOG_DIR: /tmp/logs
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      
+      # Listener configuration
+      KAFKA_LISTENERS: SASL_PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: SASL_PLAINTEXT://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: SASL_PLAINTEXT:SASL_PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: SASL_PLAINTEXT
+      
+      # SASL configuration
+      KAFKA_SASL_ENABLED_MECHANISMS: OAUTHBEARER
+      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: OAUTHBEARER
+      
+      # OAuth configuration for listeners
+      KAFKA_LISTENER_NAME_SASL__PLAINTEXT_OAUTHBEARER_SASL_JAAS_CONFIG: |
+        org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required
+        oauth.jwks.endpoint.uri="http://keycloak:8080/realms/kafka/protocol/openid-connect/certs"
+        oauth.valid.issuer.uri="http://keycloak:8080/realms/kafka"
+        oauth.token.endpoint.uri="http://keycloak:8080/realms/kafka/protocol/openid-connect/token"
+        oauth.client.id="kafka-broker"
+        oauth.client.secret="kafka-broker-secret"
+        unsecuredLoginStringClaim_sub="kafka-broker";
+      KAFKA_LISTENER_NAME_SASL__PLAINTEXT_OAUTHBEARER_SASL_SERVER_CALLBACK_HANDLER_CLASS: io.strimzi.kafka.oauth.server.JaasServerOauthValidatorCallbackHandler
+      KAFKA_LISTENER_NAME_SASL__PLAINTEXT_OAUTHBEARER_SASL_LOGIN_CALLBACK_HANDLER_CLASS: io.strimzi.kafka.oauth.client.JaasClientOauthLoginCallbackHandler
+      
+      # Principal builder
+      KAFKA_PRINCIPAL_BUILDER_CLASS: io.strimzi.kafka.oauth.server.OAuthKafkaPrincipalBuilder
+      
+      # Other Kafka settings
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      
+      # Super users - allow broker to do anything
+      KAFKA_SUPER_USERS: User:kafka-broker;User:kafka-client
+    command:
+      - sh
+      - -c
+      - |
+        # Wait for Keycloak to be ready
+        echo "Waiting for Keycloak..."
+        sleep 10
+        # Start Kafka
+        bin/kafka-server-start.sh config/server.properties \
+          --override zookeeper.connect=zookeeper:2181 \
+          --override listeners=SASL_PLAINTEXT://0.0.0.0:9092 \
+          --override advertised.listeners=SASL_PLAINTEXT://localhost:9092 \
+          --override listener.security.protocol.map=SASL_PLAINTEXT:SASL_PLAINTEXT \
+          --override inter.broker.listener.name=SASL_PLAINTEXT \
+          --override sasl.enabled.mechanisms=OAUTHBEARER \
+          --override sasl.mechanism.inter.broker.protocol=OAUTHBEARER \
+          --override listener.name.sasl_plaintext.oauthbearer.sasl.jaas.config='org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required oauth.jwks.endpoint.uri="http://keycloak:8080/realms/kafka/protocol/openid-connect/certs" oauth.check.issuer="false" oauth.token.endpoint.uri="http://keycloak:8080/realms/kafka/protocol/openid-connect/token" oauth.client.id="kafka-broker" oauth.client.secret="kafka-broker-secret" unsecuredLoginStringClaim_sub="kafka-broker";' \
+          --override listener.name.sasl_plaintext.oauthbearer.sasl.server.callback.handler.class=io.strimzi.kafka.oauth.server.JaasServerOauthValidatorCallbackHandler \
+          --override listener.name.sasl_plaintext.oauthbearer.sasl.login.callback.handler.class=io.strimzi.kafka.oauth.client.JaasClientOauthLoginCallbackHandler \
+          --override principal.builder.class=io.strimzi.kafka.oauth.server.OAuthKafkaPrincipalBuilder \
+          --override super.users='User:kafka-broker;User:kafka-client' \
+          --override offsets.topic.replication.factor=1 \
+          --override transaction.state.log.replication.factor=1 \
+          --override transaction.state.log.min.isr=1 \
+          --override auto.create.topics.enable=true \
+          --override group.initial.rebalance.delay.ms=0
+    networks:
+      - kafka-network
+
+networks:
+  kafka-network:
+    driver: bridge
