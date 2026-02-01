@@ -87,3 +87,52 @@ export class DeleteTopicCommandHandler {
         }
     }
 }
+
+export class DeleteTopicRecordsCommandHandler {
+
+    public static commandId = 'vscode-kafka.topic.deleterecords';
+
+    constructor(private clientAccessor: ClientAccessor, private explorer: KafkaExplorer) {
+    }
+
+    async execute(topic?: TopicItem): Promise<void> {
+        const client = await pickClient(this.clientAccessor, topic?.clusterId);
+        if (!client) {
+            return;
+        }
+
+        const topicToEmpty: Topic | undefined = topic?.topic || await pickTopic(client);
+
+        if (!topicToEmpty) {
+            return;
+        }
+
+        try {
+            // Ask for confirmation
+            const emptyConfirmation = await vscode.window.showWarningMessage(
+                `Are you sure you want to delete all records from topic '${topicToEmpty.id}'? This operation cannot be undone.`,
+                'Cancel',
+                'Delete Records'
+            );
+            if (emptyConfirmation !== 'Delete Records') {
+                return;
+            }
+
+            // Get all partition offsets for the topic
+            const offsets = await client.fetchTopicOffsets(topicToEmpty.id);
+            
+            // Delete records by setting offset to the high watermark (latest offset) for each partition
+            // This effectively deletes all records up to the current high watermark
+            const partitions = offsets.map(offset => ({
+                partition: parseInt(offset.partition.toString(), 10),
+                offset: offset.high
+            }));
+
+            await client.deleteTopicRecords(topicToEmpty.id, partitions);
+            this.explorer.refresh();
+            vscode.window.showInformationMessage(`All records deleted from topic '${topicToEmpty.id}'`);
+        } catch (error) {
+            vscode.window.showErrorMessage(`Error deleting topic records: ${getErrorMessage(error)}`);
+        }
+    }
+}

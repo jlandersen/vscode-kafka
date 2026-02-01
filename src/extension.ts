@@ -11,6 +11,7 @@ import {
     DeleteConsumerGroupCommand,
     DeleteConsumerGroupCommandHandler,
     DeleteTopicCommandHandler,
+    DeleteTopicRecordsCommandHandler,
     DumpBrokerMetadataCommandHandler,
     DumpClusterMetadataCommandHandler,
     DumpTopicMetadataCommandHandler,
@@ -77,6 +78,7 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     // Commands
     const createTopicCommandHandler = new CreateTopicCommandHandler(clientAccessor, clusterSettings, explorer);
     const deleteTopicCommandHandler = new DeleteTopicCommandHandler(clientAccessor, explorer);
+    const deleteTopicRecordsCommandHandler = new DeleteTopicRecordsCommandHandler(clientAccessor, explorer);
     const produceRecordCommandHandler = new ProduceRecordCommandHandler(clientAccessor, producerCollection, outputChannelProvider, explorer, workspaceSettings);
     const stopScheduledProducerCommandHandler = new StopScheduledProducerCommandHandler(producerCollection, outputChannelProvider, explorer);
     const startConsumerCommandHandler = new StartConsumerCommandHandler(clientAccessor, consumerCollection, explorer);
@@ -118,6 +120,9 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     context.subscriptions.push(vscode.commands.registerCommand(
         DeleteTopicCommandHandler.commandId,
         (topic?: TopicItem) => deleteTopicCommandHandler.execute(topic)));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        DeleteTopicRecordsCommandHandler.commandId,
+        (topic?: TopicItem) => deleteTopicRecordsCommandHandler.execute(topic)));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.dumpclustermetadata",
         handleErrors(() => dumpClusterMetadataCommandHandler.execute())));

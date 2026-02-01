@@ -120,6 +120,7 @@ export interface Client extends Disposable {
     deleteConsumerGroups(groupIds: string[]): Promise<void>;
     createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]>;
     deleteTopic(deleteTopicRequest: DeleteTopicRequest): Promise<void>;
+    deleteTopicRecords(topic: string, partitions: SeekEntry[]): Promise<void>;
     fetchTopicPartitions(topic: string): Promise<number[]>;
     fetchTopicOffsets(topic: string): Promise<Array<SeekEntry & { high: string; low: string }>>;
 }
@@ -191,6 +192,11 @@ class EnsureConnectedDecorator implements Client {
     public async deleteTopic(deleteTopicRequest: DeleteTopicRequest): Promise<void> {
         await this.waitUntilConnected();
         return await this.client.deleteTopic(deleteTopicRequest);
+    }
+
+    public async deleteTopicRecords(topic: string, partitions: SeekEntry[]): Promise<void> {
+        await this.waitUntilConnected();
+        return await this.client.deleteTopicRecords(topic, partitions);
     }
 
     public async fetchTopicPartitions(topic: string): Promise<number[]> {
@@ -460,6 +466,13 @@ class KafkaJsClient implements Client {
         return await (await this.getkafkaAdminClient()).deleteTopics({
             topics: deleteTopicRequest.topics,
             timeout: deleteTopicRequest.timeout
+        });
+    }
+
+    async deleteTopicRecords(topic: string, partitions: SeekEntry[]): Promise<void> {
+        return await (await this.getkafkaAdminClient()).deleteTopicRecords({
+            topic,
+            partitions
         });
     }
 

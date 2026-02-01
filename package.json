@@ -274,13 +274,18 @@
 				"title": "Dump Topic Metadata",
 				"category": "Kafka"
 			},
-			{
-				"command": "vscode-kafka.topic.delete",
-				"title": "Delete Topic",
-				"category": "Kafka"
-			},
-			{
-				"command": "vscode-kafka.explorer.dumpbrokermetadata",
+		{
+			"command": "vscode-kafka.topic.delete",
+			"title": "Delete Topic",
+			"category": "Kafka"
+		},
+		{
+			"command": "vscode-kafka.topic.deleterecords",
+			"title": "Delete Records",
+			"category": "Kafka"
+		},
+		{
+			"command": "vscode-kafka.explorer.dumpbrokermetadata",
 				"title": "Dump Broker Metadata",
 				"category": "Kafka"
 			},
@@ -373,13 +378,18 @@
 					"when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
 					"group": "1_kafka"
 				},
-				{
-					"command": "vscode-kafka.explorer.dumptopicmetadata",
-					"when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
-					"group": "1_kafka"
-				},
-				{
-					"command": "vscode-kafka.explorer.dumpclustermetadata",
+			{
+				"command": "vscode-kafka.explorer.dumptopicmetadata",
+				"when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
+				"group": "1_kafka"
+			},
+			{
+				"command": "vscode-kafka.topic.deleterecords",
+				"when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
+				"group": "1_kafka"
+			},
+			{
+				"command": "vscode-kafka.explorer.dumpclustermetadata",
 					"when": "view == kafkaExplorer && viewItem == broker && !listMultiSelection",
 					"group": "1_kafka"
 				},
