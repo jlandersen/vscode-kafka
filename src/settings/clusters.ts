@@ -298,6 +298,12 @@ class SettingsClusterSettings implements ClusterSettings {
      * This is a one-time migration that runs on extension activation.
      */
     private async migrateFromMementoToSettings(): Promise<void> {
+        // Skip migration if Context is not initialized (e.g., in tests)
+        if (!Context.current || !Context.current.globalState) {
+            console.log('Skipping migration - Context not initialized');
+            return;
+        }
+        
         const globalState = Context.current.globalState;
         const settingsMigrationKey = 'settingsMigrationCompleted';
         const secretsMigrationKey = 'secretsMigrationCompleted';
