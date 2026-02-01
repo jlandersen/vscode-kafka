@@ -314,6 +314,16 @@ export class ConsumerCollection implements vscode.Disposable {
     }
 
     /**
+     * Return all consumers for a given cluster.
+     *
+     * @param clusterId
+     */
+    getByClusterId(clusterId: string): Consumer[] {
+        return this.getAll()
+            .filter(c => c.clusterId === clusterId);
+    }
+
+    /**
      * Closes an existing consumer if exists.
      */
     async close(uri: vscode.Uri): Promise<void> {

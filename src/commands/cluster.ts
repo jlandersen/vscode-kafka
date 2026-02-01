@@ -1,6 +1,6 @@
 import { dump } from "js-yaml";
 import * as vscode from "vscode";
-import { Broker, ClientAccessor, Cluster } from "../client";
+import { Broker, ClientAccessor, Cluster, ConsumerCollection } from "../client";
 import { KafkaExplorer } from "../explorer";
 import { BrokerItem } from "../explorer/models/brokers";
 import { OutputChannelProvider } from "../providers";
@@ -82,7 +82,7 @@ export class DeleteClusterCommandHandler {
     public static commandId = 'vscode-kafka.api.deleteclusters';
     public static userCommandId = 'vscode-kafka.cluster.delete';
 
-    constructor(private clusterSettings: ClusterSettings, private clientAccessor: ClientAccessor, private explorer: KafkaExplorer) {
+    constructor(private clusterSettings: ClusterSettings, private clientAccessor: ClientAccessor, private explorer: KafkaExplorer, private consumerCollection: ConsumerCollection) {
     }
 
     async execute(deleteRequest: DeleteClusterRequest): Promise<void> {
@@ -107,6 +107,12 @@ export class DeleteClusterCommandHandler {
             }
         }
         for (const cluster of clusters) {
+            // Close all consumers associated with this cluster
+            const consumers = this.consumerCollection.getByClusterId(cluster!.id);
+            for (const consumer of consumers) {
+                await this.consumerCollection.close(consumer.uri);
+            }
+            
             await this.clusterSettings.remove(cluster!.id);
             this.clientAccessor.remove(cluster!.id);
         }
