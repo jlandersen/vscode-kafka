@@ -39,6 +39,7 @@ export interface SslOption {
     ca?: string;
     key?: string;
     cert?: string;
+    rejectUnauthorized?: boolean;
 }
 
 export interface Broker {
@@ -522,7 +523,8 @@ function createSsl(connectionOptions: ConnectionOptions): tls.ConnectionOptions 
             return {
                 ca,
                 key,
-                cert
+                cert,
+                rejectUnauthorized: sslOption.rejectUnauthorized
             } as tls.ConnectionOptions;
         }
     }

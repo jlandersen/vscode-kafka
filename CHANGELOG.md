@@ -4,6 +4,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 ## [Unreleased]
 ### Added
 - **Scheduled Message Production**: Added support for producing messages at regular intervals using the `every` property in .kafka files. Supports time units: `s` (seconds), `m` (minutes), `h` (hours). Example: `every: 3s`. See [#127](https://github.com/jlandersen/vscode-kafka/issues/127).
+- **SSL Hostname Verification Control**: Added ability to disable SSL certificate hostname verification in cluster configuration. This is useful for development environments with self-signed certificates or hostname mismatches. ⚠️ Should only be used in development environments. See [#224](https://github.com/jlandersen/vscode-kafka/issues/224).
 
 ## [0.18.0] - 2026-02-01
 ### Added

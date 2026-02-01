@@ -59,6 +59,7 @@ const CLUSTER_SSL_FIELD = "ssl";
 const CLUSTER_SSL_CA_FIELD = "ssl.ca";
 const CLUSTER_SSL_KEY_FIELD = "ssl.key";
 const CLUSTER_SSL_CERT_FIELD = "ssl.cert";
+const CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD = "ssl.rejectUnauthorized";
 
 // --- Wizard page ID
 const CLUSTER_PROVIDER_PAGE = 'cluster-provider-page';
@@ -326,6 +327,13 @@ function createFields(cluster?: Cluster): (WizardPageFieldDefinition | WizardPag
                             'PEM': ['pem', 'crt', 'cer', 'key']
                         }
                     }
+                },
+                {
+                    id: CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD,
+                    label: "Reject Unauthorized Certificates",
+                    description: "When disabled, accepts self-signed certificates and hostname mismatches. ⚠️ Use only for development!",
+                    initialValue: tlsConnectionOptions?.rejectUnauthorized !== false ? 'true' : undefined,
+                    type: "checkbox"
                 }
             ]
         }
@@ -426,6 +434,7 @@ function createValidator(validationContext: ValidationContext) {
         fieldRefresh.set(CLUSTER_SSL_CA_FIELD, { enabled: sslEnabled });
         fieldRefresh.set(CLUSTER_SSL_KEY_FIELD, { enabled: sslEnabled });
         fieldRefresh.set(CLUSTER_SSL_CERT_FIELD, { enabled: sslEnabled });
+        fieldRefresh.set(CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD, { enabled: sslEnabled });
 
         return { items: diagnostics, fieldRefresh };
     };
@@ -460,13 +469,25 @@ function createSsl(data: any): SslOption | boolean {
     const ca = data[CLUSTER_SSL_CA_FIELD];
     const key = data[CLUSTER_SSL_KEY_FIELD];
     const cert = data[CLUSTER_SSL_CERT_FIELD];
-    if (ca || key || cert) {
-        return {
+    const rejectUnauthorized = data[CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD];
+    
+    // If any SSL option is configured, return SslOption object
+    if (ca || key || cert || rejectUnauthorized !== undefined) {
+        const sslOption: SslOption = {
             ca,
             key,
             cert
-        } as SslOption;
+        };
+        
+        // Only set rejectUnauthorized if explicitly set to false
+        // (defaults to true if undefined, which is secure by default)
+        if (rejectUnauthorized === false || rejectUnauthorized === 'false') {
+            sslOption.rejectUnauthorized = false;
+        }
+        
+        return sslOption;
     }
+    
     return data[CLUSTER_SSL_FIELD] === true || data[CLUSTER_SSL_FIELD] === 'true';
 }
 
