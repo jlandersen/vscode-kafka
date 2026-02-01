@@ -6,6 +6,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 - **Secure Credential Storage**: Cluster passwords are now stored securely using VS Code's SecretStorage API instead of plain text. Passwords are encrypted and stored in the operating system's keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service). See [#174](https://github.com/jlandersen/vscode-kafka/issues/174).
   - Existing passwords are automatically migrated to secure storage on first activation.
   - Fallback support for environments without SecretStorage API (e.g., Eclipse Theia).
+- **Custom Date/Time Template Helpers**: Added custom template helpers for .kafka files: `{{$timestamp}}`, `{{$date.now}}`, `{{$date.iso}}`, `{{$date.unix}}`. See [#242](https://github.com/jlandersen/vscode-kafka/issues/242).
 
 ### Changed
 - Cluster settings storage model: SASL passwords are now stored separately from cluster metadata for enhanced security.
