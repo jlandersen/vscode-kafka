@@ -4,105 +4,178 @@
 [![Latest version](https://img.shields.io/visual-studio-marketplace/v/jeppeandersen.vscode-kafka?color=brightgreen)](https://marketplace.visualstudio.com/items?itemName=jeppeandersen.vscode-kafka)
 [![Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/jeppeandersen.vscode-kafka?logo=Installs)](https://marketplace.visualstudio.com/items?itemName=jeppeandersen.vscode-kafka)
 
-Work with Apache Kafka® directly in Visual Studio Code-based editors. Kafka clusters running version 0.11 or higher are supported.
+**Interact with Apache Kafka® directly in VS Code.** Manage clusters, produce and consume messages, and explore topics—all without leaving your editor.
 
-Features:
-- Connect to multiple clusters
-- View brokers in cluster
-- View topics
-- View configs
-- Create/Delete topic
-- Produce (randomized) messages
-- Consume messages
-- SASL/PLAIN, SASL/SCRAM-256, SASL/SCRAM-512 Authentication (Kafka 0.10+)
-- SSL Support
-- Clusters can be contributed by 3rd party extensions
+---
 
-Planned features, in no particular order:
-- More administration features
-- Improved .kafka validation support
-- Better SSL support
+## ✨ Key Features
 
-You might also find useful information in the [Online Documentation](https://github.com/jlandersen/vscode-kafka/blob/master/docs/README.md)
-or you can read this documentation inside your editor with the command `Open Documentation` available with `Ctrl+Shift+P`:
+### 🔍 **Visual Cluster Explorer**
+Browse your Kafka infrastructure in the sidebar with an intuitive tree view:
+- 📊 **Clusters** - Connect to multiple Kafka clusters simultaneously
+- 📂 **Topics** - View, create, and delete topics with real-time updates
+- 🖥️ **Brokers** - Monitor broker health and configuration
+- 👥 **Consumer Groups** - Track consumer lag and group membership
+- ⚙️ **Configurations** - Inspect and manage cluster settings
 
-![Open Documentation](docs/assets/open-doc-cmd.png)
+![Kafka Explorer](docs/assets/kafka-explorer.png)
 
-## Kafka explorer
+### 📤 **Message Producer**
+Create producers using simple `.kafka` files with rich features:
+- 🎲 **Randomized Data** - Generate test data with [Faker.js](https://fakerjs.dev/) templates
+- 🔑 **Headers & Keys** - Full support for message keys and custom headers
+- ⏱️ **Scheduled Production** - Produce messages at regular intervals (`every: 5s`, `every: 1m`)
+- 🔁 **Batch Production** - Send multiple messages at once for load testing
+- 🎯 **Multiple Producers** - Define multiple producers in a single file
 
-The Kafka explorer shows configured clusters with their topics, brokers, consumers and configurations.
-
-![Screenshot-1](docs/assets/kafka-explorer.png)
-
-See [Kafka explorer](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Explorer.md) section for more information.
-
-## Producing messages
-
-Define simple producers in a [.kafka](https://github.com/jlandersen/vscode-kafka/blob/master/docs/KafkaFile.md#kafkafile) file, using the following format:
-
-```json
-PRODUCER keyed-message
-topic: my-topic
-key: mykeyq
-headers: header1=value1, header2=value2
-record content
-
-###
-
-PRODUCER non-keyed-json-message
-topic: json-events
+**Example:**
+```kafka
+PRODUCER user-events
+topic: user-activity
+every: 3s
+key: user-{{string.uuid}}
+headers: source=web-app, version=1.0
 {
-    "type": "my_test_event-{{number.int}}"
+  "userId": "{{string.uuid}}",
+  "event": "{{helpers.arrayElement(['login', 'logout', 'purchase'])}}",
+  "timestamp": {{$timestamp}},
+  "user": {
+    "name": "{{person.fullName}}",
+    "email": "{{internet.email}}"
+  }
 }
 ```
 
-![Producers](docs/assets/kafka-file-producers.png)
+![Producing Messages](docs/assets/kafka-file-producers.png)
 
-See [Producing messages](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Producing.md) section for more information.
+### 📥 **Flexible Consumer**
+Consume messages with multiple visualization options:
+- 📝 **Text View** - Traditional streaming text output with syntax highlighting
+- 📊 **Table View** - Excel-like table with sortable columns, search, and CSV export
+- 🎯 **Targeted Consumption** - Consume from specific partitions or offsets
+- 🔐 **Format Support** - Handle Avro, JSON, string, and binary message formats
+- 💾 **Export Data** - Export consumed messages to CSV for analysis
 
-## Consuming messages
+**Start consuming from:**
+- Right-click a topic in the explorer
+- Use Command Palette (`Ctrl+Shift+P`)
+- Define consumers in `.kafka` files
 
-Consuming topics can be done by right-clicking on a topic in the Kafka explorer, from the command palette, or from a [.kafka](https://github.com/jlandersen/vscode-kafka/blob/master/docs/KafkaFile.md#kafkafile) file:
-
+```kafka
+CONSUMER analytics-team
+topic: user-events
+from: earliest
+partitions: 0,1,2
 ```
-CONSUMER consumer-group-id
-topic: json-events
-partitions: 0
-from: 1
-```
 
-![Start Consumer with a .kafka file](docs/assets/start-consumer-from-kafkafile.png)
+![Consumer Table View](docs/assets/start-consumer-from-kafkafile.png)
 
-See [Consuming messages](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Consuming.md) section for more information.
+### 🔐 **Security**
+- 🔒 **SASL Authentication** - PLAIN, SCRAM-256, SCRAM-512 (Kafka 0.10+)
+- 🛡️ **SSL/TLS Support** - Secure connections with certificate validation
+- 🔑 **Secure Storage** - Passwords stored in OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
+- 🧪 **Development Mode** - Optional hostname verification bypass for self-signed certificates
 
-## Discover new cluster providers
+### 🛠️ **Advanced Administration**
+- ✅ **Create Topics** - Configure partitions, replication factor, and topic settings
+- 🗑️ **Delete Topics** - Remove unwanted topics with confirmation dialogs
+- 🧹 **Delete Records** - Empty topics by deleting all messages from all partitions
+- 📋 **Metadata Inspection** - Dump detailed metadata for clusters, brokers, and topics
+- 👥 **Consumer Group Management** - Delete consumer groups and monitor offsets
 
-You can search for extensions contributing cluster providers in the extension gallery, by clicking on the `Discover Cluster Providers` button (also available via the command palette):
+---
+
+## 🚀 Getting Started
+
+### 1. Install the Extension
+Search for "Kafka" in the VS Code Extensions marketplace or [install from here](https://marketplace.visualstudio.com/items?itemName=jeppeandersen.vscode-kafka).
+
+### 2. Add Your First Cluster
+Click the `+` icon in the Kafka Explorer or use `Ctrl+Shift+P` → "Kafka: Add Cluster"
+
+### 3. Start Exploring!
+- Browse topics and consumer groups
+- Right-click to produce or consume messages
+- Create `.kafka` files for reusable workflows
+
+> 📚 **Need Help?** Open documentation inside VS Code with `Ctrl+Shift+P` → "Kafka: Open Documentation"
+
+![Open Documentation](docs/assets/open-doc-cmd.png)
+
+---
+
+## 📖 Documentation
+
+| Topic | Description |
+|-------|-------------|
+| [Kafka Explorer](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Explorer.md) | Navigating clusters, topics, brokers, and consumer groups |
+| [Producing Messages](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Producing.md) | Creating producers with Faker templates and scheduled production |
+| [Consuming Messages](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Consuming.md) | Text view, table view, and consumption options |
+| [.kafka File Format](https://github.com/jlandersen/vscode-kafka/blob/master/docs/KafkaFile.md) | Syntax reference for producer and consumer definitions |
+| [Settings](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Settings.md) | Extension configuration options |
+
+---
+
+## 🔌 Extensibility
+
+Extend the Kafka explorer by creating custom cluster providers. Your extension can:
+- Discover clusters from external sources (cloud providers, configuration management)
+- Auto-configure connection settings
+- Provide custom authentication mechanisms
+
+**Create a Cluster Provider Extension:**
+1. Add `"kafka-provider"` to your extension's `package.json` keywords
+2. Implement the cluster provider API
+3. Users discover your extension via "Discover Cluster Providers"
 
 ![Discover Cluster Providers](docs/assets/kafka-explorer-discover-providers.png)
 
-Those extensions must have the `kafka-provider` keyword in their `package.json`, eg.
-```json
-"keywords": [
-		"kafka-provider"
-],
-```
+---
 
-## CI Builds
+## 🤝 Contributing
 
-_Tools for Apache Kafka®_ is built using Github Actions. Here's how to download and install the latest successful build:
-- Go to the [CI Workflow page](https://github.com/jlandersen/vscode-kafka/actions?query=workflow%3ACI+is%3Asuccess+branch%3Amaster)
-- Click on the most recent run,
-- Locate the vscode-kafka artifact down the page and download it,
-- Unzip the archive,
-- Install the vscode-kafka-*.vsix extension by following these [instructions](https://code.visualstudio.com/docs/editor/extension-gallery#_install-from-a-vsix).
+We ❤️ contributions! Whether you're:
+- 🐛 Reporting bugs
+- 💡 Suggesting features
+- 📝 Improving documentation
+- 💻 Submitting pull requests
 
-## Contributing
+All contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-This is an open source project open to anyone. Contributions are extremely welcome!
+### Development Setup
+1. Clone the repository
+2. Run `npm install`
+3. Open in VS Code and press `F5` to launch Extension Development Host
+4. Make your changes and run tests with `npm test`
 
-For information on getting started, refer to the [CONTRIBUTING instructions](CONTRIBUTING.md).
-## License
+---
+
+## 📦 CI Builds
+
+Try the latest development version:
+1. Go to the [CI Workflow page](https://github.com/jlandersen/vscode-kafka/actions?query=workflow%3ACI+is%3Asuccess+branch%3Amaster)
+2. Click on the most recent successful run
+3. Download the `vscode-kafka` artifact
+4. Unzip and install the `.vsix` file: `code --install-extension vscode-kafka-*.vsix`
+
+---
+
+## 📄 License
+
 MIT License. See [LICENSE](LICENSE) file.
 
+---
+
+## ⚖️ Legal
+
 Apache, Apache Kafka®, Kafka® and associated logos are trademarks of the Apache Software Foundation (ASF). _Tools for Apache Kafka®_ is not affiliated with, endorsed by, or otherwise associated with the Apache Software Foundation or any of its projects.
+
+---
+
+<div align="center">
+  <strong>Built with ❤️ by the community</strong>
+  <br>
+  <a href="https://github.com/jlandersen/vscode-kafka/issues">Report Bug</a> •
+  <a href="https://github.com/jlandersen/vscode-kafka/issues">Request Feature</a> •
+  <a href="https://github.com/jlandersen/vscode-kafka/discussions">Discussions</a>
+</div>
