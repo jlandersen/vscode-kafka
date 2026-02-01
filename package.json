@@ -274,18 +274,18 @@
 				"title": "Dump Topic Metadata",
 				"category": "Kafka"
 			},
-		{
-			"command": "vscode-kafka.topic.delete",
-			"title": "Delete Topic",
-			"category": "Kafka"
-		},
-		{
-			"command": "vscode-kafka.topic.deleterecords",
-			"title": "Delete Records",
-			"category": "Kafka"
-		},
-		{
-			"command": "vscode-kafka.explorer.dumpbrokermetadata",
+			{
+				"command": "vscode-kafka.topic.delete",
+				"title": "Delete Topic",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.topic.deleterecords",
+				"title": "Delete Records",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.explorer.dumpbrokermetadata",
 				"title": "Dump Broker Metadata",
 				"category": "Kafka"
 			},
@@ -384,18 +384,18 @@
 					"when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
 					"group": "1_kafka"
 				},
-			{
-				"command": "vscode-kafka.explorer.dumptopicmetadata",
-				"when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
-				"group": "1_kafka"
-			},
-			{
-				"command": "vscode-kafka.topic.deleterecords",
-				"when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
-				"group": "1_kafka"
-			},
-			{
-				"command": "vscode-kafka.explorer.dumpclustermetadata",
+				{
+					"command": "vscode-kafka.explorer.dumptopicmetadata",
+					"when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
+					"group": "1_kafka"
+				},
+				{
+					"command": "vscode-kafka.topic.deleterecords",
+					"when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
+					"group": "1_kafka"
+				},
+				{
+					"command": "vscode-kafka.explorer.dumpclustermetadata",
 					"when": "view == kafkaExplorer && viewItem == broker && !listMultiSelection",
 					"group": "1_kafka"
 				},
@@ -495,7 +495,9 @@
 		"test-watch": "tsc -watch -p ./",
 		"pretest": "npm run test-compile && npm run lint",
 		"lint": "eslint src --ext ts",
-		"test": "node ./out/test/runTest.js"
+		"test": "node ./out/test/runTest.js",
+		"test:integration": "node ./out/test/runIntegrationTest.js",
+		"pretest:integration": "npm run test-compile"
 	},
 	"dependencies": {
 		"@faker-js/faker": "^9.3.0",
@@ -507,6 +509,7 @@
 		"kafkajs": "^2.2.4"
 	},
 	"devDependencies": {
+		"@testcontainers/kafka": "^11.11.0",
 		"@types/fs-extra": "^11.0.4",
 		"@types/js-yaml": "^4.0.9",
 		"@types/minimatch": "^5.1.2",
@@ -520,6 +523,7 @@
 		"copy-webpack-plugin": "^12.0.2",
 		"eslint": "^8.57.1",
 		"mocha": "^10.8.2",
+		"testcontainers": "^11.11.0",
 		"ts-loader": "^9.5.1",
 		"typescript": "^5.7.2",
 		"webpack": "^5.97.1",

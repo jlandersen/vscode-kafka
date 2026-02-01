@@ -1,9 +1,13 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
- build:
+  build:
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
@@ -11,28 +15,59 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18.x
-      - run: npm install
+
+      - name: Install dependencies
+        run: npm install
+
       - name: Lint
         run: npm run lint
+
       - name: Build .vsix package
         if: matrix.os != 'ubuntu-latest'
         run: npm run package
+
       - name: Build .vsix package on Linux
         if: matrix.os == 'ubuntu-latest'
         run: |
           VERSION=$(node -p "require('./package.json').version")
           npx @vscode/vsce package -o vscode-kafka-${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_NUMBER}.vsix
-      - name: Run tests
+
+      - name: Run unit tests
         uses: coactions/setup-xvfb@v1
         with:
           run: npm test
+
       - name: Upload linux-built vsix
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: vscode-kafka
           path: vscode-kafka*.vsix
+
+  integration-tests:
+    # Integration tests only run on Linux (Docker support in GitHub Actions)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run integration tests
+        uses: coactions/setup-xvfb@v1
+        with:
+          run: npm run test:integration
+        env:
+          # Testcontainers configuration
+          TESTCONTAINERS_RYUK_DISABLED: "true"

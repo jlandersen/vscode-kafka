@@ -1,29 +1,84 @@
 name: Release
 
 on:
-    push:
-        tags:
-          - "v*"
+  push:
+    tags:
+      - "v*"
 
 jobs:
- build:
-    runs-on: ubuntu-latest
+  # First, run CI to ensure everything passes
+  ci:
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18.x
-      - run: npm install
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build .vsix package
+        run: npm run package
+
+      - name: Run unit tests
+        uses: coactions/setup-xvfb@v1
+        with:
+          run: npm test
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run integration tests
+        uses: coactions/setup-xvfb@v1
+        with:
+          run: npm run test:integration
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+
+  # Only publish if all CI jobs pass
+  publish:
+    needs: [ci, integration-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+
+      - name: Install dependencies
+        run: npm install
+
       - name: Publish to VSCode Marketplace
         run: npx @vscode/vsce publish -p $VSCE_TOKEN
         env:
           VSCE_TOKEN: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
+
       # TODO: Re-enable Open VSX publishing when token is configured
       # - name: Publish to Open VSX
       #   run: npx ovsx publish -p $OVSX_TOKEN
       #   env:
       #     OVSX_TOKEN: ${{ secrets.OPENVSX_MARKETPLACE_TOKEN }}
-
-
