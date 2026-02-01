@@ -1,228 +1,318 @@
 /**
- * Integration tests for cluster storage migration.
+ * Integration tests for cluster migration from Memento to Settings.
  * 
  * These tests verify that the extension correctly migrates cluster configurations
- * from Memento (globalState) storage to settings.json, including:
+ * from the old storage format (Memento/globalState) to the new format (settings.json + SecretStorage):
  * 1. Password migration from plain-text in Memento to SecretStorage
  * 2. Cluster metadata migration from Memento to settings.json
+ * 3. Selected cluster migration to workspace settings
+ * 
+ * Note: For tests of the new storage format itself, see settings-storage.integration.test.ts
  */
 
 import * as assert from "assert";
 import * as vscode from "vscode";
 import { Cluster } from "../../client/client";
-import { initializeTestEnvironment } from "./testSetup";
 
-suite("Cluster Migration Integration Tests", function () {
+suite("Cluster Migration from Memento to Settings Integration Tests", function () {
     // Increase timeout for VS Code extension operations
     this.timeout(30000);
 
-    const testClusterId = "test-migration-cluster";
-    const testPassword = "test-password-123";
+    const testClusterId1 = "test-cluster-1";
+    const testClusterId2 = "test-cluster-2";
+    const testPassword1 = "password123";
+    const testPassword2 = "secretPass456";
+
+    let testGlobalState: Map<string, any>;
+    let mockContext: vscode.ExtensionContext;
 
     suiteSetup(async function () {
-        // Increase timeout for extension activation
-        this.timeout(30000);
-        
         // Activate the extension
         const extension = vscode.extensions.getExtension("jeppeandersen.vscode-kafka");
         if (extension && !extension.isActive) {
             await extension.activate();
-            // Wait for initialization to complete
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // extension.activate() returns a promise that resolves when activation is complete
         }
-        
-        // Initialize test environment (Context and SecretsStorage)
-        await initializeTestEnvironment();
     });
 
-    suiteTeardown(async function () {
-        // Clean up test data
+    setup(async function () {
+        // Create a fresh mock storage for each test
+        testGlobalState = new Map<string, any>();
+        
+        const globalState = {
+            keys: () => Array.from(testGlobalState.keys()),
+            get: <T>(key: string, defaultValue?: T) => testGlobalState.has(key) ? testGlobalState.get(key) : defaultValue,
+            update: async (key: string, value: any) => {
+                if (value === undefined) {
+                    testGlobalState.delete(key);
+                } else {
+                    testGlobalState.set(key, value);
+                }
+            },
+            setKeysForSync: (keys: readonly string[]) => { }
+        } as vscode.Memento;
+
+        mockContext = {
+            globalState,
+            workspaceState: globalState,
+            secrets: undefined,
+            subscriptions: [],
+            extensionPath: '',
+            storagePath: undefined,
+            globalStoragePath: '',
+            logPath: '',
+            extensionUri: vscode.Uri.file(''),
+            extensionMode: vscode.ExtensionMode.Test,
+            asAbsolutePath: (relativePath: string) => relativePath,
+            storageUri: undefined,
+            globalStorageUri: vscode.Uri.file(''),
+            logUri: vscode.Uri.file(''),
+            extension: {} as vscode.Extension<any>,
+            environmentVariableCollection: {} as any,
+            languageModelAccessInformation: {} as any,
+        } as unknown as vscode.ExtensionContext;
+
+        // Clear settings.json before each test
         const config = vscode.workspace.getConfiguration('kafka');
         await config.update('clusters', [], vscode.ConfigurationTarget.Global);
-        // Skip workspace settings cleanup if no workspace is open
         try {
             await config.update('clusters.selected', undefined, vscode.ConfigurationTarget.Workspace);
         } catch (e) {
-            // Workspace settings not available in test environment
+            // Workspace settings not available
         }
     });
 
-    test("cluster settings should be accessible", async function () {
-        // Basic smoke test to ensure cluster settings can be loaded
-        const { getClusterSettings } = await import('../../settings/clusters');
-        const clusterSettings = getClusterSettings();
-        
-        assert.ok(clusterSettings, "Cluster settings should be defined");
-        assert.ok(typeof clusterSettings.getAll === 'function', "Should have getAll method");
-        assert.ok(typeof clusterSettings.upsert === 'function', "Should have upsert method");
+    suiteTeardown(async function () {
+        // Clean up settings after all tests
+        const config = vscode.workspace.getConfiguration('kafka');
+        await config.update('clusters', [], vscode.ConfigurationTarget.Global);
+        try {
+            await config.update('clusters.selected', undefined, vscode.ConfigurationTarget.Workspace);
+        } catch (e) {
+            // Workspace settings not available
+        }
     });
 
-    test("should store and retrieve clusters in settings.json", async function () {
-        const { getClusterSettings } = await import('../../settings/clusters');
-        const clusterSettings = getClusterSettings();
-
-        const testCluster: Cluster = {
-            id: testClusterId,
-            name: "Test Migration Cluster",
-            bootstrap: "localhost:9092",
-            saslOption: {
-                mechanism: "plain",
-                username: "testuser",
-                password: testPassword
-            }
+    test("should migrate clusters from Memento to settings.json", async function () {
+        // ARRANGE: Set up old Memento storage format with clusters (without passwords - simulating post-0.18.0)
+        const oldClusters = {
+            [testClusterId1]: {
+                id: testClusterId1,
+                name: "Old Cluster 1",
+                bootstrap: "localhost:9092",
+                saslOption: {
+                    mechanism: "plain",
+                    username: "user1"
+                    // password already migrated to SecretStorage in 0.18.0
+                }
+            } as Cluster,
+            [testClusterId2]: {
+                id: testClusterId2,
+                name: "Old Cluster 2",
+                bootstrap: "localhost:9093",
+                saslOption: {
+                    mechanism: "scram-sha-256",
+                    username: "user2"
+                }
+            } as Cluster
         };
 
-        // Store cluster
-        await clusterSettings.upsert(testCluster);
+        // Initialize Context and SecretsStorage with our mock
+        const { Context } = await import('../../context');
+        const { SecretsStorage } = await import('../../settings/secretsStorage');
+        
+        Context.register(mockContext);
+        SecretsStorage.initialize(undefined, mockContext.globalState);
 
-        // Verify cluster is in settings.json
+        // Pre-populate passwords in SecretStorage (as if 0.18.0 migration already happened)
+        const secretsStorage = SecretsStorage.getInstance();
+        await secretsStorage.storePassword(testClusterId1, testPassword1);
+        await secretsStorage.storePassword(testClusterId2, testPassword2);
+
+        // Put clusters in old Memento storage
+        await mockContext.globalState.update('clusters', oldClusters);
+        await mockContext.globalState.update('selectedcluster', testClusterId1);
+
+        // ACT: Create a new SettingsClusterSettings instance (triggers migration)
+        const { resetClusterSettingsForTesting, getClusterSettings } = await import('../../settings/clusters');
+        
+        // Reset the singleton to force a fresh instance
+        resetClusterSettingsForTesting();
+        
+        // Create new instance which should trigger migration
+        const clusterSettings = getClusterSettings();
+        
+        // Wait for migration to complete by calling a method that awaits it
+        await clusterSettings.getWithCredentials('any-id'); // This waits for migrationPromise
+
+        // ASSERT: Verify clusters are now in settings.json
+        const config = vscode.workspace.getConfiguration('kafka');
+        const migratedClusters = config.get<Cluster[]>('clusters', []);
+        
+        assert.strictEqual(migratedClusters.length, 2, "Should have migrated 2 clusters");
+        
+        const cluster1 = migratedClusters.find(c => c.id === testClusterId1);
+        const cluster2 = migratedClusters.find(c => c.id === testClusterId2);
+        
+        assert.ok(cluster1, "Cluster 1 should be migrated");
+        assert.ok(cluster2, "Cluster 2 should be migrated");
+        
+        assert.strictEqual(cluster1.name, "Old Cluster 1");
+        assert.strictEqual(cluster2.name, "Old Cluster 2");
+        
+        // Verify passwords are NOT in settings.json
+        assert.strictEqual(cluster1.saslOption?.password, undefined, "Password should not be in settings");
+        assert.strictEqual(cluster2.saslOption?.password, undefined, "Password should not be in settings");
+
+        // Verify passwords are still in SecretStorage
+        const password1 = await secretsStorage.getPassword(testClusterId1);
+        const password2 = await secretsStorage.getPassword(testClusterId2);
+        assert.strictEqual(password1, testPassword1, "Password 1 should still be in SecretStorage");
+        assert.strictEqual(password2, testPassword2, "Password 2 should still be in SecretStorage");
+
+        // Verify migration completion flag is set
+        const migrationCompleted = mockContext.globalState.get<boolean>('settingsMigrationCompleted');
+        assert.strictEqual(migrationCompleted, true, "Migration flag should be set");
+    });
+
+    test("should migrate passwords from plain-text Memento to SecretStorage", async function () {
+        // ARRANGE: Set up old Memento storage with plain-text passwords (pre-0.18.0 format)
+        const oldClustersWithPasswords = {
+            [testClusterId1]: {
+                id: testClusterId1,
+                name: "Cluster with Password",
+                bootstrap: "localhost:9092",
+                saslOption: {
+                    mechanism: "plain",
+                    username: "user1",
+                    password: testPassword1  // Plain-text password in Memento!
+                }
+            } as Cluster
+        };
+
+        // Initialize Context and SecretsStorage with our mock
+        const { Context } = await import('../../context');
+        const { SecretsStorage } = await import('../../settings/secretsStorage');
+        
+        Context.register(mockContext);
+        SecretsStorage.initialize(undefined, mockContext.globalState);
+
+        // Put clusters with passwords in old Memento storage
+        await mockContext.globalState.update('clusters', oldClustersWithPasswords);
+        // Mark that neither migration has happened
+        await mockContext.globalState.update('secretsMigrationCompleted', false);
+        await mockContext.globalState.update('settingsMigrationCompleted', false);
+
+        // ACT: Create a new SettingsClusterSettings instance (triggers both migrations)
+        const { resetClusterSettingsForTesting, getClusterSettings } = await import('../../settings/clusters');
+        
+        // Reset the singleton
+        resetClusterSettingsForTesting();
+        
+        // Create new instance which should trigger migrations
+        const clusterSettings = getClusterSettings();
+        
+        // Wait for migrations to complete
+        await clusterSettings.getWithCredentials('any-id');
+
+        // ASSERT: Verify password was moved to SecretStorage
+        const secretsStorage = SecretsStorage.getInstance();
+        const retrievedPassword = await secretsStorage.getPassword(testClusterId1);
+        assert.strictEqual(retrievedPassword, testPassword1, "Password should be in SecretStorage");
+
+        // Verify password was removed from Memento
+        const updatedMemento = mockContext.globalState.get<any>('clusters', {});
+        const clusterInMemento = updatedMemento[testClusterId1];
+        assert.strictEqual(clusterInMemento?.saslOption?.password, undefined, 
+            "Password should be removed from Memento");
+
+        // Verify cluster metadata is in settings.json
+        const config = vscode.workspace.getConfiguration('kafka');
+        const migratedClusters = config.get<Cluster[]>('clusters', []);
+        assert.strictEqual(migratedClusters.length, 1, "Should have migrated 1 cluster");
+        assert.strictEqual(migratedClusters[0].saslOption?.password, undefined,
+            "Password should not be in settings.json");
+
+        // Verify both migration flags are set
+        const secretsMigrationCompleted = mockContext.globalState.get<boolean>('secretsMigrationCompleted');
+        const settingsMigrationCompleted = mockContext.globalState.get<boolean>('settingsMigrationCompleted');
+        assert.strictEqual(secretsMigrationCompleted, true, "Secrets migration flag should be set");
+        assert.strictEqual(settingsMigrationCompleted, true, "Settings migration flag should be set");
+    });
+
+    test("should not re-migrate if already completed", async function () {
+        // ARRANGE: Set up scenario where migration was already done
+        const oldClusters = {
+            [testClusterId1]: {
+                id: testClusterId1,
+                name: "Already Migrated Cluster",
+                bootstrap: "localhost:9092"
+            } as Cluster
+        };
+
+        // Initialize Context and SecretsStorage
+        const { Context } = await import('../../context');
+        const { SecretsStorage } = await import('../../settings/secretsStorage');
+        
+        Context.register(mockContext);
+        SecretsStorage.initialize(undefined, mockContext.globalState);
+
+        // Mark migration as already completed
+        await mockContext.globalState.update('settingsMigrationCompleted', true);
+        await mockContext.globalState.update('clusters', oldClusters);
+
+        // Pre-populate settings.json with different data
+        const config = vscode.workspace.getConfiguration('kafka');
+        await config.update('clusters', [{
+            id: "existing-cluster",
+            name: "Existing Cluster",
+            bootstrap: "localhost:9094"
+        }], vscode.ConfigurationTarget.Global);
+
+        // ACT: Create a new SettingsClusterSettings instance
+        const { resetClusterSettingsForTesting, getClusterSettings } = await import('../../settings/clusters');
+        
+        resetClusterSettingsForTesting();
+        const clusterSettings = getClusterSettings();
+        
+        // Wait for migration check to complete
+        await clusterSettings.getWithCredentials('any-id');
+
+        // ASSERT: Verify settings.json was NOT overwritten
+        // Must get a fresh config reference as the old one may be stale
+        const freshConfig = vscode.workspace.getConfiguration('kafka');
+        const clusters = freshConfig.get<Cluster[]>('clusters', []);
+        assert.strictEqual(clusters.length, 1, "Should still have 1 cluster");
+        assert.strictEqual(clusters[0].id, "existing-cluster", 
+            "Should not overwrite existing settings");
+    });
+
+    test("should handle empty Memento gracefully", async function () {
+        // ARRANGE: No clusters in Memento
+        const { Context } = await import('../../context');
+        const { SecretsStorage } = await import('../../settings/secretsStorage');
+        
+        Context.register(mockContext);
+        SecretsStorage.initialize(undefined, mockContext.globalState);
+
+        // Empty Memento
+        await mockContext.globalState.update('clusters', {});
+
+        // ACT: Trigger migration
+        const { resetClusterSettingsForTesting, getClusterSettings } = await import('../../settings/clusters');
+        
+        resetClusterSettingsForTesting();
+        const clusterSettings = getClusterSettings();
+        
+        // Wait for migration to complete
+        await clusterSettings.getWithCredentials('any-id');
+
+        // ASSERT: Should complete without errors
+        const migrationCompleted = mockContext.globalState.get<boolean>('settingsMigrationCompleted');
+        assert.strictEqual(migrationCompleted, true, "Migration should complete even with no clusters");
+
         const config = vscode.workspace.getConfiguration('kafka');
         const clusters = config.get<Cluster[]>('clusters', []);
-        
-        assert.ok(clusters.length > 0, "Should have at least one cluster in settings");
-        
-        const storedCluster = clusters.find(c => c.id === testClusterId);
-        assert.ok(storedCluster, "Test cluster should be in settings.json");
-        assert.strictEqual(storedCluster.name, testCluster.name);
-        assert.strictEqual(storedCluster.bootstrap, testCluster.bootstrap);
-        
-        // Verify password is NOT in settings.json
-        assert.strictEqual(storedCluster.saslOption?.password, undefined,
-            "Password should not be stored in settings.json");
-    });
-
-    test("should retrieve cluster with credentials from SecretStorage", async function () {
-        const { getClusterSettings } = await import('../../settings/clusters');
-        const clusterSettings = getClusterSettings();
-
-        const testCluster: Cluster = {
-            id: testClusterId + "-secrets",
-            name: "Test Secrets Cluster",
-            bootstrap: "localhost:9092",
-            saslOption: {
-                mechanism: "plain",
-                username: "testuser",
-                password: testPassword
-            }
-        };
-
-        // Store cluster (password goes to SecretStorage)
-        await clusterSettings.upsert(testCluster);
-
-        // Get cluster without credentials
-        const clusterWithoutCreds = clusterSettings.get(testCluster.id);
-        assert.ok(clusterWithoutCreds, "Should get cluster");
-        assert.strictEqual(clusterWithoutCreds?.saslOption?.password, undefined,
-            "get() should not include password");
-
-        // Get cluster with credentials
-        const clusterWithCreds = await clusterSettings.getWithCredentials(testCluster.id);
-        assert.ok(clusterWithCreds, "Should get cluster with credentials");
-        assert.strictEqual(clusterWithCreds?.saslOption?.password, testPassword,
-            "getWithCredentials() should load password from SecretStorage");
-    });
-
-    test("should handle OAUTHBEARER secret storage", async function () {
-        const { getClusterSettings } = await import('../../settings/clusters');
-        const clusterSettings = getClusterSettings();
-
-        const oauthSecret = "oauth-client-secret-123";
-        const testCluster: Cluster = {
-            id: testClusterId + "-oauth",
-            name: "Test OAuth Cluster",
-            bootstrap: "localhost:9092",
-            saslOption: {
-                mechanism: "oauthbearer",
-                oauthTokenEndpoint: "https://auth.example.com/token",
-                oauthClientId: "my-client-id",
-                oauthClientSecret: oauthSecret
-            }
-        };
-
-        // Store cluster
-        await clusterSettings.upsert(testCluster);
-
-        // Verify secret is not in settings.json
-        const config = vscode.workspace.getConfiguration('kafka');
-        const clusters = config.get<Cluster[]>('clusters', []);
-        const storedCluster = clusters.find(c => c.id === testCluster.id);
-        
-        assert.strictEqual(storedCluster?.saslOption?.oauthClientSecret, undefined,
-            "OAuth client secret should not be in settings.json");
-
-        // Verify secret can be retrieved
-        const clusterWithCreds = await clusterSettings.getWithCredentials(testCluster.id);
-        assert.strictEqual(clusterWithCreds?.saslOption?.oauthClientSecret, oauthSecret,
-            "OAuth client secret should be loaded from SecretStorage");
-    });
-
-    test("should handle AWS MSK IAM secret storage", async function () {
-        const { getClusterSettings } = await import('../../settings/clusters');
-        const clusterSettings = getClusterSettings();
-
-        const awsSecretKey = "aws-secret-key-123";
-        const awsSessionToken = "aws-session-token-456";
-        
-        const testCluster: Cluster = {
-            id: testClusterId + "-aws",
-            name: "Test AWS MSK Cluster",
-            bootstrap: "b-1.mycluster.kafka.us-east-1.amazonaws.com:9098",
-            saslOption: {
-                mechanism: "aws",
-                awsRegion: "us-east-1",
-                awsAccessKeyId: "AKIAIOSFODNN7EXAMPLE",
-                awsSecretAccessKey: awsSecretKey,
-                awsSessionToken: awsSessionToken
-            }
-        };
-
-        // Store cluster
-        await clusterSettings.upsert(testCluster);
-
-        // Verify secrets are not in settings.json
-        const config = vscode.workspace.getConfiguration('kafka');
-        const clusters = config.get<Cluster[]>('clusters', []);
-        const storedCluster = clusters.find(c => c.id === testCluster.id);
-        
-        assert.strictEqual(storedCluster?.saslOption?.awsSecretAccessKey, undefined,
-            "AWS secret access key should not be in settings.json");
-        assert.strictEqual(storedCluster?.saslOption?.awsSessionToken, undefined,
-            "AWS session token should not be in settings.json");
-
-        // Verify non-secrets are in settings.json
-        assert.strictEqual(storedCluster?.saslOption?.awsAccessKeyId, "AKIAIOSFODNN7EXAMPLE",
-            "AWS access key ID (non-secret) should be in settings.json");
-        assert.strictEqual(storedCluster?.saslOption?.awsRegion, "us-east-1",
-            "AWS region should be in settings.json");
-
-        // Verify secrets can be retrieved
-        const clusterWithCreds = await clusterSettings.getWithCredentials(testCluster.id);
-        assert.strictEqual(clusterWithCreds?.saslOption?.awsSecretAccessKey, awsSecretKey,
-            "AWS secret key should be loaded from SecretStorage");
-        assert.strictEqual(clusterWithCreds?.saslOption?.awsSessionToken, awsSessionToken,
-            "AWS session token should be loaded from SecretStorage");
-    });
-
-    test("selected cluster should use workspace scope", async function () {
-        this.skip(); // Skip this test - requires an open workspace
-        
-        const { getClusterSettings } = await import('../../settings/clusters');
-        const clusterSettings = getClusterSettings();
-
-        const testCluster: Cluster = {
-            id: testClusterId + "-workspace",
-            name: "Workspace Scoped Cluster",
-            bootstrap: "localhost:9092"
-        };
-
-        await clusterSettings.upsert(testCluster);
-        clusterSettings.selected = testCluster;
-
-        // Verify selected cluster is in workspace settings
-        const config = vscode.workspace.getConfiguration('kafka');
-        const selectedId = config.get<string>('clusters.selected');
-        
-        assert.strictEqual(selectedId, testCluster.id,
-            "Selected cluster should be stored in workspace settings");
+        assert.strictEqual(clusters.length, 0, "Should have no clusters");
     });
 });

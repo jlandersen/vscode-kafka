@@ -350,10 +350,15 @@ class SettingsClusterSettings implements ClusterSettings {
                 // Migrate clusters to settings.json
                 await config.update('clusters', clustersToMigrate, vscode.ConfigurationTarget.Global);
                 
-                // Migrate selected cluster
+                // Migrate selected cluster (may fail if no workspace is open)
                 const selectedClusterId = globalState.get<string>(selectedClusterIdStorageKey);
                 if (selectedClusterId) {
-                    await config.update('clusters.selected', selectedClusterId, vscode.ConfigurationTarget.Workspace);
+                    try {
+                        await config.update('clusters.selected', selectedClusterId, vscode.ConfigurationTarget.Workspace);
+                    } catch (workspaceError) {
+                        // Workspace settings not available (no workspace open) - this is OK
+                        console.log('Could not migrate selected cluster to workspace settings (no workspace open)');
+                    }
                 }
                 
                 vscode.window.showInformationMessage(
@@ -425,6 +430,25 @@ class SettingsClusterSettings implements ClusterSettings {
         this.configurationChangeListener?.dispose();
         this.onDidChangeSelectedEmitter.dispose();
     }
+
+    /**
+     * FOR TESTING ONLY: Resets the singleton instance.
+     * This allows tests to create a fresh instance and re-trigger migration.
+     */
+    static resetInstanceForTesting(): void {
+        if (SettingsClusterSettings.instance) {
+            SettingsClusterSettings.instance.dispose();
+            SettingsClusterSettings.instance = undefined as any;
+        }
+    }
 }
 
 export const getClusterSettings = (): ClusterSettings => SettingsClusterSettings.getInstance();
+
+/**
+ * FOR TESTING ONLY: Resets the cluster settings singleton.
+ * This allows integration tests to create a fresh instance and re-trigger migration logic.
+ */
+export const resetClusterSettingsForTesting = (): void => {
+    (SettingsClusterSettings as any).resetInstanceForTesting();
+};
