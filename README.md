@@ -72,8 +72,10 @@ partitions: 0,1,2
 
 ### 🔐 **Security**
 - 🔒 **SASL Authentication** - PLAIN, SCRAM-256, SCRAM-512 (Kafka 0.10+)
+- 🌐 **OAUTHBEARER** - OAuth 2.0 authentication with automatic token refresh
+- ☁️ **AWS MSK IAM** - Native AWS IAM authentication for Amazon MSK clusters
 - 🛡️ **SSL/TLS Support** - Secure connections with certificate validation
-- 🔑 **Secure Storage** - Passwords stored in OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
+- 🔑 **Secure Storage** - Credentials stored in OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
 - 🧪 **Development Mode** - Optional hostname verification bypass for self-signed certificates
 
 ### 🛠️ **Advanced Administration**

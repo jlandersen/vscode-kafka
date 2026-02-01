@@ -32,7 +32,9 @@ const authMechanisms: Array<AuthMechanism> = [
     { key: "none", label: "None" },
     { key: "plain", label: "SASL/PLAIN" },
     { key: "scram-sha-256", label: "SASL/SCRAM-256" },
-    { key: "scram-sha-512", label: "SASL/SCRAM-512" }
+    { key: "scram-sha-512", label: "SASL/SCRAM-512" },
+    { key: "oauthbearer", label: "SASL/OAUTHBEARER" },
+    { key: "aws", label: "AWS MSK IAM" }
 ];
 
 interface ValidationContext {
@@ -54,6 +56,15 @@ const DEFAULT_BROKER = 'localhost:9092';
 const CLUSTER_SASL_MECHANISM_FIELD = "saslOptions.mechanism";
 const CLUSTER_SASL_USERNAME_FIELD = "saslOptions.username";
 const CLUSTER_SASL_PASSWORD_FIELD = "saslOptions.password";
+// OAUTHBEARER fields
+const CLUSTER_OAUTH_TOKEN_ENDPOINT_FIELD = "saslOptions.oauthTokenEndpoint";
+const CLUSTER_OAUTH_CLIENT_ID_FIELD = "saslOptions.oauthClientId";
+const CLUSTER_OAUTH_CLIENT_SECRET_FIELD = "saslOptions.oauthClientSecret";
+// AWS MSK IAM fields
+const CLUSTER_AWS_REGION_FIELD = "saslOptions.awsRegion";
+const CLUSTER_AWS_ACCESS_KEY_ID_FIELD = "saslOptions.awsAccessKeyId";
+const CLUSTER_AWS_SECRET_ACCESS_KEY_FIELD = "saslOptions.awsSecretAccessKey";
+const CLUSTER_AWS_SESSION_TOKEN_FIELD = "saslOptions.awsSessionToken";
 // SSL fields
 const CLUSTER_SSL_FIELD = "ssl";
 const CLUSTER_SSL_CA_FIELD = "ssl.ca";
@@ -262,6 +273,7 @@ function createFields(cluster?: Cluster): (WizardPageFieldDefinition | WizardPag
                         }
                     }
                 },
+                // Username/Password fields (for plain, scram-sha-256, scram-sha-512)
                 {
                     id: CLUSTER_SASL_USERNAME_FIELD,
                     label: "Username:",
@@ -272,6 +284,55 @@ function createFields(cluster?: Cluster): (WizardPageFieldDefinition | WizardPag
                     id: CLUSTER_SASL_PASSWORD_FIELD,
                     label: "Password:",
                     initialValue: `${cluster?.saslOption?.password || ''}`,
+                    type: "password"
+                },
+                // OAUTHBEARER fields
+                {
+                    id: CLUSTER_OAUTH_TOKEN_ENDPOINT_FIELD,
+                    label: "Token Endpoint:",
+                    initialValue: `${cluster?.saslOption?.oauthTokenEndpoint || ''}`,
+                    type: "textbox",
+                    placeholder: 'https://auth.example.com/oauth/token'
+                },
+                {
+                    id: CLUSTER_OAUTH_CLIENT_ID_FIELD,
+                    label: "Client ID:",
+                    initialValue: `${cluster?.saslOption?.oauthClientId || ''}`,
+                    type: "textbox",
+                    placeholder: 'OAuth client identifier'
+                },
+                {
+                    id: CLUSTER_OAUTH_CLIENT_SECRET_FIELD,
+                    label: "Client Secret:",
+                    initialValue: `${cluster?.saslOption?.oauthClientSecret || ''}`,
+                    type: "password"
+                },
+                // AWS MSK IAM fields
+                {
+                    id: CLUSTER_AWS_REGION_FIELD,
+                    label: "AWS Region:",
+                    initialValue: `${cluster?.saslOption?.awsRegion || ''}`,
+                    type: "textbox",
+                    placeholder: 'us-east-1'
+                },
+                {
+                    id: CLUSTER_AWS_ACCESS_KEY_ID_FIELD,
+                    label: "Access Key ID:",
+                    initialValue: `${cluster?.saslOption?.awsAccessKeyId || ''}`,
+                    type: "textbox",
+                    placeholder: 'AKIAIOSFODNN7EXAMPLE'
+                },
+                {
+                    id: CLUSTER_AWS_SECRET_ACCESS_KEY_FIELD,
+                    label: "Secret Access Key:",
+                    initialValue: `${cluster?.saslOption?.awsSecretAccessKey || ''}`,
+                    type: "password"
+                },
+                {
+                    id: CLUSTER_AWS_SESSION_TOKEN_FIELD,
+                    label: "Session Token:",
+                    description: "Optional. Required when using temporary credentials.",
+                    initialValue: `${cluster?.saslOption?.awsSessionToken || ''}`,
                     type: "password"
                 }
             ]
@@ -331,7 +392,7 @@ function createFields(cluster?: Cluster): (WizardPageFieldDefinition | WizardPag
                 {
                     id: CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD,
                     label: "Reject Unauthorized Certificates",
-                    description: "When disabled, accepts self-signed certificates and hostname mismatches. ⚠️ Use only for development!",
+                    description: "When disabled, accepts self-signed certificates and hostname mismatches. Use only for development!",
                     initialValue: tlsConnectionOptions?.rejectUnauthorized !== false ? 'true' : undefined,
                     type: "checkbox"
                 }
@@ -380,20 +441,21 @@ function createValidator(validationContext: ValidationContext) {
             );
         }
 
-        // 3. Validate username if SASL is enabled
-        function isSASLEnabled(data: any) {
-            return data[CLUSTER_SASL_MECHANISM_FIELD] && data[CLUSTER_SASL_MECHANISM_FIELD] !== 'none';
-        }
+        // 3. Determine which auth mechanism is selected
+        const mechanism = parameters[CLUSTER_SASL_MECHANISM_FIELD];
+        const isUsernamePasswordAuth = mechanism === 'plain' || mechanism === 'scram-sha-256' || mechanism === 'scram-sha-512';
+        const isOAuthAuth = mechanism === 'oauthbearer';
+        const isAwsAuth = mechanism === 'aws';
+        const saslEnabled = mechanism && mechanism !== 'none';
 
         function isSSLEnabled(data: any) {
             return (data[CLUSTER_SSL_FIELD] === true || data[CLUSTER_SSL_FIELD] === 'true');
         }
 
-        const saslEnabled = isSASLEnabled(parameters);
         const sslEnabled = isSSLEnabled(parameters);
 
-        if (saslEnabled) {
-
+        // 4. Validate fields based on selected mechanism
+        if (isUsernamePasswordAuth) {
             const username = parameters[CLUSTER_SASL_USERNAME_FIELD];
             result = validateAuthentificationUserName(username);
             if (result) {
@@ -407,30 +469,135 @@ function createValidator(validationContext: ValidationContext) {
                     }
                 );
             }
+        }
 
-            // check if SSL checkbox is checked
-            if (!sslEnabled) {
+        if (isOAuthAuth) {
+            const tokenEndpoint = parameters[CLUSTER_OAUTH_TOKEN_ENDPOINT_FIELD];
+            if (!tokenEndpoint || tokenEndpoint.trim() === '') {
                 diagnostics.push(
                     {
                         template: {
-                            id: CLUSTER_SSL_FIELD,
-                            content: 'SSL should probably be enabled since Authentication is enabled.'
+                            id: CLUSTER_OAUTH_TOKEN_ENDPOINT_FIELD,
+                            content: 'Token endpoint is required for OAUTHBEARER authentication.'
                         },
-                        severity: SEVERITY.WARN
+                        severity: SEVERITY.ERROR
+                    }
+                );
+            } else if (!isValidUrl(tokenEndpoint)) {
+                diagnostics.push(
+                    {
+                        template: {
+                            id: CLUSTER_OAUTH_TOKEN_ENDPOINT_FIELD,
+                            content: 'Token endpoint must be a valid URL.'
+                        },
+                        severity: SEVERITY.ERROR
+                    }
+                );
+            }
+
+            const clientId = parameters[CLUSTER_OAUTH_CLIENT_ID_FIELD];
+            if (!clientId || clientId.trim() === '') {
+                diagnostics.push(
+                    {
+                        template: {
+                            id: CLUSTER_OAUTH_CLIENT_ID_FIELD,
+                            content: 'Client ID is required for OAUTHBEARER authentication.'
+                        },
+                        severity: SEVERITY.ERROR
+                    }
+                );
+            }
+
+            const clientSecret = parameters[CLUSTER_OAUTH_CLIENT_SECRET_FIELD];
+            if (!clientSecret || clientSecret.trim() === '') {
+                diagnostics.push(
+                    {
+                        template: {
+                            id: CLUSTER_OAUTH_CLIENT_SECRET_FIELD,
+                            content: 'Client Secret is required for OAUTHBEARER authentication.'
+                        },
+                        severity: SEVERITY.ERROR
                     }
                 );
             }
         }
 
-        // 4. Validate certificate files
+        if (isAwsAuth) {
+            const region = parameters[CLUSTER_AWS_REGION_FIELD];
+            if (!region || region.trim() === '') {
+                diagnostics.push(
+                    {
+                        template: {
+                            id: CLUSTER_AWS_REGION_FIELD,
+                            content: 'AWS Region is required for AWS MSK IAM authentication.'
+                        },
+                        severity: SEVERITY.ERROR
+                    }
+                );
+            }
+
+            const accessKeyId = parameters[CLUSTER_AWS_ACCESS_KEY_ID_FIELD];
+            if (!accessKeyId || accessKeyId.trim() === '') {
+                diagnostics.push(
+                    {
+                        template: {
+                            id: CLUSTER_AWS_ACCESS_KEY_ID_FIELD,
+                            content: 'Access Key ID is required for AWS MSK IAM authentication.'
+                        },
+                        severity: SEVERITY.ERROR
+                    }
+                );
+            }
+
+            const secretAccessKey = parameters[CLUSTER_AWS_SECRET_ACCESS_KEY_FIELD];
+            if (!secretAccessKey || secretAccessKey.trim() === '') {
+                diagnostics.push(
+                    {
+                        template: {
+                            id: CLUSTER_AWS_SECRET_ACCESS_KEY_FIELD,
+                            content: 'Secret Access Key is required for AWS MSK IAM authentication.'
+                        },
+                        severity: SEVERITY.ERROR
+                    }
+                );
+            }
+        }
+
+        // 5. Warn about SSL when authentication is enabled
+        if (saslEnabled && !sslEnabled) {
+            diagnostics.push(
+                {
+                    template: {
+                        id: CLUSTER_SSL_FIELD,
+                        content: 'SSL should probably be enabled since Authentication is enabled.'
+                    },
+                    severity: SEVERITY.WARN
+                }
+            );
+        }
+
+        // 6. Validate certificate files
         validateCertificateFile(parameters, CLUSTER_SSL_CA_FIELD, diagnostics);
         validateCertificateFile(parameters, CLUSTER_SSL_KEY_FIELD, diagnostics);
         validateCertificateFile(parameters, CLUSTER_SSL_CERT_FIELD, diagnostics);
 
-        // 5. Manage enabled state for SASL and SSL fields
-        fieldRefresh.set(CLUSTER_SASL_USERNAME_FIELD, { enabled: saslEnabled });
-        fieldRefresh.set(CLUSTER_SASL_PASSWORD_FIELD, { enabled: saslEnabled });
+        // 7. Manage enabled state for auth fields based on mechanism
+        // Username/Password fields
+        fieldRefresh.set(CLUSTER_SASL_USERNAME_FIELD, { enabled: isUsernamePasswordAuth });
+        fieldRefresh.set(CLUSTER_SASL_PASSWORD_FIELD, { enabled: isUsernamePasswordAuth });
 
+        // OAUTHBEARER fields
+        fieldRefresh.set(CLUSTER_OAUTH_TOKEN_ENDPOINT_FIELD, { enabled: isOAuthAuth });
+        fieldRefresh.set(CLUSTER_OAUTH_CLIENT_ID_FIELD, { enabled: isOAuthAuth });
+        fieldRefresh.set(CLUSTER_OAUTH_CLIENT_SECRET_FIELD, { enabled: isOAuthAuth });
+
+        // AWS fields
+        fieldRefresh.set(CLUSTER_AWS_REGION_FIELD, { enabled: isAwsAuth });
+        fieldRefresh.set(CLUSTER_AWS_ACCESS_KEY_ID_FIELD, { enabled: isAwsAuth });
+        fieldRefresh.set(CLUSTER_AWS_SECRET_ACCESS_KEY_FIELD, { enabled: isAwsAuth });
+        fieldRefresh.set(CLUSTER_AWS_SESSION_TOKEN_FIELD, { enabled: isAwsAuth });
+
+        // SSL fields
         fieldRefresh.set(CLUSTER_SSL_CA_FIELD, { enabled: sslEnabled });
         fieldRefresh.set(CLUSTER_SSL_KEY_FIELD, { enabled: sslEnabled });
         fieldRefresh.set(CLUSTER_SSL_CERT_FIELD, { enabled: sslEnabled });
@@ -438,6 +605,18 @@ function createValidator(validationContext: ValidationContext) {
 
         return { items: diagnostics, fieldRefresh };
     };
+}
+
+/**
+ * Validates if a string is a valid URL.
+ */
+function isValidUrl(urlString: string): boolean {
+    try {
+        new URL(urlString);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 async function saveCluster(data: any, cluster: Cluster) {
@@ -453,26 +632,52 @@ async function saveClusters(clusters: Cluster[]) {
 }
 
 function createSaslOption(data: any): SaslOption | undefined {
-    const mechanism = data[CLUSTER_SASL_MECHANISM_FIELD] as SaslMechanism;
-    if (mechanism) {
-        const username = data[CLUSTER_SASL_USERNAME_FIELD];
-        const password = data[CLUSTER_SASL_PASSWORD_FIELD];
-        return {
-            mechanism,
-            username,
-            password
-        } as SaslOption;
+    const mechanism = data[CLUSTER_SASL_MECHANISM_FIELD];
+    if (!mechanism || mechanism === 'none') {
+        return undefined;
     }
+
+    const saslOption: SaslOption = { mechanism: mechanism as SaslMechanism };
+
+    // Username/Password for plain, scram-sha-256, scram-sha-512
+    if (mechanism === 'plain' || mechanism === 'scram-sha-256' || mechanism === 'scram-sha-512') {
+        saslOption.username = data[CLUSTER_SASL_USERNAME_FIELD];
+        saslOption.password = data[CLUSTER_SASL_PASSWORD_FIELD];
+    }
+
+    // OAUTHBEARER fields
+    if (mechanism === 'oauthbearer') {
+        saslOption.oauthTokenEndpoint = data[CLUSTER_OAUTH_TOKEN_ENDPOINT_FIELD];
+        saslOption.oauthClientId = data[CLUSTER_OAUTH_CLIENT_ID_FIELD];
+        saslOption.oauthClientSecret = data[CLUSTER_OAUTH_CLIENT_SECRET_FIELD];
+    }
+
+    // AWS MSK IAM fields
+    if (mechanism === 'aws') {
+        saslOption.awsRegion = data[CLUSTER_AWS_REGION_FIELD];
+        saslOption.awsAccessKeyId = data[CLUSTER_AWS_ACCESS_KEY_ID_FIELD];
+        saslOption.awsSecretAccessKey = data[CLUSTER_AWS_SECRET_ACCESS_KEY_FIELD];
+        saslOption.awsSessionToken = data[CLUSTER_AWS_SESSION_TOKEN_FIELD] || undefined;
+    }
+
+    return saslOption;
 }
 
 function createSsl(data: any): SslOption | boolean {
+    // First check if SSL is enabled
+    const sslEnabled = data[CLUSTER_SSL_FIELD] === true || data[CLUSTER_SSL_FIELD] === 'true';
+    
+    if (!sslEnabled) {
+        return false;
+    }
+    
     const ca = data[CLUSTER_SSL_CA_FIELD];
     const key = data[CLUSTER_SSL_KEY_FIELD];
     const cert = data[CLUSTER_SSL_CERT_FIELD];
     const rejectUnauthorized = data[CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD];
     
-    // If any SSL option is configured, return SslOption object
-    if (ca || key || cert || rejectUnauthorized !== undefined) {
+    // If any SSL certificate option is configured, return SslOption object
+    if (ca || key || cert) {
         const sslOption: SslOption = {
             ca,
             key,
@@ -488,7 +693,13 @@ function createSsl(data: any): SslOption | boolean {
         return sslOption;
     }
     
-    return data[CLUSTER_SSL_FIELD] === true || data[CLUSTER_SSL_FIELD] === 'true';
+    // SSL enabled but no certificate options - check rejectUnauthorized
+    if (rejectUnauthorized === false || rejectUnauthorized === 'false') {
+        return { rejectUnauthorized: false };
+    }
+    
+    // Simple SSL enabled (use default certificates)
+    return true;
 }
 
 function createCluster(data: any): Cluster {

@@ -125,16 +125,46 @@ class MementoClusterSettings implements ClusterSettings {
             return undefined;
         }
 
-        // Load password from secure storage if cluster has SASL authentication
+        // Load secrets from secure storage based on the authentication mechanism
         if (cluster.saslOption) {
-            const password = await SecretsStorage.getInstance().getPassword(id);
-            return {
-                ...cluster,
-                saslOption: {
-                    ...cluster.saslOption,
-                    password: password
-                }
-            };
+            const secretsStorage = SecretsStorage.getInstance();
+            const mechanism = cluster.saslOption.mechanism;
+
+            if (mechanism === 'plain' || mechanism === 'scram-sha-256' || mechanism === 'scram-sha-512') {
+                // Load password for username/password auth
+                const password = await secretsStorage.getPassword(id);
+                return {
+                    ...cluster,
+                    saslOption: {
+                        ...cluster.saslOption,
+                        password: password
+                    }
+                };
+            } else if (mechanism === 'oauthbearer') {
+                // Load client secret for OAUTHBEARER
+                const oauthClientSecret = await secretsStorage.getSecret(id, 'oauthClientSecret');
+                return {
+                    ...cluster,
+                    saslOption: {
+                        ...cluster.saslOption,
+                        oauthClientSecret: oauthClientSecret
+                    }
+                };
+            } else if (mechanism === 'aws') {
+                // Load AWS secrets
+                const [awsSecretAccessKey, awsSessionToken] = await Promise.all([
+                    secretsStorage.getSecret(id, 'awsSecretAccessKey'),
+                    secretsStorage.getSecret(id, 'awsSessionToken')
+                ]);
+                return {
+                    ...cluster,
+                    saslOption: {
+                        ...cluster.saslOption,
+                        awsSecretAccessKey: awsSecretAccessKey,
+                        awsSessionToken: awsSessionToken
+                    }
+                };
+            }
         }
 
         return cluster;
@@ -143,32 +173,61 @@ class MementoClusterSettings implements ClusterSettings {
     async upsert(cluster: Cluster): Promise<void> {
         await this.migrationPromise;
         const state = this.storage.get<ClusterStoreType>(this.clusterCollectionStorageKey, {});
+        const secretsStorage = SecretsStorage.getInstance();
         
-        // Extract password before storing in memento
+        // Extract all secrets before storing in memento
         const password = cluster.saslOption?.password;
-        const clusterWithoutPassword = {
+        const oauthClientSecret = cluster.saslOption?.oauthClientSecret;
+        const awsSecretAccessKey = cluster.saslOption?.awsSecretAccessKey;
+        const awsSessionToken = cluster.saslOption?.awsSessionToken;
+        
+        // Create cluster without secrets for memento storage
+        const clusterWithoutSecrets = {
             ...cluster,
             saslOption: cluster.saslOption ? {
                 ...cluster.saslOption,
-                password: undefined // Remove password from memento storage
+                password: undefined,
+                oauthClientSecret: undefined,
+                awsSecretAccessKey: undefined,
+                awsSessionToken: undefined
             } : undefined
         };
 
-        state[cluster.id] = clusterWithoutPassword;
+        state[cluster.id] = clusterWithoutSecrets;
         await this.storage.update(this.clusterCollectionStorageKey, state);
 
-        // Store password in secure storage
-        if (password) {
-            await SecretsStorage.getInstance().storePassword(cluster.id, password);
-        } else if (cluster.saslOption) {
-            // If SASL is configured but no password provided, delete any existing password
-            await SecretsStorage.getInstance().deletePassword(cluster.id);
+        // Store secrets based on the mechanism
+        if (cluster.saslOption) {
+            const mechanism = cluster.saslOption.mechanism;
+            
+            // Clear all secrets first, then store the relevant ones
+            await secretsStorage.deleteAllSecrets(cluster.id);
+
+            if (mechanism === 'plain' || mechanism === 'scram-sha-256' || mechanism === 'scram-sha-512') {
+                if (password) {
+                    await secretsStorage.storePassword(cluster.id, password);
+                }
+            } else if (mechanism === 'oauthbearer') {
+                if (oauthClientSecret) {
+                    await secretsStorage.storeSecret(cluster.id, 'oauthClientSecret', oauthClientSecret);
+                }
+            } else if (mechanism === 'aws') {
+                if (awsSecretAccessKey) {
+                    await secretsStorage.storeSecret(cluster.id, 'awsSecretAccessKey', awsSecretAccessKey);
+                }
+                if (awsSessionToken) {
+                    await secretsStorage.storeSecret(cluster.id, 'awsSessionToken', awsSessionToken);
+                }
+            }
+        } else {
+            // No SASL option, clear all secrets
+            await secretsStorage.deleteAllSecrets(cluster.id);
         }
 
         if (this.selected?.id === cluster.id) {
             // This usecase comes from when a cluster which is selected is updated
             // In this case we need to fire a select event to update status bar with the new cluster name.
-            this.selected = clusterWithoutPassword;
+            this.selected = clusterWithoutSecrets;
         }
         this.setSelectedClusterIfNeeded();
     }
@@ -184,8 +243,8 @@ class MementoClusterSettings implements ClusterSettings {
         delete state[id];
         await this.storage.update(this.clusterCollectionStorageKey, state);
         
-        // Delete password from secure storage
-        await SecretsStorage.getInstance().deletePassword(id);
+        // Delete all secrets from secure storage
+        await SecretsStorage.getInstance().deleteAllSecrets(id);
         
         this.setSelectedClusterIfNeeded();
     }

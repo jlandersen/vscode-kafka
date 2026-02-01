@@ -24,12 +24,29 @@ export interface Cluster extends ConnectionOptions {
 /**
  * The supported SASL mechanisms for authentication.
  */
-export type SaslMechanism = "plain" | "scram-sha-256" | "scram-sha-512";
+export type SaslMechanism = "plain" | "scram-sha-256" | "scram-sha-512" | "oauthbearer" | "aws";
 
+/**
+ * SASL authentication options.
+ * Different mechanisms require different fields:
+ * - plain, scram-sha-256, scram-sha-512: username, password
+ * - oauthbearer: oauthTokenEndpoint, oauthClientId, oauthClientSecret
+ * - aws: awsRegion, awsAccessKeyId, awsSecretAccessKey, awsSessionToken (optional)
+ */
 export interface SaslOption {
     mechanism: SaslMechanism;
+    // Username/Password authentication (plain, scram-sha-256, scram-sha-512)
     username?: string;
     password?: string;
+    // OAUTHBEARER authentication
+    oauthTokenEndpoint?: string;
+    oauthClientId?: string;
+    oauthClientSecret?: string;
+    // AWS MSK IAM authentication
+    awsRegion?: string;
+    awsAccessKeyId?: string;
+    awsSecretAccessKey?: string;
+    awsSessionToken?: string;
 }
 
 /**
@@ -516,14 +533,132 @@ export const createDefaultKafkaConfig = (connectionOptions: ConnectionOptions): 
     };
 };
 
+/**
+ * Creates the appropriate KafkaJS SASL options based on the mechanism.
+ */
 function createSaslOption(connectionOptions: ConnectionOptions): SASLOptions | undefined {
-    if (connectionOptions.saslOption && connectionOptions.saslOption.username && connectionOptions.saslOption.password) {
-        return {
-            mechanism: connectionOptions.saslOption.mechanism,
-            username: connectionOptions.saslOption.username,
-            password: connectionOptions.saslOption.password
-        };
+    const sasl = connectionOptions.saslOption;
+    if (!sasl) {
+        return undefined;
     }
+
+    switch (sasl.mechanism) {
+        case 'plain':
+            if (sasl.username && sasl.password) {
+                return {
+                    mechanism: 'plain',
+                    username: sasl.username,
+                    password: sasl.password
+                };
+            }
+            break;
+
+        case 'scram-sha-256':
+            if (sasl.username && sasl.password) {
+                return {
+                    mechanism: 'scram-sha-256',
+                    username: sasl.username,
+                    password: sasl.password
+                };
+            }
+            break;
+
+        case 'scram-sha-512':
+            if (sasl.username && sasl.password) {
+                return {
+                    mechanism: 'scram-sha-512',
+                    username: sasl.username,
+                    password: sasl.password
+                };
+            }
+            break;
+
+        case 'oauthbearer':
+            if (sasl.oauthTokenEndpoint && sasl.oauthClientId && sasl.oauthClientSecret) {
+                return {
+                    mechanism: 'oauthbearer',
+                    oauthBearerProvider: createOAuthBearerProvider(
+                        sasl.oauthTokenEndpoint,
+                        sasl.oauthClientId,
+                        sasl.oauthClientSecret
+                    )
+                };
+            }
+            break;
+
+        case 'aws':
+            if (sasl.awsRegion && sasl.awsAccessKeyId && sasl.awsSecretAccessKey) {
+                return {
+                    mechanism: 'aws',
+                    authorizationIdentity: sasl.awsAccessKeyId,
+                    accessKeyId: sasl.awsAccessKeyId,
+                    secretAccessKey: sasl.awsSecretAccessKey,
+                    sessionToken: sasl.awsSessionToken
+                };
+            }
+            break;
+    }
+
+    return undefined;
+}
+
+/**
+ * Creates an OAuth Bearer token provider that fetches tokens from an OAuth endpoint.
+ * The provider handles token requests using the client credentials grant type.
+ */
+function createOAuthBearerProvider(
+    tokenEndpoint: string,
+    clientId: string,
+    clientSecret: string
+): () => Promise<{ value: string }> {
+    // Cache for the OAuth token to avoid unnecessary requests
+    let cachedToken: { value: string; expiresAt: number } | undefined;
+
+    return async () => {
+        const now = Date.now();
+        
+        // Return cached token if still valid (with 60 second buffer)
+        if (cachedToken && cachedToken.expiresAt > now + 60000) {
+            return { value: cachedToken.value };
+        }
+
+        try {
+            // Build the token request
+            const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+            const response = await fetch(tokenEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': `Basic ${credentials}`
+                },
+                body: 'grant_type=client_credentials'
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`OAuth token request failed: ${response.status} ${response.statusText} - ${errorText}`);
+            }
+
+            const tokenResponse = await response.json() as { access_token: string; expires_in?: number };
+            const accessToken = tokenResponse.access_token;
+            
+            if (!accessToken) {
+                throw new Error('OAuth response did not contain access_token');
+            }
+
+            // Calculate expiration time (default to 1 hour if not specified)
+            const expiresIn = tokenResponse.expires_in || 3600;
+            cachedToken = {
+                value: accessToken,
+                expiresAt: now + (expiresIn * 1000)
+            };
+
+            return { value: accessToken };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`Failed to obtain OAuth token: ${message}`);
+        }
+    };
 }
 
 function createSsl(connectionOptions: ConnectionOptions): tls.ConnectionOptions | boolean | undefined {

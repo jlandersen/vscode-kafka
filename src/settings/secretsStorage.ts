@@ -1,6 +1,11 @@
 import * as vscode from "vscode";
 
 /**
+ * Types of secrets that can be stored for a cluster.
+ */
+export type SecretType = 'password' | 'oauthClientSecret' | 'awsSecretAccessKey' | 'awsSessionToken';
+
+/**
  * Manager for securely storing sensitive cluster credentials using VS Code's SecretStorage API.
  * Passwords are stored in the OS-level keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service).
  * 
@@ -46,14 +51,7 @@ export class SecretsStorage {
      * @param password The password to store
      */
     async storePassword(clusterId: string, password: string): Promise<void> {
-        const key = this.getPasswordKey(clusterId);
-        
-        if (this.secrets) {
-            await this.secrets.store(key, password);
-        } else {
-            // Fallback to Memento storage
-            await this.fallbackStorage!.update(key, password);
-        }
+        return this.storeSecret(clusterId, 'password', password);
     }
 
     /**
@@ -62,14 +60,7 @@ export class SecretsStorage {
      * @returns The password, or undefined if not found
      */
     async getPassword(clusterId: string): Promise<string | undefined> {
-        const key = this.getPasswordKey(clusterId);
-        
-        if (this.secrets) {
-            return await this.secrets.get(key);
-        } else {
-            // Fallback to Memento storage
-            return this.fallbackStorage!.get<string>(key);
-        }
+        return this.getSecret(clusterId, 'password');
     }
 
     /**
@@ -77,14 +68,63 @@ export class SecretsStorage {
      * @param clusterId The cluster ID
      */
     async deletePassword(clusterId: string): Promise<void> {
-        const key = this.getPasswordKey(clusterId);
+        return this.deleteSecret(clusterId, 'password');
+    }
+
+    /**
+     * Stores a secret value for a cluster.
+     * @param clusterId The cluster ID
+     * @param secretType The type of secret
+     * @param value The secret value to store
+     */
+    async storeSecret(clusterId: string, secretType: SecretType, value: string): Promise<void> {
+        const key = this.getSecretKey(clusterId, secretType);
+        
+        if (this.secrets) {
+            await this.secrets.store(key, value);
+        } else {
+            await this.fallbackStorage!.update(key, value);
+        }
+    }
+
+    /**
+     * Retrieves a secret value for a cluster.
+     * @param clusterId The cluster ID
+     * @param secretType The type of secret
+     * @returns The secret value, or undefined if not found
+     */
+    async getSecret(clusterId: string, secretType: SecretType): Promise<string | undefined> {
+        const key = this.getSecretKey(clusterId, secretType);
+        
+        if (this.secrets) {
+            return await this.secrets.get(key);
+        } else {
+            return this.fallbackStorage!.get<string>(key);
+        }
+    }
+
+    /**
+     * Deletes a secret value for a cluster.
+     * @param clusterId The cluster ID
+     * @param secretType The type of secret
+     */
+    async deleteSecret(clusterId: string, secretType: SecretType): Promise<void> {
+        const key = this.getSecretKey(clusterId, secretType);
         
         if (this.secrets) {
             await this.secrets.delete(key);
         } else {
-            // Fallback to Memento storage
             await this.fallbackStorage!.update(key, undefined);
         }
+    }
+
+    /**
+     * Deletes all secrets for a cluster.
+     * @param clusterId The cluster ID
+     */
+    async deleteAllSecrets(clusterId: string): Promise<void> {
+        const secretTypes: SecretType[] = ['password', 'oauthClientSecret', 'awsSecretAccessKey', 'awsSessionToken'];
+        await Promise.all(secretTypes.map(type => this.deleteSecret(clusterId, type)));
     }
 
     /**
@@ -93,10 +133,10 @@ export class SecretsStorage {
      * @param clusterIds Array of cluster IDs
      */
     async deleteAllPasswords(clusterIds: string[]): Promise<void> {
-        await Promise.all(clusterIds.map(id => this.deletePassword(id)));
+        await Promise.all(clusterIds.map(id => this.deleteAllSecrets(id)));
     }
 
-    private getPasswordKey(clusterId: string): string {
-        return `kafka.cluster.${clusterId}.password`;
+    private getSecretKey(clusterId: string, secretType: SecretType): string {
+        return `kafka.cluster.${clusterId}.${secretType}`;
     }
 }
