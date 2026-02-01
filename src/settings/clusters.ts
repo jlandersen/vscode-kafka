@@ -56,50 +56,50 @@ export interface ClusterSettings {
 type ClusterStoreType = { [id: string]: Cluster };
 
 /**
- * An implementation of {@link ClusterSettings} that stores settings using the VS Code memento API
- * and passwords using the VS Code SecretStorage API for enhanced security.
+ * An implementation of {@link ClusterSettings} that stores cluster configurations
+ * in VS Code settings.json (machine scope) and passwords in SecretStorage.
  */
-class MementoClusterSettings implements ClusterSettings {
-    private static instance: MementoClusterSettings;
-    private readonly selectedClusterIdStorageKey = "selectedcluster";
-    private readonly clusterCollectionStorageKey = "clusters";
-    private readonly migrationCompletedKey = "secretsMigrationCompleted";
-    private readonly storage: vscode.Memento;
+class SettingsClusterSettings implements ClusterSettings {
+    private static instance: SettingsClusterSettings;
     private readonly onDidChangeSelectedEmitter = new vscode.EventEmitter<SelectedClusterChangedEvent>();
     public readonly onDidChangeSelected = this.onDidChangeSelectedEmitter.event;
     private migrationPromise?: Promise<void>;
+    private configurationChangeListener?: vscode.Disposable;
 
-    public constructor(storage: vscode.Memento) {
-        this.storage = storage;
-        this.migrationPromise = this.migratePasswordsToSecrets();
+    public constructor() {
+        this.migrationPromise = this.migrateFromMementoToSettings();
         this.setSelectedClusterIfNeeded();
+        
+        // Listen for configuration changes to sync selected cluster
+        this.configurationChangeListener = vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('kafka.clusters') || e.affectsConfiguration('kafka.clusters.selected')) {
+                this.handleConfigurationChange();
+            }
+        });
     }
 
     get selected(): Cluster | undefined {
-        const selectedClusterId = this.storage.get<string>(this.selectedClusterIdStorageKey);
+        const config = vscode.workspace.getConfiguration('kafka');
+        const selectedClusterId = config.get<string>('clusters.selected');
 
         if (!selectedClusterId) {
             return undefined;
         }
 
-        // Return cluster without password for synchronous access
-        // Password will need to be loaded separately via get() for actual connections
-        const state = this.storage.get<ClusterStoreType>(this.clusterCollectionStorageKey, {});
-        return state[selectedClusterId];
+        return this.get(selectedClusterId);
     }
 
     set selected(value: Cluster | undefined) {
         const oldClusterId = this.selected?.id;
-        this.storage.update(this.selectedClusterIdStorageKey, value?.id);
+        const config = vscode.workspace.getConfiguration('kafka');
+        config.update('clusters.selected', value?.id, vscode.ConfigurationTarget.Workspace);
         this.onDidChangeSelectedEmitter.fire({ oldClusterId: oldClusterId, newClusterId: value?.id });
     }
 
     getAll(): Cluster[] {
-        const state = this.storage.get<ClusterStoreType>(this.clusterCollectionStorageKey, {});
-        // Return clusters without passwords for synchronous access
-        // Passwords will need to be loaded separately via get() for actual connections
-        return Object.values(state)
-            .sort(this.sortByNameAscending);
+        const config = vscode.workspace.getConfiguration('kafka');
+        const clusters = config.get<Cluster[]>('clusters', []);
+        return clusters.sort(this.sortByNameAscending);
     }
 
     private sortByNameAscending(a: Cluster, b: Cluster): -1 | 0 | 1 {
@@ -111,15 +111,13 @@ class MementoClusterSettings implements ClusterSettings {
     }
 
     get(id: string): Cluster | undefined {
-        const state = this.storage.get<ClusterStoreType>(this.clusterCollectionStorageKey, {});
-        // Return cluster without password for synchronous access
-        return state[id];
+        const clusters = this.getAll();
+        return clusters.find(c => c.id === id);
     }
 
     async getWithCredentials(id: string): Promise<Cluster | undefined> {
         await this.migrationPromise;
-        const state = this.storage.get<ClusterStoreType>(this.clusterCollectionStorageKey, {});
-        const cluster = state[id];
+        const cluster = this.get(id);
         
         if (!cluster) {
             return undefined;
@@ -172,17 +170,18 @@ class MementoClusterSettings implements ClusterSettings {
 
     async upsert(cluster: Cluster): Promise<void> {
         await this.migrationPromise;
-        const state = this.storage.get<ClusterStoreType>(this.clusterCollectionStorageKey, {});
+        const config = vscode.workspace.getConfiguration('kafka');
+        const clusters = config.get<Cluster[]>('clusters', []);
         const secretsStorage = SecretsStorage.getInstance();
         
-        // Extract all secrets before storing in memento
+        // Extract all secrets before storing in settings
         const password = cluster.saslOption?.password;
         const oauthClientSecret = cluster.saslOption?.oauthClientSecret;
         const awsSecretAccessKey = cluster.saslOption?.awsSecretAccessKey;
         const awsSessionToken = cluster.saslOption?.awsSessionToken;
         
-        // Create cluster without secrets for memento storage
-        const clusterWithoutSecrets = {
+        // Create cluster without secrets for settings storage
+        const clusterWithoutSecrets: Cluster = {
             ...cluster,
             saslOption: cluster.saslOption ? {
                 ...cluster.saslOption,
@@ -193,8 +192,15 @@ class MementoClusterSettings implements ClusterSettings {
             } : undefined
         };
 
-        state[cluster.id] = clusterWithoutSecrets;
-        await this.storage.update(this.clusterCollectionStorageKey, state);
+        // Update or add cluster
+        const existingIndex = clusters.findIndex(c => c.id === cluster.id);
+        if (existingIndex >= 0) {
+            clusters[existingIndex] = clusterWithoutSecrets;
+        } else {
+            clusters.push(clusterWithoutSecrets);
+        }
+
+        await config.update('clusters', clusters, vscode.ConfigurationTarget.Global);
 
         // Store secrets based on the mechanism
         if (cluster.saslOption) {
@@ -239,9 +245,11 @@ class MementoClusterSettings implements ClusterSettings {
             this.selected = undefined;
         }
 
-        const state = this.storage.get<ClusterStoreType>(this.clusterCollectionStorageKey, {});
-        delete state[id];
-        await this.storage.update(this.clusterCollectionStorageKey, state);
+        const config = vscode.workspace.getConfiguration('kafka');
+        const clusters = config.get<Cluster[]>('clusters', []);
+        const filtered = clusters.filter(c => c.id !== id);
+        
+        await config.update('clusters', filtered, vscode.ConfigurationTarget.Global);
         
         // Delete all secrets from secure storage
         await SecretsStorage.getInstance().deleteAllSecrets(id);
@@ -249,12 +257,12 @@ class MementoClusterSettings implements ClusterSettings {
         this.setSelectedClusterIfNeeded();
     }
 
-    static getInstance(): MementoClusterSettings {
-        if (!MementoClusterSettings.instance) {
-            MementoClusterSettings.instance = new MementoClusterSettings(Context.current.globalState);
+    static getInstance(): SettingsClusterSettings {
+        if (!SettingsClusterSettings.instance) {
+            SettingsClusterSettings.instance = new SettingsClusterSettings();
         }
 
-        return MementoClusterSettings.instance;
+        return SettingsClusterSettings.instance;
     }
 
     private setSelectedClusterIfNeeded(): void {
@@ -267,61 +275,150 @@ class MementoClusterSettings implements ClusterSettings {
         }
     }
 
+    private handleConfigurationChange(): void {
+        // Handle external configuration changes (e.g., settings sync, manual edits)
+        const currentSelected = this.selected;
+        const config = vscode.workspace.getConfiguration('kafka');
+        const selectedClusterId = config.get<string>('clusters.selected');
+        
+        if (currentSelected?.id !== selectedClusterId) {
+            this.onDidChangeSelectedEmitter.fire({
+                oldClusterId: currentSelected?.id,
+                newClusterId: selectedClusterId
+            });
+        }
+    }
+
     /**
-     * Migrates existing plain-text passwords from globalState to SecretStorage.
+     * Migrates existing clusters from Memento (globalState) to settings.json.
+     * This handles both:
+     * 1. Migrating plain-text passwords from Memento to SecretStorage (if not done)
+     * 2. Migrating cluster metadata from Memento to settings.json
+     * 
      * This is a one-time migration that runs on extension activation.
      */
-    private async migratePasswordsToSecrets(): Promise<void> {
-        const migrationCompleted = this.storage.get<boolean>(this.migrationCompletedKey, false);
+    private async migrateFromMementoToSettings(): Promise<void> {
+        const globalState = Context.current.globalState;
+        const settingsMigrationKey = 'settingsMigrationCompleted';
+        const secretsMigrationKey = 'secretsMigrationCompleted';
         
-        if (migrationCompleted) {
+        // Check if settings migration is already done
+        const settingsMigrationCompleted = globalState.get<boolean>(settingsMigrationKey, false);
+        
+        if (settingsMigrationCompleted) {
             return; // Migration already done
         }
 
         try {
-            const state = this.storage.get<ClusterStoreType>(this.clusterCollectionStorageKey, {});
-            const clusters = Object.values(state);
-            const secretsStorage = SecretsStorage.getInstance();
+            const clusterCollectionStorageKey = "clusters";
+            const selectedClusterIdStorageKey = "selectedcluster";
+            
+            // Get clusters from memento
+            const mementoState = globalState.get<ClusterStoreType>(clusterCollectionStorageKey, {});
+            const clusters = Object.values(mementoState);
+            
+            if (clusters.length === 0) {
+                // No clusters to migrate, just mark as complete
+                await globalState.update(settingsMigrationKey, true);
+                return;
+            }
+
+            // STEP 1: Migrate passwords to SecretStorage if not already done
+            // This handles users upgrading directly from pre-0.18.0 versions
+            const secretsMigrationCompleted = globalState.get<boolean>(secretsMigrationKey, false);
+            if (!secretsMigrationCompleted) {
+                await this.migratePasswordsToSecrets(mementoState);
+                await globalState.update(secretsMigrationKey, true);
+            }
+
+            // STEP 2: Migrate cluster metadata to settings.json
+            const config = vscode.workspace.getConfiguration('kafka');
+            const existingClusters = config.get<Cluster[]>('clusters', []);
+            
+            // Only migrate if settings.json is empty
+            if (existingClusters.length === 0) {
+                // Get clusters from memento (passwords should now be in SecretStorage)
+                const updatedMementoState = globalState.get<ClusterStoreType>(clusterCollectionStorageKey, {});
+                const clustersToMigrate = Object.values(updatedMementoState);
+                
+                // Migrate clusters to settings.json
+                await config.update('clusters', clustersToMigrate, vscode.ConfigurationTarget.Global);
+                
+                // Migrate selected cluster
+                const selectedClusterId = globalState.get<string>(selectedClusterIdStorageKey);
+                if (selectedClusterId) {
+                    await config.update('clusters.selected', selectedClusterId, vscode.ConfigurationTarget.Workspace);
+                }
+                
+                vscode.window.showInformationMessage(
+                    `Kafka: Migrated ${clustersToMigrate.length} cluster(s) to VS Code settings.json. You can now edit clusters directly in settings or sync them across machines.`
+                );
+            }
+            
+            // Mark settings migration as completed
+            await globalState.update(settingsMigrationKey, true);
+        } catch (error) {
+            console.error('Failed to migrate clusters from memento to settings:', error);
+            // Don't throw - allow extension to continue functioning
+        }
+    }
+
+    /**
+     * Migrates existing plain-text passwords from Memento to SecretStorage.
+     * This is called by migrateFromMementoToSettings() to handle users upgrading
+     * directly from versions before 0.18.0.
+     */
+    private async migratePasswordsToSecrets(mementoState: ClusterStoreType): Promise<void> {
+        const globalState = Context.current.globalState;
+        const secretsStorage = SecretsStorage.getInstance();
+        const clusterCollectionStorageKey = "clusters";
+        
+        try {
+            let passwordsMigrated = false;
             
             // Migrate each cluster's password
-            for (const cluster of clusters) {
+            for (const cluster of Object.values(mementoState)) {
                 if (cluster.saslOption?.password) {
                     // Store password in secure storage
                     await secretsStorage.storePassword(cluster.id, cluster.saslOption.password);
                     
                     // Remove password from memento storage
                     cluster.saslOption.password = undefined;
-                    state[cluster.id] = cluster;
+                    mementoState[cluster.id] = cluster;
+                    passwordsMigrated = true;
                 }
             }
 
-            // Update storage without passwords
-            await this.storage.update(this.clusterCollectionStorageKey, state);
-            
-            // Mark migration as completed
-            await this.storage.update(this.migrationCompletedKey, true);
-            
-            // Show appropriate message based on storage mode
-            if (secretsStorage.isInFallbackMode()) {
-                vscode.window.showWarningMessage(
-                    'Kafka: Secure credential storage is not available in this environment. Passwords will be stored with basic encoding.',
-                    'Learn More'
-                ).then(selection => {
-                    if (selection === 'Learn More') {
-                        vscode.env.openExternal(vscode.Uri.parse('https://github.com/eclipse-theia/theia/issues/9348'));
-                    }
-                });
-            } else {
-                vscode.window.showInformationMessage(
-                    'Kafka cluster passwords have been migrated to secure storage.'
-                );
+            if (passwordsMigrated) {
+                // Update memento storage without passwords
+                await globalState.update(clusterCollectionStorageKey, mementoState);
+                
+                // Show appropriate message based on storage mode
+                if (secretsStorage.isInFallbackMode()) {
+                    vscode.window.showWarningMessage(
+                        'Kafka: Secure credential storage is not available in this environment. Passwords will be stored with basic encoding.',
+                        'Learn More'
+                    ).then(selection => {
+                        if (selection === 'Learn More') {
+                            vscode.env.openExternal(vscode.Uri.parse('https://github.com/eclipse-theia/theia/issues/9348'));
+                        }
+                    });
+                } else {
+                    vscode.window.showInformationMessage(
+                        'Kafka: Cluster passwords have been migrated to secure storage.'
+                    );
+                }
             }
         } catch (error) {
             console.error('Failed to migrate passwords to secure storage:', error);
             // Don't throw - allow extension to continue functioning
-            // User can manually re-enter credentials if needed
         }
+    }
+
+    dispose(): void {
+        this.configurationChangeListener?.dispose();
+        this.onDidChangeSelectedEmitter.dispose();
     }
 }
 
-export const getClusterSettings = (): ClusterSettings => MementoClusterSettings.getInstance();
+export const getClusterSettings = (): ClusterSettings => SettingsClusterSettings.getInstance();

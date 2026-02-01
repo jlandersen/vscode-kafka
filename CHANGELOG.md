@@ -2,6 +2,8 @@
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [Unreleased]
+### Changed
+- **Cluster Storage in Settings**: Cluster configurations are now stored in VS Code settings.json (machine scope) instead of workspace state. Existing clusters are automatically migrated on first activation. See [#90](https://github.com/jlandersen/vscode-kafka/issues/90).
 
 ## [0.19.0] - 2026-02-01
 ### Added

@@ -163,6 +163,103 @@
 					],
 					"default": "en",
 					"markdownDescription": "The locale used to generate [@faker-js/faker](https://fakerjs.dev/api/)-randomized data in record templates. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Producing%22%2C%22section%22%3A%22kafkaproducersfakerjslocale%22%7D%5D) for more information."
+				},
+				"kafka.clusters": {
+					"type": "array",
+					"scope": "machine",
+					"default": [],
+					"markdownDescription": "Kafka cluster configurations. Sensitive credentials (passwords, tokens) are stored securely in the system keychain.",
+					"items": {
+						"type": "object",
+						"required": ["id", "name", "bootstrap"],
+						"properties": {
+							"id": {
+								"type": "string",
+								"description": "Unique identifier for the cluster"
+							},
+							"name": {
+								"type": "string",
+								"description": "Display name for the cluster"
+							},
+							"bootstrap": {
+								"type": "string",
+								"description": "Kafka bootstrap servers (comma-separated host:port)"
+							},
+							"clusterProviderId": {
+								"type": "string",
+								"description": "Optional cluster provider ID for third-party extensions"
+							},
+							"saslOption": {
+								"type": "object",
+								"description": "SASL authentication options",
+								"required": ["mechanism"],
+								"properties": {
+									"mechanism": {
+										"type": "string",
+										"enum": ["plain", "scram-sha-256", "scram-sha-512", "oauthbearer", "aws"],
+										"description": "SASL mechanism"
+									},
+									"username": {
+										"type": "string",
+										"description": "Username for plain/scram authentication"
+									},
+									"oauthTokenEndpoint": {
+										"type": "string",
+										"description": "OAuth token endpoint URL for OAUTHBEARER"
+									},
+									"oauthClientId": {
+										"type": "string",
+										"description": "OAuth client ID for OAUTHBEARER"
+									},
+									"awsRegion": {
+										"type": "string",
+										"description": "AWS region for MSK IAM authentication"
+									},
+									"awsAccessKeyId": {
+										"type": "string",
+										"description": "AWS access key ID for MSK IAM authentication"
+									}
+								}
+							},
+							"ssl": {
+								"oneOf": [
+									{
+										"type": "boolean",
+										"description": "Enable/disable SSL"
+									},
+									{
+										"type": "object",
+										"description": "SSL configuration options",
+										"properties": {
+											"ca": {
+												"type": "string",
+												"description": "Path to CA certificate file"
+											},
+											"key": {
+												"type": "string",
+												"description": "Path to client key file"
+											},
+											"cert": {
+												"type": "string",
+												"description": "Path to client certificate file"
+											},
+											"rejectUnauthorized": {
+												"type": "boolean",
+												"description": "Verify SSL certificate hostname",
+												"default": true
+											}
+										}
+									}
+								]
+							}
+						}
+					}
+				},
+				"kafka.clusters.selected": {
+					"type": "string",
+					"scope": "window",
+					"default": "",
+					"markdownDescription": "ID of the currently selected Kafka cluster"
 				}
 			}
 		},
