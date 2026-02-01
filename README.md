@@ -169,13 +169,3 @@ MIT License. See [LICENSE](LICENSE) file.
 ## ⚖️ Legal
 
 Apache, Apache Kafka®, Kafka® and associated logos are trademarks of the Apache Software Foundation (ASF). _Tools for Apache Kafka®_ is not affiliated with, endorsed by, or otherwise associated with the Apache Software Foundation or any of its projects.
-
----
-
-<div align="center">
-  <strong>Built with ❤️ by the community</strong>
-  <br>
-  <a href="https://github.com/jlandersen/vscode-kafka/issues">Report Bug</a> •
-  <a href="https://github.com/jlandersen/vscode-kafka/issues">Request Feature</a> •
-  <a href="https://github.com/jlandersen/vscode-kafka/discussions">Discussions</a>
-</div>
