@@ -10,6 +10,10 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 ### Changed
 - Cluster settings storage model: SASL passwords are now stored separately from cluster metadata for enhanced security.
 
+### Fixed
+- Fixed cluster wizard title to display "New Cluster" or "Edit Cluster - [name]" for better context. See [#204](https://github.com/jlandersen/vscode-kafka/issues/204).
+- Fixed consumer count not being reset in status bar when deleting a cluster. Consumers are now properly closed when their cluster is deleted. See [#75](https://github.com/jlandersen/vscode-kafka/issues/75).
+
 ## [0.17.0] - 2026-01-11
 ### Changed
 - This is a servicing release to address security vulnerabilities in dependencies.
