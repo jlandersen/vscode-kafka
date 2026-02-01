@@ -175,7 +175,7 @@ function createEditClusterForm(cluster: Cluster | undefined, clusterSettings: Cl
     } as ValidationContext;
 
     const clusterWizardDef: WizardDefinition = {
-        title: `${cluster?.name || 'New Cluster'}`,
+        title: cluster ? `Edit Cluster - ${cluster.name}` : 'New Cluster',
         showDirtyState: true,
         hideWizardHeader: true,
         pages: [
