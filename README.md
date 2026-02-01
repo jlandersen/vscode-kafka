@@ -4,14 +4,14 @@
 [![Latest version](https://img.shields.io/visual-studio-marketplace/v/jeppeandersen.vscode-kafka?color=brightgreen)](https://marketplace.visualstudio.com/items?itemName=jeppeandersen.vscode-kafka)
 [![Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/jeppeandersen.vscode-kafka?logo=Installs)](https://marketplace.visualstudio.com/items?itemName=jeppeandersen.vscode-kafka)
 
-**Interact with Apache Kafka® directly in VS Code.** Manage clusters, produce and consume messages, and explore topics—all without leaving your editor.
+**Interact with Apache Kafka® directly in VS Code.** Manage clusters, produce and consume messages, and explore topics.
 
 ---
 
 ## ✨ Key Features
 
 ### 🔍 **Visual Cluster Explorer**
-Browse your Kafka infrastructure in the sidebar with an intuitive tree view:
+Browse your Kafka infrastructure in the sidebar:
 - 📊 **Clusters** - Connect to multiple Kafka clusters simultaneously
 - 📂 **Topics** - View, create, and delete topics with real-time updates
 - 🖥️ **Brokers** - Monitor broker health and configuration
@@ -53,7 +53,6 @@ Consume messages with multiple visualization options:
 - 📝 **Text View** - Traditional streaming text output with syntax highlighting
 - 📊 **Table View** - Excel-like table with sortable columns, search, and CSV export
 - 🎯 **Targeted Consumption** - Consume from specific partitions or offsets
-- 🔐 **Format Support** - Handle Avro, JSON, string, and binary message formats
 - 💾 **Export Data** - Export consumed messages to CSV for analysis
 
 **Start consuming from:**
