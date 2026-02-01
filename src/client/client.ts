@@ -56,6 +56,7 @@ export interface SslOption {
     ca?: string;
     key?: string;
     cert?: string;
+    passphrase?: string;
     rejectUnauthorized?: boolean;
 }
 
@@ -672,6 +673,7 @@ function createSsl(connectionOptions: ConnectionOptions): tls.ConnectionOptions 
                 ca,
                 key,
                 cert,
+                passphrase: sslOption.passphrase,
                 rejectUnauthorized: sslOption.rejectUnauthorized
             } as tls.ConnectionOptions;
         }

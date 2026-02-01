@@ -70,6 +70,7 @@ const CLUSTER_SSL_FIELD = "ssl";
 const CLUSTER_SSL_CA_FIELD = "ssl.ca";
 const CLUSTER_SSL_KEY_FIELD = "ssl.key";
 const CLUSTER_SSL_CERT_FIELD = "ssl.cert";
+const CLUSTER_SSL_PASSPHRASE_FIELD = "ssl.passphrase";
 const CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD = "ssl.rejectUnauthorized";
 
 // --- Wizard page ID
@@ -390,6 +391,13 @@ function createFields(cluster?: Cluster): (WizardPageFieldDefinition | WizardPag
                     }
                 },
                 {
+                    id: CLUSTER_SSL_PASSPHRASE_FIELD,
+                    label: "Passphrase:",
+                    description: "Optional. Passphrase for encrypted private key.",
+                    initialValue: `${tlsConnectionOptions?.passphrase || ''}`,
+                    type: "password"
+                },
+                {
                     id: CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD,
                     label: "Reject Unauthorized Certificates",
                     description: "When disabled, accepts self-signed certificates and hostname mismatches. Use only for development!",
@@ -601,6 +609,7 @@ function createValidator(validationContext: ValidationContext) {
         fieldRefresh.set(CLUSTER_SSL_CA_FIELD, { enabled: sslEnabled });
         fieldRefresh.set(CLUSTER_SSL_KEY_FIELD, { enabled: sslEnabled });
         fieldRefresh.set(CLUSTER_SSL_CERT_FIELD, { enabled: sslEnabled });
+        fieldRefresh.set(CLUSTER_SSL_PASSPHRASE_FIELD, { enabled: sslEnabled });
         fieldRefresh.set(CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD, { enabled: sslEnabled });
 
         return { items: diagnostics, fieldRefresh };
@@ -674,14 +683,16 @@ function createSsl(data: any): SslOption | boolean {
     const ca = data[CLUSTER_SSL_CA_FIELD];
     const key = data[CLUSTER_SSL_KEY_FIELD];
     const cert = data[CLUSTER_SSL_CERT_FIELD];
+    const passphrase = data[CLUSTER_SSL_PASSPHRASE_FIELD];
     const rejectUnauthorized = data[CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD];
     
     // If any SSL certificate option is configured, return SslOption object
-    if (ca || key || cert) {
+    if (ca || key || cert || passphrase) {
         const sslOption: SslOption = {
             ca,
             key,
-            cert
+            cert,
+            passphrase
         };
         
         // Only set rejectUnauthorized if explicitly set to false

@@ -243,6 +243,10 @@
 												"type": "string",
 												"description": "Path to client certificate file"
 											},
+											"passphrase": {
+												"type": "string",
+												"description": "Passphrase for encrypted private key"
+											},
 											"rejectUnauthorized": {
 												"type": "boolean",
 												"description": "Verify SSL certificate hostname",
