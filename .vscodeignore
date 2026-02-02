@@ -37,7 +37,6 @@ yarn.lock
 
 # Development/Docker
 docker-compose.yml
-pages/**
 
 # Logs and cache
 *.log
