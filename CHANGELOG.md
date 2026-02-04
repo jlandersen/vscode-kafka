@@ -2,6 +2,11 @@
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [Unreleased]
+
+## [0.19.1] - 2026-02-04
+### Fixed
+- Fixed critical issue preventing users from adding new clusters through the cluster configuration wizard. See [#248](https://github.com/jlandersen/vscode-kafka/issues/248).
+
 ### Added
 - **SSL/TLS Passphrase Support**: Added support for using passphrase-protected (encrypted) private keys for mTLS authentication. You can now specify a passphrase in the cluster configuration wizard when using encrypted SSL private keys. See [#191](https://github.com/jlandersen/vscode-kafka/issues/191).
 
