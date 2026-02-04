@@ -7,11 +7,12 @@ This directory contains Docker Compose configurations for testing the vscode-kaf
 | Cluster | Port | Authentication | Description |
 |---------|------|----------------|-------------|
 | `plaintext` | 9092 | None | Simple Kafka cluster without authentication |
+| `kraft` | 9092 | None | Kafka in KRaft mode (no Zookeeper) for testing [#248](https://github.com/jlandersen/vscode-kafka/issues/248) |
 | `sasl-plain` | 9093 | SASL/PLAIN | Kafka with username/password authentication |
 | `oauth` | 9092 | OAUTHBEARER | Kafka with OAuth 2.0 (includes Keycloak) |
 | `ssl` | 9093 | SSL/TLS (mTLS) | Kafka with mutual TLS and passphrase-protected keys |
 
-> **Note:** The `plaintext` and `oauth` clusters both use port 9092, so only run one at a time.
+> **Note:** The `plaintext`, `kraft`, and `oauth` clusters all use port 9092, so only run one at a time.
 
 ## Quick Start
 
@@ -48,6 +49,15 @@ cd test-clusters/oauth && docker-compose up -d
 - **Bootstrap Server:** `localhost:9092`
 - **Authentication:** None
 - **SSL:** No
+
+### KRaft Cluster (No Zookeeper)
+
+- **Bootstrap Server:** `localhost:9092`
+- **Authentication:** None
+- **SSL:** No
+- **Mode:** KRaft (Kafka Raft metadata mode)
+
+This cluster tests compatibility with KRaft-based Kafka deployments, addressing [issue #248](https://github.com/jlandersen/vscode-kafka/issues/248). See [kraft/README.md](kraft/README.md) for more details.
 
 ### SASL/PLAIN Cluster
 

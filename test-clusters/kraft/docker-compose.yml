@@ -1,0 +1,63 @@
+# Kafka cluster running in KRaft mode (without Zookeeper)
+# 
+# KRaft is the new consensus protocol for Kafka that replaces Zookeeper.
+# This configuration is for testing compatibility with KRaft-based clusters.
+# 
+# Usage:
+#   cd test-clusters/kraft
+#   docker-compose up -d
+#
+# Connection settings for vscode-kafka:
+#   Bootstrap: localhost:9092
+#   Authentication: None
+#   SSL: Unchecked
+#
+# This tests the issue: https://github.com/jlandersen/vscode-kafka/issues/248
+
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.7.1
+    container_name: kafka-kraft
+    ports:
+      - "9092:9092"
+    environment:
+      # KRaft configuration (no Zookeeper)
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      
+      # Listener configuration
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka:29092,CONTROLLER://kafka:29093,PLAINTEXT_HOST://0.0.0.0:9092'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      
+      # Cluster configuration
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      
+      # KRaft cluster ID (must be a valid UUID)
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+      
+      # Log configuration
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+    command: >
+      bash -c "
+        # Format storage for KRaft if not already formatted
+        if [ ! -d /tmp/kraft-combined-logs ]; then
+          echo 'Formatting Kafka storage for KRaft mode...'
+          kafka-storage format -t $${CLUSTER_ID} -c /etc/kafka/kafka.properties || true
+        fi
+        
+        # Start Kafka
+        /etc/confluent/docker/run
+      "
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s

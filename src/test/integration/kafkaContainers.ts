@@ -166,6 +166,41 @@ export async function createPlaintextFixture(): Promise<TestFixture> {
 }
 
 /**
+ * Manages a Kafka container running in KRaft mode (without Zookeeper).
+ * KRaft is the new consensus protocol for Kafka that replaces Zookeeper.
+ * 
+ * This tests the issue reported in https://github.com/jlandersen/vscode-kafka/issues/248
+ * where consumers couldn't consume from KRaft-based clusters.
+ */
+export class KRaftKafkaContainer {
+    private container: StartedKafkaContainer | null = null;
+
+    async start(): Promise<KafkaConnectionInfo> {
+        console.log("Starting KRaft Kafka container (without Zookeeper)...");
+        
+        // Use a recent Kafka version that supports KRaft mode
+        // Kafka 3.3+ has stable KRaft support
+        this.container = await new KafkaContainer("confluentinc/cp-kafka:7.7.1")
+            .withExposedPorts(9093)
+            .withKraft() // Enable KRaft mode (no Zookeeper)
+            .start();
+
+        const bootstrap = `${this.container.getHost()}:${this.container.getMappedPort(9093)}`;
+        console.log(`KRaft Kafka started at ${bootstrap}`);
+
+        return { bootstrap };
+    }
+
+    async stop(): Promise<void> {
+        if (this.container) {
+            console.log("Stopping KRaft Kafka container...");
+            await this.container.stop();
+            this.container = null;
+        }
+    }
+}
+
+/**
  * Creates a test fixture for OAuth token testing (Keycloak only).
  * This is useful for testing the OAuth token fetch functionality
  * without needing a full Kafka + OAUTHBEARER setup.
@@ -175,6 +210,18 @@ export async function createOAuthFixture(): Promise<OAuthTestFixture> {
     const config = await container.start();
     return {
         ...config,
+        stop: () => container.stop(),
+    };
+}
+
+/**
+ * Creates a test fixture for KRaft Kafka (no Zookeeper).
+ */
+export async function createKRaftFixture(): Promise<TestFixture> {
+    const container = new KRaftKafkaContainer();
+    const connectionInfo = await container.start();
+    return {
+        connectionInfo,
         stop: () => container.stop(),
     };
 }
