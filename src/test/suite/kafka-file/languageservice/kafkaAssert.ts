@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { CodeLens, Position, Range, Command, Uri, workspace, CompletionList, SnippetString, Diagnostic, DiagnosticSeverity, Hover, MarkdownString } from "vscode";
+import { CodeLens, Position, Range, Command, Uri, workspace, CompletionList, SnippetString, Diagnostic, DiagnosticSeverity, Hover, MarkdownString, FoldingRange, FoldingRangeKind } from "vscode";
 import { ClientState, ConsumerLaunchState } from "../../../../client";
 import { BrokerConfigs } from "../../../../client/config";
 import { ProducerLaunchState } from "../../../../client/producer";
@@ -244,4 +244,17 @@ export async function assertParseBlock(content: string, expected: Array<Expected
             assert.deepStrictEqual(actualProperty.value?.end, expectedProperty.value?.end);
         }
     }
+}
+
+// Folding ranges assert
+
+export function foldingRange(startLine: number, endLine: number, kind?: FoldingRangeKind): FoldingRange {
+    return new FoldingRange(startLine, endLine, kind);
+}
+
+export async function assertFoldingRanges(content: string, expected: Array<FoldingRange>, ls = languageService) {
+    let document = await getDocument(content);
+    let ast = ls.parseKafkaFileDocument(document);
+    const actual = ls.getFoldingRanges(document, ast);
+    assert.deepStrictEqual(actual, expected);
 }

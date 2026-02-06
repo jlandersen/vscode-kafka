@@ -1,4 +1,4 @@
-import { CodeLens, CompletionList, Diagnostic, Hover, Position, TextDocument, Uri } from "vscode";
+import { CodeLens, CompletionList, Diagnostic, FoldingRange, Hover, Position, TextDocument, Uri } from "vscode";
 import { ClientState, ConsumerLaunchState } from "../../client";
 import { BrokerConfigs } from "../../client/config";
 import { ProducerLaunchState } from "../../client/producer";
@@ -7,6 +7,7 @@ import { KafkaFileDocument, parseKafkaFile } from "./parser/kafkaFileParser";
 import { KafkaFileCodeLenses } from "./services/codeLensProvider";
 import { KafkaFileCompletion } from "./services/completion";
 import { KafkaFileDiagnostics } from "./services/diagnostics";
+import { KafkaFileFoldingRanges } from "./services/foldingRangeProvider";
 import { KafkaFileHover } from "./services/hover";
 
 /**
@@ -99,6 +100,14 @@ export interface LanguageService {
     doHover(document: TextDocument, kafkaFileDocument: KafkaFileDocument, position: Position): Promise<Hover | undefined>;
 
     /**
+     * Returns the folding ranges for the given text document and parsed AST.
+     *
+     * @param document the text document.
+     * @param kafkaFileDocument the parsed AST.
+     */
+    getFoldingRanges(document: TextDocument, kafkaFileDocument: KafkaFileDocument): FoldingRange[];
+
+    /**
      * Executes the currently selected block
      * 
      * @param document 
@@ -120,6 +129,7 @@ export function getLanguageService(producerLaunchStateProvider: ProducerLaunchSt
     const codeLenses = new KafkaFileCodeLenses(producerLaunchStateProvider, consumerLaunchStateProvider, selectedClusterProvider);
     const completion = new KafkaFileCompletion(selectedClusterProvider, topicProvider);
     const diagnostics = new KafkaFileDiagnostics(selectedClusterProvider, topicProvider);
+    const foldingRanges = new KafkaFileFoldingRanges();
     const hover = new KafkaFileHover(selectedClusterProvider, topicProvider);
     return {
         parseKafkaFileDocument: (document: TextDocument) => parseKafkaFile(document),
@@ -127,6 +137,7 @@ export function getLanguageService(producerLaunchStateProvider: ProducerLaunchSt
         doComplete: completion.doComplete.bind(completion),
         doDiagnostics: diagnostics.doDiagnostics.bind(diagnostics),
         doHover: hover.doHover.bind(hover),
+        getFoldingRanges: foldingRanges.getFoldingRanges.bind(foldingRanges),
         executeInlineCommand: async (kafkaFileDocument) => {
             const { clusterId } = selectedClusterProvider.getSelectedCluster();
             if (!clusterId) {

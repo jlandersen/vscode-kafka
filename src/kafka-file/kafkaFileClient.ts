@@ -180,6 +180,12 @@ export function startLanguageClient(
         vscode.languages.registerHoverProvider(documentSelector, hover)
     );
 
+    // Folding
+    const folding = new KafkaFileFoldingRangeProvider(kafkaFileDocuments, languageService);
+    context.subscriptions.push(
+        vscode.languages.registerFoldingRangeProvider(documentSelector, folding)
+    );
+
     // Open / Close document
     context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(e => {
         if (e.languageId === 'kafka') {
@@ -384,4 +390,13 @@ class KafkaFileHoverProvider extends AbstractKafkaFileFeature implements vscode.
         }, null, `Error while computing hover for ${document.uri}`, token);
     }
 
+}
+
+class KafkaFileFoldingRangeProvider extends AbstractKafkaFileFeature implements vscode.FoldingRangeProvider {
+    provideFoldingRanges(document: vscode.TextDocument, context: vscode.FoldingContext, token: vscode.CancellationToken): vscode.ProviderResult<vscode.FoldingRange[]> {
+        return runSafeAsync(async () => {
+            const kafkaFileDocument = this.getKafkaFileDocument(document);
+            return this.languageService.getFoldingRanges(document, kafkaFileDocument);
+        }, [], `Error while computing folding ranges for ${document.uri}`, token);
+    }
 }
