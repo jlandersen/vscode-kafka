@@ -5,6 +5,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ### Added
 - **Folding Support for .kafka Files**: Added AST-based folding support for PRODUCER and CONSUMER blocks in .kafka files. This replaces the TextMate-based folding which failed when CONSUMER blocks didn't end with `###`. See [#179](https://github.com/jlandersen/vscode-kafka/issues/179).
+- **Snappy Compression Support**: Added support for consuming and producing messages with Snappy compression. See [#217](https://github.com/jlandersen/vscode-kafka/issues/217).
 
 ## [0.19.1] - 2026-02-04
 ### Fixed

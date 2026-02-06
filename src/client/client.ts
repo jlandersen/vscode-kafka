@@ -7,7 +7,11 @@ import { ClientAccessor, ClientState } from ".";
 import { getClusterProvider } from "../kafka-extensions/registry";
 import { getWorkspaceSettings, WorkspaceSettings } from "../settings";
 import { TopicSortOption } from "../settings/workspace";
+import { registerCompressionCodecs } from "./compression";
 import { ConsumerConfig, KafkaProducer, KafkaConsumer, PartitionOffset, TopicPartitionOffsets, ProducerRecord, RecordMetadata, KafkaClientConfig } from "./types";
+
+// Register compression codecs (Snappy, LZ4, Zstd) before any Kafka clients are created
+registerCompressionCodecs();
 
 /**
  * Adapter that wraps a kafkajs Producer to implement the abstract KafkaProducer interface.

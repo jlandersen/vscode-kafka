@@ -8,7 +8,11 @@
 import { Admin, ConfigResourceTypes, Consumer, ConsumerConfig, Kafka, KafkaConfig, Producer, SASLOptions, SeekEntry } from "kafkajs";
 import { Broker, Client, Cluster, ConfigEntry, ConsumerGroup, ConsumerGroupMember, ConsumerGroupOffset, CreateTopicRequest, DeleteTopicRequest, SaslOption, Topic, TopicPartition } from "../../client/client";
 import { ClientState } from "../../client";
+import { registerCompressionCodecs } from "../../client/compression";
 import { KafkaConnectionInfo, SslConnectionInfo } from "./kafkaContainers";
+
+// Register compression codecs for tests
+registerCompressionCodecs();
 
 /**
  * Creates KafkaJS SSL options from SslConnectionInfo.
