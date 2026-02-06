@@ -233,12 +233,111 @@ export async function createKRaftFixture(): Promise<TestFixture> {
 }
 
 /**
+ * Generated SSL certificates.
+ */
+export interface SslCertificates {
+    caCert: string;
+    serverCert: string;
+    serverKey: string;
+    clientCert: string;
+    clientKey: string;
+    clientKeyEncrypted: string;
+    passphrase: string;
+}
+
+/**
  * Generated PKCS12 keystores for Kafka SSL configuration.
  */
 interface Pkcs12Stores {
     keystore: Buffer;
     truststore: Buffer;
     password: string;
+}
+
+let cachedCertificates: SslCertificates | null = null;
+
+/**
+ * Generates SSL certificates using a Docker container with openssl.
+ * Certificates are cached so they're only generated once per test run.
+ */
+export async function generateSslCertificates(): Promise<SslCertificates> {
+    if (cachedCertificates) {
+        console.log("Using cached SSL certificates");
+        return cachedCertificates;
+    }
+
+    console.log("Generating SSL certificates in Docker container...");
+    const os = require("os");
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kafka-ssl-certs-"));
+    const passphrase = "test-passphrase";
+
+    try {
+        const script = `
+            set -e
+            cd /certs
+
+            # 1. Generate CA key and certificate
+            openssl req -new -x509 -keyout ca-key.pem -out ca-cert.pem -days 365 -nodes \
+                -subj "/C=US/ST=Test/L=Test/O=TestOrg/CN=Test-CA"
+
+            # 2. Generate server key (unencrypted for Kafka)
+            openssl genrsa -out server-key.pem 2048
+
+            # 3. Generate server certificate signing request
+            openssl req -new -key server-key.pem -out server-csr.pem \
+                -subj "/C=US/ST=Test/L=Test/O=TestOrg/CN=localhost"
+
+            # 4. Sign server certificate with CA
+            openssl x509 -req -in server-csr.pem -CA ca-cert.pem -CAkey ca-key.pem -CAcreateserial \
+                -out server-cert.pem -days 365
+
+            # 5. Generate client key WITH passphrase
+            openssl genrsa -aes256 -passout pass:${passphrase} -out client-key.pem 2048
+
+            # 6. Generate client certificate signing request
+            openssl req -new -key client-key.pem -passin pass:${passphrase} -out client-csr.pem \
+                -subj "/C=US/ST=Test/L=Test/O=TestOrg/CN=test-client"
+
+            # 7. Sign client certificate with CA
+            openssl x509 -req -in client-csr.pem -CA ca-cert.pem -CAkey ca-key.pem -CAcreateserial \
+                -out client-cert.pem -days 365
+
+            # 8. Create unencrypted client key
+            openssl rsa -in client-key.pem -passin pass:${passphrase} -out client-key-unencrypted.pem
+
+            chmod 644 *.pem
+        `;
+
+        fs.writeFileSync(path.join(tmpDir, "generate.sh"), script);
+
+        const container = await new GenericContainer("alpine/openssl:latest")
+            .withBindMounts([{
+                source: tmpDir,
+                target: "/certs",
+                mode: "rw"
+            }])
+            .withEntrypoint(["sh"])
+            .withCommand(["/certs/generate.sh"])
+            .withWaitStrategy(Wait.forOneShotStartup())
+            .start();
+
+        await container.stop();
+
+        cachedCertificates = {
+            caCert: fs.readFileSync(path.join(tmpDir, "ca-cert.pem"), "utf-8"),
+            serverCert: fs.readFileSync(path.join(tmpDir, "server-cert.pem"), "utf-8"),
+            serverKey: fs.readFileSync(path.join(tmpDir, "server-key.pem"), "utf-8"),
+            clientCert: fs.readFileSync(path.join(tmpDir, "client-cert.pem"), "utf-8"),
+            clientKey: fs.readFileSync(path.join(tmpDir, "client-key-unencrypted.pem"), "utf-8"),
+            clientKeyEncrypted: fs.readFileSync(path.join(tmpDir, "client-key.pem"), "utf-8"),
+            passphrase,
+        };
+
+        console.log("SSL certificates generated successfully");
+        return cachedCertificates;
+    } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
 }
 
 /**
@@ -319,13 +418,11 @@ export class SaslScramKafkaContainer {
     async start(): Promise<KafkaConnectionInfo> {
         console.log("Starting SASL/SCRAM-SHA-256 Kafka container...");
 
-        const sslDir = path.resolve(__dirname, "../../../test-clusters/ssl");
-        this.caCert = fs.readFileSync(path.join(sslDir, "ca-cert.pem"), "utf-8");
-        const serverCert = fs.readFileSync(path.join(sslDir, "server-cert.pem"), "utf-8");
-        const serverKey = fs.readFileSync(path.join(sslDir, "server-key.pem"), "utf-8");
+        const certs = await generateSslCertificates();
+        this.caCert = certs.caCert;
 
         console.log("Generating PKCS12 keystores...");
-        const stores = await generatePkcs12Stores(this.caCert, serverCert, serverKey, "test-password");
+        const stores = await generatePkcs12Stores(certs.caCert, certs.serverCert, certs.serverKey, "test-password");
 
         this.kafkaContainer = await new KafkaContainer("confluentinc/cp-kafka:7.5.0")
             .withSaslSslListener({
@@ -389,15 +486,13 @@ export class SslKafkaContainer {
     async start(): Promise<KafkaConnectionInfo> {
         console.log("Starting SSL Kafka container...");
 
-        const sslDir = path.resolve(__dirname, "../../../test-clusters/ssl");
-        this.caCert = fs.readFileSync(path.join(sslDir, "ca-cert.pem"), "utf-8");
-        this.clientCert = fs.readFileSync(path.join(sslDir, "client-cert.pem"), "utf-8");
-        this.clientKey = fs.readFileSync(path.join(sslDir, "client-key-unencrypted.pem"), "utf-8");
-        const serverCert = fs.readFileSync(path.join(sslDir, "server-cert.pem"), "utf-8");
-        const serverKey = fs.readFileSync(path.join(sslDir, "server-key.pem"), "utf-8");
+        const certs = await generateSslCertificates();
+        this.caCert = certs.caCert;
+        this.clientCert = certs.clientCert;
+        this.clientKey = certs.clientKey;
 
         console.log("Generating PKCS12 keystores...");
-        const stores = await generatePkcs12Stores(this.caCert, serverCert, serverKey, "test-password");
+        const stores = await generatePkcs12Stores(certs.caCert, certs.serverCert, certs.serverKey, "test-password");
 
         this.kafkaContainer = await new KafkaContainer("confluentinc/cp-kafka:7.5.0")
             .withSaslSslListener({
