@@ -11,9 +11,9 @@
 
 import * as assert from "assert";
 import { Client } from "../../client/client";
+import { KafkaProducer, KafkaConsumer } from "../../client/types";
 import { createKRaftFixture, TestFixture } from "./kafkaContainers";
 import { createTestClient } from "./testClient";
-import { Consumer, EachMessagePayload, Producer } from "kafkajs";
 
 suite("KRaft Mode Integration Tests", function () {
     // Increase timeout for container operations
@@ -91,7 +91,7 @@ suite("KRaft Mode Integration Tests", function () {
             console.log(`Created topic for produce test: ${topicName}`);
             
             // Get producer
-            const producer: Producer = await client.producer();
+            const producer: KafkaProducer = await client.producer();
             
             // Send messages
             const messages = [
@@ -138,7 +138,7 @@ suite("KRaft Mode Integration Tests", function () {
             console.log(`Created topic for consume test: ${topicName}`);
             
             // Produce test messages
-            const producer: Producer = await client.producer();
+            const producer: KafkaProducer = await client.producer();
             const testMessages = [
                 { key: "test-key-1", value: "test-message-1" },
                 { key: "test-key-2", value: "test-message-2" },
@@ -159,7 +159,7 @@ suite("KRaft Mode Integration Tests", function () {
             console.log(`Produced ${testMessages.length} messages to ${topicName}`);
             
             // Create consumer
-            const consumer: Consumer = await client.consumer({
+            const consumer: KafkaConsumer = await client.consumer({
                 groupId,
                 sessionTimeout: 30000,
                 heartbeatInterval: 3000,
@@ -173,7 +173,7 @@ suite("KRaft Mode Integration Tests", function () {
                 let timeoutId: NodeJS.Timeout;
                 
                 consumer.run({
-                    eachMessage: async ({ topic, partition, message }: EachMessagePayload) => {
+                    eachMessage: async ({ topic, partition, message }) => {
                         const key = message.key?.toString() || "";
                         const value = message.value?.toString() || "";
                         
@@ -261,7 +261,7 @@ suite("KRaft Mode Integration Tests", function () {
             console.log(`Created multi-partition topic: ${topicName} with ${partitionCount} partitions`);
             
             // Produce messages to different partitions
-            const producer: Producer = await client.producer();
+            const producer: KafkaProducer = await client.producer();
             const messages = [];
             
             for (let i = 0; i < totalMessages; i++) {
@@ -285,7 +285,7 @@ suite("KRaft Mode Integration Tests", function () {
             console.log(`Produced ${messages.length} messages across ${partitionCount} partitions`);
             
             // Consume from all partitions
-            const consumer: Consumer = await client.consumer({
+            const consumer: KafkaConsumer = await client.consumer({
                 groupId,
             });
             
@@ -296,7 +296,7 @@ suite("KRaft Mode Integration Tests", function () {
                 let timeoutId: NodeJS.Timeout;
                 
                 consumer.run({
-                    eachMessage: async ({ partition, message }: EachMessagePayload) => {
+                    eachMessage: async ({ partition, message }) => {
                         const key = message.key?.toString() || "";
                         const value = message.value?.toString() || "";
                         

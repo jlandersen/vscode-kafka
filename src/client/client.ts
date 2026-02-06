@@ -1,13 +1,94 @@
 import * as fs from "fs";
 import * as minimatch from "minimatch";
-import * as tls from "tls";
-import { Admin, ConfigResourceTypes, Consumer, ConsumerConfig, Kafka, KafkaConfig, Producer, SASLOptions, SeekEntry } from "kafkajs";
+import { Admin, ConfigResourceTypes, Consumer as KafkaJsConsumer, ConsumerConfig as KafkaJsConsumerConfig, Kafka, KafkaConfig, Producer as KafkaJsProducer, SASLOptions, ProducerRecord as KafkaJsProducerRecord } from "kafkajs";
 
 import { Disposable } from "vscode";
 import { ClientAccessor, ClientState } from ".";
 import { getClusterProvider } from "../kafka-extensions/registry";
 import { getWorkspaceSettings, WorkspaceSettings } from "../settings";
 import { TopicSortOption } from "../settings/workspace";
+import { ConsumerConfig, KafkaProducer, KafkaConsumer, PartitionOffset, TopicPartitionOffsets, ProducerRecord, RecordMetadata, KafkaClientConfig } from "./types";
+
+/**
+ * Adapter that wraps a kafkajs Producer to implement the abstract KafkaProducer interface.
+ */
+class KafkaJsProducerAdapter implements KafkaProducer {
+    constructor(private producer: KafkaJsProducer) {}
+
+    async connect(): Promise<void> {
+        return this.producer.connect();
+    }
+
+    async disconnect(): Promise<void> {
+        return this.producer.disconnect();
+    }
+
+    async send(record: ProducerRecord): Promise<RecordMetadata[]> {
+        const kafkaJsRecord: KafkaJsProducerRecord = {
+            topic: record.topic,
+            messages: record.messages.map(m => ({
+                key: m.key,
+                value: m.value,
+                partition: m.partition,
+                headers: m.headers,
+                timestamp: m.timestamp
+            })),
+            acks: record.acks,
+            timeout: record.timeout,
+            compression: record.compression
+        };
+        const result = await this.producer.send(kafkaJsRecord);
+        return result.map(r => ({
+            topicName: r.topicName,
+            partition: r.partition,
+            errorCode: r.errorCode,
+            baseOffset: r.baseOffset,
+            logAppendTime: r.logAppendTime,
+            logStartOffset: r.logStartOffset
+        }));
+    }
+}
+
+/**
+ * Adapter that wraps a kafkajs Consumer to implement the abstract KafkaConsumer interface.
+ */
+class KafkaJsConsumerAdapter implements KafkaConsumer {
+    constructor(private consumer: KafkaJsConsumer) {}
+
+    async connect(): Promise<void> {
+        return this.consumer.connect();
+    }
+
+    async disconnect(): Promise<void> {
+        return this.consumer.disconnect();
+    }
+
+    async subscribe(options: { topic: string; fromBeginning?: boolean }): Promise<void> {
+        return this.consumer.subscribe(options);
+    }
+
+    async run(options: { eachMessage: (payload: { topic: string; partition: number; message: { key: Buffer | null; value: Buffer | null; timestamp: string; offset: string; headers?: any } }) => Promise<void> }): Promise<void> {
+        return this.consumer.run({
+            eachMessage: async ({ topic, partition, message }) => {
+                await options.eachMessage({
+                    topic,
+                    partition,
+                    message: {
+                        key: message.key,
+                        value: message.value,
+                        timestamp: message.timestamp,
+                        offset: message.offset,
+                        headers: message.headers
+                    }
+                });
+            }
+        });
+    }
+
+    seek(options: { topic: string; partition: number; offset: string }): void {
+        return this.consumer.seek(options);
+    }
+}
 
 export interface ConnectionOptions {
     clusterProviderId?: string;
@@ -126,8 +207,8 @@ export interface ConsumerGroupOffset {
 export interface Client extends Disposable {
     state: ClientState;
     cluster: Cluster;
-    producer(): Promise<Producer>;
-    consumer(config?: ConsumerConfig): Promise<Consumer>;
+    producer(): Promise<KafkaProducer>;
+    consumer(config?: ConsumerConfig): Promise<KafkaConsumer>;
     connect(): Promise<void>;
     getTopics(): Promise<Topic[]>;
     getBrokers(): Promise<Broker[]>;
@@ -138,9 +219,9 @@ export interface Client extends Disposable {
     deleteConsumerGroups(groupIds: string[]): Promise<void>;
     createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]>;
     deleteTopic(deleteTopicRequest: DeleteTopicRequest): Promise<void>;
-    deleteTopicRecords(topic: string, partitions: SeekEntry[]): Promise<void>;
+    deleteTopicRecords(topic: string, partitions: PartitionOffset[]): Promise<void>;
     fetchTopicPartitions(topic: string): Promise<number[]>;
-    fetchTopicOffsets(topic: string): Promise<Array<SeekEntry & { high: string; low: string }>>;
+    fetchTopicOffsets(topic: string): Promise<TopicPartitionOffsets[]>;
 }
 
 class EnsureConnectedDecorator implements Client {
@@ -153,12 +234,12 @@ class EnsureConnectedDecorator implements Client {
         return this.client.cluster;
     }
 
-    public async producer(): Promise<Producer> {
+    public async producer(): Promise<KafkaProducer> {
         await this.waitUntilConnected();
         return await this.client.producer();
     }
 
-    public async consumer(config?: ConsumerConfig): Promise<Consumer> {
+    public async consumer(config?: ConsumerConfig): Promise<KafkaConsumer> {
         await this.waitUntilConnected();
         return await this.client.consumer(config);
     }
@@ -212,7 +293,7 @@ class EnsureConnectedDecorator implements Client {
         return await this.client.deleteTopic(deleteTopicRequest);
     }
 
-    public async deleteTopicRecords(topic: string, partitions: SeekEntry[]): Promise<void> {
+    public async deleteTopicRecords(topic: string, partitions: PartitionOffset[]): Promise<void> {
         await this.waitUntilConnected();
         return await this.client.deleteTopicRecords(topic, partitions);
     }
@@ -222,7 +303,7 @@ class EnsureConnectedDecorator implements Client {
         return await this.client.fetchTopicPartitions(topic);
     }
 
-    public async fetchTopicOffsets(topic: string): Promise<Array<SeekEntry & { high: string; low: string }>> {
+    public async fetchTopicOffsets(topic: string): Promise<TopicPartitionOffsets[]> {
         await this.waitUntilConnected();
         return await this.client.fetchTopicOffsets(topic);
     }
@@ -251,7 +332,7 @@ class EnsureConnectedDecorator implements Client {
 
 class KafkaJsClient implements Client {
     private kafkaJsClient: Kafka | undefined;
-    private kafkaProducer: Producer | undefined;
+    private kafkaJsProducer: KafkaJsProducer | undefined;
     private kafkaAdminClient: Admin | undefined;
 
     private metadata: {
@@ -280,7 +361,7 @@ class KafkaJsClient implements Client {
                 this.error = undefined;
                 this.kafkaJsClient = result;
                 this.kafkaAdminClient = this.kafkaJsClient.admin();
-                this.kafkaProducer = this.kafkaJsClient.producer();
+                this.kafkaJsProducer = this.kafkaJsClient.producer();
                 return this;
             }, (error) => {
                 // Error while create of Kafka client (ex : cluster provider is not available)
@@ -326,19 +407,32 @@ class KafkaJsClient implements Client {
         return admin;
     }
 
-    public async producer(): Promise<Producer> {
-        if (this.kafkaProducer) {
-            return this.kafkaProducer;
+    public async producer(): Promise<KafkaProducer> {
+        if (this.kafkaJsProducer) {
+            return new KafkaJsProducerAdapter(this.kafkaJsProducer);
         }
-        const producer = (await this.kafkaPromise).kafkaProducer;
+        const producer = (await this.kafkaPromise).kafkaJsProducer;
         if (!producer) {
             throw new Error('Producer cannot be null.');
         }
-        return producer;
+        return new KafkaJsProducerAdapter(producer);
     }
 
-    public async consumer(config: ConsumerConfig): Promise<Consumer> {
-        return (await this.getkafkaClient()).consumer(config);
+    public async consumer(config: ConsumerConfig): Promise<KafkaConsumer> {
+        const kafkaJsConfig: KafkaJsConsumerConfig = {
+            groupId: config.groupId,
+            partitionAssigners: config.partitionAssigners,
+            sessionTimeout: config.sessionTimeout,
+            rebalanceTimeout: config.rebalanceTimeout,
+            heartbeatInterval: config.heartbeatInterval,
+            maxBytesPerPartition: config.maxBytesPerPartition,
+            minBytes: config.minBytes,
+            maxBytes: config.maxBytes,
+            maxWaitTimeInMs: config.maxWaitTimeInMs,
+            retry: config.retry
+        };
+        const consumer = (await this.getkafkaClient()).consumer(kafkaJsConfig);
+        return new KafkaJsConsumerAdapter(consumer);
     }
 
     async connect(): Promise<void> {
@@ -487,7 +581,7 @@ class KafkaJsClient implements Client {
         });
     }
 
-    async deleteTopicRecords(topic: string, partitions: SeekEntry[]): Promise<void> {
+    async deleteTopicRecords(topic: string, partitions: PartitionOffset[]): Promise<void> {
         return await (await this.getkafkaAdminClient()).deleteTopicRecords({
             topic,
             partitions
@@ -500,7 +594,7 @@ class KafkaJsClient implements Client {
         return partitionMetadata?.topics[0].partitions.map(m => m.partitionId) || [0];
     }
 
-    async fetchTopicOffsets(topic: string): Promise<Array<SeekEntry & { high: string; low: string }>> {
+    async fetchTopicOffsets(topic: string): Promise<TopicPartitionOffsets[]> {
         // returns the topics partitions
         return (await this.getkafkaAdminClient()).fetchTopicOffsets(topic);
     }
@@ -522,10 +616,10 @@ export const createKafka = async (connectionOptions: ConnectionOptions): Promise
         throw new Error(`Cannot find cluster provider for '${connectionOptions.clusterProviderId}' ID.`);
     }
     const kafkaConfig = await provider.createKafkaConfig(connectionOptions) || createDefaultKafkaConfig(connectionOptions);
-    return new Kafka(kafkaConfig);
+    return new Kafka(kafkaConfig as KafkaConfig);
 };
 
-export const createDefaultKafkaConfig = (connectionOptions: ConnectionOptions): KafkaConfig => {
+export const createDefaultKafkaConfig = (connectionOptions: ConnectionOptions): KafkaClientConfig => {
     return {
         clientId: "vscode-kafka",
         brokers: connectionOptions.bootstrap.split(","),
@@ -662,23 +756,24 @@ function createOAuthBearerProvider(
     };
 }
 
-function createSsl(connectionOptions: ConnectionOptions): tls.ConnectionOptions | boolean | undefined {
+function createSsl(connectionOptions: ConnectionOptions): KafkaClientConfig['ssl'] {
     if (connectionOptions.ssl) {
-        const sslOption = <SslOption>connectionOptions.ssl;
-        if (sslOption) {
-            const ca = sslOption.ca ? fs.readFileSync(sslOption.ca) : undefined;
-            const key = sslOption.key ? fs.readFileSync(sslOption.key) : undefined;
-            const cert = sslOption.cert ? fs.readFileSync(sslOption.cert) : undefined;
-            return {
-                ca,
-                key,
-                cert,
-                passphrase: sslOption.passphrase,
-                rejectUnauthorized: sslOption.rejectUnauthorized
-            } as tls.ConnectionOptions;
+        const sslOption = connectionOptions.ssl;
+        if (typeof sslOption === 'boolean') {
+            return sslOption;
         }
+        const ca = sslOption.ca ? fs.readFileSync(sslOption.ca) : undefined;
+        const key = sslOption.key ? fs.readFileSync(sslOption.key) : undefined;
+        const cert = sslOption.cert ? fs.readFileSync(sslOption.cert) : undefined;
+        return {
+            ca,
+            key,
+            cert,
+            passphrase: sslOption.passphrase,
+            rejectUnauthorized: sslOption.rejectUnauthorized
+        };
     }
-    return connectionOptions.ssl;
+    return undefined;
 }
 
 export function addQueryParameter(query: string, name: string, value?: string): string {

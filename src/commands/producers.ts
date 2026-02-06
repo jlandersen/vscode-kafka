@@ -9,7 +9,7 @@ import { WorkspaceSettings } from "../settings";
 import { pickClient } from "./common";
 import { MessageFormat, SerializationSetting, serialize } from "../client/serialization";
 import { createProducerUri, ProducerCollection, ProducerInfoUri, ProducerLaunchState } from "../client/producer";
-import { IHeaders, ProducerRecord } from "kafkajs";
+import { MessageHeaders, ProducerRecord } from "../client/types";
 import { ProducerValidator } from "../validators/producer";
 import { getErrorMessage } from "../errors";
 
@@ -126,7 +126,7 @@ export class ProduceRecordCommandHandler {
 
             const messages = [...Array(times).keys()].map(() => {
 
-                const messageHeaders: IHeaders = {};
+                const messageHeaders: MessageHeaders = {};
                 headers?.forEach((val, idx) => {
                     messageHeaders[idx] = val;
                 });
@@ -221,7 +221,7 @@ export class ProduceRecordCommandHandler {
                 }
 
                 try {
-                    const messageHeaders: IHeaders = {};
+                const messageHeaders: MessageHeaders = {};
                     headers?.forEach((val, idx) => {
                         messageHeaders[idx] = val;
                     });

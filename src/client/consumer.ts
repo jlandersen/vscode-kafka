@@ -1,10 +1,11 @@
-import { Consumer as KafkaJsConsumer, PartitionAssigner, Assignment, PartitionAssigners, AssignerProtocol, SeekEntry, IHeaders } from "kafkajs";
+import { PartitionAssigner, Assignment, PartitionAssigners, AssignerProtocol } from "kafkajs";
 import { URLSearchParams } from "url";
 import * as vscode from "vscode";
 import { ClientAccessor } from ".";
 import { getWorkspaceSettings, InitialConsumerOffset, ClusterSettings } from "../settings";
 import { addQueryParameter, Client, ConnectionOptions } from "./client";
 import { deserialize, MessageFormat, SerializationdResult, SerializationSetting } from "./serialization";
+import { KafkaConsumer, MessageHeaders, TopicPartitionOffsets } from "./types";
 
 interface ConsumerOptions extends ConnectionOptions {
     consumerGroupId: string;
@@ -28,7 +29,7 @@ export interface ConsumedRecord {
     offset?: string;
     partition?: number;
     key?: string | Buffer | SerializationdResult;
-    headers?: IHeaders;
+    headers?: MessageHeaders;
 }
 
 export interface ConsumerHeader {
@@ -55,7 +56,7 @@ export interface ConsumerCollectionChangedEvent {
 
 export class Consumer implements vscode.Disposable {
     private kafkaClient?: Client;
-    private consumer?: KafkaJsConsumer;
+    private consumer?: KafkaConsumer;
     private onDidReceiveMessageEmitter = new vscode.EventEmitter<RecordReceivedEvent>();
     private onDidReceiveErrorEmitter = new vscode.EventEmitter<any>();
     private onDidChangeStatusEmitter = new vscode.EventEmitter<ConsumerChangedStatusEvent>();
@@ -155,7 +156,7 @@ export class Consumer implements vscode.Disposable {
         return this.kafkaClient?.fetchTopicPartitions(topic) || [0];
     }
 
-    private async getOffsetToSeek(topicOffsets: Array<SeekEntry & { high: string; low: string }> | undefined, fromOffset: string, partition: number): Promise<string> {
+    private async getOffsetToSeek(topicOffsets: TopicPartitionOffsets[] | undefined, fromOffset: string, partition: number): Promise<string> {
         const result = topicOffsets?.find(p => p.partition === partition);
         if (!result) {
             return '0';

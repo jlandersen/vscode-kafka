@@ -1,7 +1,6 @@
-import { ProducerRecord, RecordMetadata } from "kafkajs";
 import * as vscode from "vscode";
 import { addQueryParameter, ClientAccessor } from ".";
-import { Producer as KafkaJSProducer } from "kafkajs";
+import { KafkaProducer, ProducerRecord, RecordMetadata } from "./types";
 
 export enum ProducerLaunchState {
     idle,
@@ -19,7 +18,7 @@ export class Producer implements vscode.Disposable {
 
     public state: ProducerLaunchState = ProducerLaunchState.idle;
 
-    private producer: KafkaJSProducer | undefined;
+    private producer: KafkaProducer | undefined;
     private intervalId: NodeJS.Timeout | undefined;
 
     constructor(public uri: vscode.Uri, private clientAccessor: ClientAccessor) {

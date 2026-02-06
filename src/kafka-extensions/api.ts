@@ -1,5 +1,5 @@
-import { KafkaConfig } from "kafkajs";
 import { Cluster, ConnectionOptions } from "../client/client";
+import { KafkaClientConfig } from "../client/types";
 import { ClusterSettings } from "../settings/clusters";
 
 export interface KafkaExtensionParticipant {
@@ -21,11 +21,11 @@ export interface ClusterProviderParticipant {
     configureClusters(clusterSettings: ClusterSettings): Promise<Cluster[] | undefined>;
 
     /**
-     * Create the KafkaJS client configuration from the given connection options.
-     * When the participant doesn't implement this method, the KafkaJS client
+     * Create the Kafka client configuration from the given connection options.
+     * When the participant doesn't implement this method, the Kafka client
      * configuration is created with the default client configuration factory from vscode-kafka.
      *
      * @param connectionOptions the Kafka connection options.
      */
-    createKafkaConfig?(connectionOptions: ConnectionOptions): KafkaConfig;
+    createKafkaConfig?(connectionOptions: ConnectionOptions): KafkaClientConfig;
 }
