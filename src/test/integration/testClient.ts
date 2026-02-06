@@ -8,7 +8,41 @@
 import { Admin, ConfigResourceTypes, Consumer, ConsumerConfig, Kafka, KafkaConfig, Producer, SASLOptions, SeekEntry } from "kafkajs";
 import { Broker, Client, Cluster, ConfigEntry, ConsumerGroup, ConsumerGroupMember, ConsumerGroupOffset, CreateTopicRequest, DeleteTopicRequest, SaslOption, Topic, TopicPartition } from "../../client/client";
 import { ClientState } from "../../client";
-import { KafkaConnectionInfo } from "./kafkaContainers";
+import { KafkaConnectionInfo, SslConnectionInfo } from "./kafkaContainers";
+
+/**
+ * Creates KafkaJS SSL options from SslConnectionInfo.
+ */
+function createSslOption(ssl?: SslConnectionInfo): KafkaConfig["ssl"] | undefined {
+    if (!ssl) {
+        return undefined;
+    }
+
+    const sslConfig: {
+        rejectUnauthorized: boolean;
+        ca?: string[];
+        cert?: string;
+        key?: string;
+        passphrase?: string;
+    } = {
+        rejectUnauthorized: false,
+    };
+
+    if (ssl.ca) {
+        sslConfig.ca = [ssl.ca];
+    }
+    if (ssl.cert) {
+        sslConfig.cert = ssl.cert;
+    }
+    if (ssl.key) {
+        sslConfig.key = ssl.key;
+    }
+    if (ssl.passphrase) {
+        sslConfig.passphrase = ssl.passphrase;
+    }
+
+    return sslConfig;
+}
 
 /**
  * Creates a KafkaJS SASL options object from a SaslOption.
@@ -77,6 +111,7 @@ export class TestKafkaClient implements Client {
             clientId: "vscode-kafka-test",
             brokers: connectionInfo.bootstrap.split(","),
             sasl: createSaslOption(connectionInfo.saslOption),
+            ssl: createSslOption(connectionInfo.sslOption),
             connectionTimeout: 10000,
             requestTimeout: 30000,
         };

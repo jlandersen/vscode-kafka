@@ -11,6 +11,16 @@ import * as path from "path";
 import * as fs from "fs";
 
 /**
+ * SSL connection options.
+ */
+export interface SslConnectionInfo {
+    ca: string;
+    cert: string;
+    key: string;
+    passphrase?: string;
+}
+
+/**
  * Connection info returned after starting a Kafka container.
  */
 export interface KafkaConnectionInfo {
@@ -20,6 +30,7 @@ export interface KafkaConnectionInfo {
         username: string;
         password: string;
     };
+    sslOption?: SslConnectionInfo;
     oauthOption?: {
         tokenEndpoint: string;
         clientId: string;
