@@ -77,14 +77,12 @@ export class KeycloakContainer {
     async start(): Promise<{ tokenEndpoint: string; clientId: string; clientSecret: string }> {
         console.log("Starting Keycloak container...");
 
-        // Read the realm configuration
         const realmConfigPath = path.resolve(__dirname, "../../../test-clusters/oauth/keycloak-realm.json");
         let realmConfig: string;
         
         try {
             realmConfig = fs.readFileSync(realmConfigPath, "utf-8");
         } catch {
-            // Fallback to inline config if file not found
             realmConfig = JSON.stringify({
                 realm: "kafka",
                 enabled: true,
@@ -119,7 +117,6 @@ export class KeycloakContainer {
                 },
             ])
             .withCommand(["start-dev", "--import-realm"])
-            // Use log message wait strategy - more reliable than HTTP health check
             .withWaitStrategy(Wait.forLogMessage(/Running the server in development mode/, 1).withStartupTimeout(120000))
             .start();
 
@@ -189,11 +186,9 @@ export class KRaftKafkaContainer {
     async start(): Promise<KafkaConnectionInfo> {
         console.log("Starting KRaft Kafka container (without Zookeeper)...");
         
-        // Use a recent Kafka version that supports KRaft mode
-        // Kafka 3.3+ has stable KRaft support
         this.container = await new KafkaContainer("confluentinc/cp-kafka:7.7.1")
             .withExposedPorts(9093)
-            .withKraft() // Enable KRaft mode (no Zookeeper)
+            .withKraft()
             .start();
 
         const bootstrap = `${this.container.getHost()}:${this.container.getMappedPort(9093)}`;
@@ -261,12 +256,10 @@ async function generatePkcs12Stores(
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kafka-ssl-"));
     
     try {
-        // Write PEM files to temp directory
         fs.writeFileSync(path.join(tmpDir, "ca-cert.pem"), caCert);
         fs.writeFileSync(path.join(tmpDir, "server-cert.pem"), serverCert);
         fs.writeFileSync(path.join(tmpDir, "server-key.pem"), serverKey);
         
-        // Create a script that will run inside the container
         const script = `
             set -e
             cd /certs
@@ -294,7 +287,6 @@ async function generatePkcs12Stores(
         
         fs.writeFileSync(path.join(tmpDir, "generate.sh"), script);
 
-        // Run keytool in a Java container to generate the stores
         const container = await new GenericContainer("eclipse-temurin:17-jdk")
             .withBindMounts([{
                 source: tmpDir,
@@ -305,16 +297,13 @@ async function generatePkcs12Stores(
             .withWaitStrategy(Wait.forOneShotStartup())
             .start();
         
-        // Container runs and exits, we just need to wait for it
         await container.stop();
 
-        // Read the generated PKCS12 files
         const keystore = fs.readFileSync(path.join(tmpDir, "keystore.p12"));
         const truststore = fs.readFileSync(path.join(tmpDir, "truststore.p12"));
 
         return { keystore, truststore, password };
     } finally {
-        // Clean up temp directory
         fs.rmSync(tmpDir, { recursive: true, force: true });
     }
 }
@@ -330,13 +319,11 @@ export class SaslScramKafkaContainer {
     async start(): Promise<KafkaConnectionInfo> {
         console.log("Starting SASL/SCRAM-SHA-256 Kafka container...");
 
-        // Read SSL certificates
         const sslDir = path.resolve(__dirname, "../../../test-clusters/ssl");
         this.caCert = fs.readFileSync(path.join(sslDir, "ca-cert.pem"), "utf-8");
         const serverCert = fs.readFileSync(path.join(sslDir, "server-cert.pem"), "utf-8");
         const serverKey = fs.readFileSync(path.join(sslDir, "server-key.pem"), "utf-8");
 
-        // Generate PKCS12 stores using Docker container with keytool
         console.log("Generating PKCS12 keystores...");
         const stores = await generatePkcs12Stores(this.caCert, serverCert, serverKey, "test-password");
 
@@ -402,7 +389,6 @@ export class SslKafkaContainer {
     async start(): Promise<KafkaConnectionInfo> {
         console.log("Starting SSL Kafka container...");
 
-        // Read SSL certificates
         const sslDir = path.resolve(__dirname, "../../../test-clusters/ssl");
         this.caCert = fs.readFileSync(path.join(sslDir, "ca-cert.pem"), "utf-8");
         this.clientCert = fs.readFileSync(path.join(sslDir, "client-cert.pem"), "utf-8");
@@ -410,12 +396,9 @@ export class SslKafkaContainer {
         const serverCert = fs.readFileSync(path.join(sslDir, "server-cert.pem"), "utf-8");
         const serverKey = fs.readFileSync(path.join(sslDir, "server-key.pem"), "utf-8");
 
-        // Generate PKCS12 stores using Docker container with keytool
         console.log("Generating PKCS12 keystores...");
         const stores = await generatePkcs12Stores(this.caCert, serverCert, serverKey, "test-password");
 
-        // The testcontainers library only supports SASL_SSL, not pure SSL
-        // So we use SASL_SSL with SCRAM authentication
         this.kafkaContainer = await new KafkaContainer("confluentinc/cp-kafka:7.5.0")
             .withSaslSslListener({
                 port: 9094,

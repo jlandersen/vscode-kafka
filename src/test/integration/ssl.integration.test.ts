@@ -19,7 +19,7 @@ import { createSslFixture, TestFixture } from "./kafkaContainers";
 import { createTestClient } from "./testClient";
 
 suite("SSL Integration Tests", function () {
-    this.timeout(180000); // 3 minutes
+    this.timeout(180000);
 
     suite("SSL Cluster (SASL_SSL)", function () {
         let fixture: TestFixture;

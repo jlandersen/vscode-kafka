@@ -16,8 +16,7 @@ import { createKRaftFixture, TestFixture } from "./kafkaContainers";
 import { createTestClient } from "./testClient";
 
 suite("KRaft Mode Integration Tests", function () {
-    // Increase timeout for container operations
-    this.timeout(180000); // 3 minutes
+    this.timeout(180000);
 
     suite("KRaft Cluster (No Zookeeper)", function () {
         let fixture: TestFixture;
@@ -59,14 +58,12 @@ suite("KRaft Mode Integration Tests", function () {
         test("should create and list topics on KRaft cluster", async function () {
             const topicName = `kraft-test-topic-${Date.now()}`;
             
-            // Create topic
             await client.createTopic({
                 topic: topicName,
                 partitions: 3,
                 replicationFactor: 1,
             });
             
-            // Verify topic exists
             const topics = await client.getTopics();
             const createdTopic = topics.find(t => t.id === topicName);
             assert.ok(createdTopic, `Topic ${topicName} should exist after creation`);
@@ -74,14 +71,12 @@ suite("KRaft Mode Integration Tests", function () {
             
             console.log(`Created topic on KRaft cluster: ${topicName} with ${createdTopic.partitionCount} partitions`);
             
-            // Cleanup
             await client.deleteTopic({ topics: [topicName] });
         });
 
         test("should produce messages to KRaft cluster", async function () {
             const topicName = `kraft-produce-test-${Date.now()}`;
             
-            // Create topic
             await client.createTopic({
                 topic: topicName,
                 partitions: 1,
@@ -90,10 +85,8 @@ suite("KRaft Mode Integration Tests", function () {
             
             console.log(`Created topic for produce test: ${topicName}`);
             
-            // Get producer
             const producer: KafkaProducer = await client.producer();
             
-            // Send messages
             const messages = [
                 { key: "key1", value: "message-1" },
                 { key: "key2", value: "message-2" },
@@ -110,17 +103,14 @@ suite("KRaft Mode Integration Tests", function () {
             
             console.log(`Produced ${messages.length} messages to ${topicName}`);
             
-            // Disconnect producer
             await producer.disconnect();
             
-            // Verify topic offsets increased
             const offsets = await client.fetchTopicOffsets(topicName);
             assert.ok(offsets.length > 0, "Should have partition offsets");
             assert.strictEqual(offsets[0].high, "3", "High watermark should be 3 after sending 3 messages");
             
             console.log(`Verified offsets: high=${offsets[0].high}, low=${offsets[0].low}`);
             
-            // Cleanup
             await client.deleteTopic({ topics: [topicName] });
         });
 
@@ -128,7 +118,6 @@ suite("KRaft Mode Integration Tests", function () {
             const topicName = `kraft-consume-test-${Date.now()}`;
             const groupId = `kraft-consumer-group-${Date.now()}`;
             
-            // Create topic
             await client.createTopic({
                 topic: topicName,
                 partitions: 1,
@@ -137,7 +126,6 @@ suite("KRaft Mode Integration Tests", function () {
             
             console.log(`Created topic for consume test: ${topicName}`);
             
-            // Produce test messages
             const producer: KafkaProducer = await client.producer();
             const testMessages = [
                 { key: "test-key-1", value: "test-message-1" },
@@ -158,7 +146,6 @@ suite("KRaft Mode Integration Tests", function () {
             await producer.disconnect();
             console.log(`Produced ${testMessages.length} messages to ${topicName}`);
             
-            // Create consumer
             const consumer: KafkaConsumer = await client.consumer({
                 groupId,
                 sessionTimeout: 30000,
@@ -167,7 +154,6 @@ suite("KRaft Mode Integration Tests", function () {
             
             await consumer.subscribe({ topic: topicName, fromBeginning: true });
             
-            // Consume messages
             const consumedMessages: Array<{ key: string; value: string }> = [];
             const consumePromise = new Promise<void>((resolve, reject) => {
                 let timeoutId: NodeJS.Timeout;
@@ -180,7 +166,6 @@ suite("KRaft Mode Integration Tests", function () {
                         consumedMessages.push({ key, value });
                         console.log(`Consumed message: key=${key}, value=${value}`);
                         
-                        // Once we've consumed all messages, resolve
                         if (consumedMessages.length === testMessages.length) {
                             clearTimeout(timeoutId);
                             resolve();
@@ -188,7 +173,6 @@ suite("KRaft Mode Integration Tests", function () {
                     },
                 }).catch(reject);
                 
-                // Timeout if we don't consume all messages within 30 seconds
                 timeoutId = setTimeout(() => {
                     reject(new Error(`Timeout: Only consumed ${consumedMessages.length}/${testMessages.length} messages`));
                 }, 30000);
@@ -196,14 +180,12 @@ suite("KRaft Mode Integration Tests", function () {
             
             await consumePromise;
             
-            // Verify consumed messages
             assert.strictEqual(
                 consumedMessages.length, 
                 testMessages.length, 
                 `Should consume all ${testMessages.length} messages`
             );
             
-            // Verify message contents
             for (let i = 0; i < testMessages.length; i++) {
                 assert.strictEqual(
                     consumedMessages[i].key,
@@ -219,17 +201,14 @@ suite("KRaft Mode Integration Tests", function () {
             
             console.log(`✓ Successfully consumed and verified all ${consumedMessages.length} messages from KRaft cluster`);
             
-            // Disconnect consumer
             await consumer.disconnect();
             
-            // Verify consumer group exists
             const groupIds = await client.getConsumerGroupIds();
             assert.ok(
                 groupIds.includes(groupId),
                 `Consumer group ${groupId} should exist`
             );
             
-            // Get consumer group details
             const groupDetails = await client.getConsumerGroupDetails(groupId);
             assert.strictEqual(groupDetails.groupId, groupId, "Group ID should match");
             assert.ok(groupDetails.offsets.length > 0, "Should have committed offsets");
@@ -239,7 +218,6 @@ suite("KRaft Mode Integration Tests", function () {
                 `${o.topic}[${o.partition}]: offset=${o.offset}`
             ));
             
-            // Cleanup
             await client.deleteConsumerGroups([groupId]);
             await client.deleteTopic({ topics: [topicName] });
         });
@@ -251,7 +229,6 @@ suite("KRaft Mode Integration Tests", function () {
             const messagesPerPartition = 5;
             const totalMessages = partitionCount * messagesPerPartition;
             
-            // Create topic with multiple partitions
             await client.createTopic({
                 topic: topicName,
                 partitions: partitionCount,
@@ -260,7 +237,6 @@ suite("KRaft Mode Integration Tests", function () {
             
             console.log(`Created multi-partition topic: ${topicName} with ${partitionCount} partitions`);
             
-            // Produce messages to different partitions
             const producer: KafkaProducer = await client.producer();
             const messages = [];
             
@@ -268,7 +244,7 @@ suite("KRaft Mode Integration Tests", function () {
                 messages.push({
                     key: `key-${i}`,
                     value: `message-${i}`,
-                    partition: i % partitionCount, // Round-robin across partitions
+                    partition: i % partitionCount,
                 });
             }
             
@@ -284,7 +260,6 @@ suite("KRaft Mode Integration Tests", function () {
             await producer.disconnect();
             console.log(`Produced ${messages.length} messages across ${partitionCount} partitions`);
             
-            // Consume from all partitions
             const consumer: KafkaConsumer = await client.consumer({
                 groupId,
             });
@@ -316,7 +291,6 @@ suite("KRaft Mode Integration Tests", function () {
             
             await consumePromise;
             
-            // Verify we consumed from all partitions
             const partitionsConsumed = new Set(consumedMessages.map(m => m.partition));
             assert.strictEqual(
                 partitionsConsumed.size,
@@ -332,10 +306,8 @@ suite("KRaft Mode Integration Tests", function () {
             
             console.log(`✓ Successfully consumed ${consumedMessages.length} messages from ${partitionsConsumed.size} partitions`);
             
-            // Disconnect consumer
             await consumer.disconnect();
             
-            // Cleanup
             await client.deleteConsumerGroups([groupId]);
             await client.deleteTopic({ topics: [topicName] });
         });
@@ -353,7 +325,6 @@ suite("KRaft Mode Integration Tests", function () {
             
             console.log(`Found ${configs.length} broker config(s) in KRaft cluster`);
             
-            // Verify some standard Kafka configs exist
             const configNames = configs.map(c => c.configName);
             const expectedConfigs = ["log.dirs", "num.partitions"];
             

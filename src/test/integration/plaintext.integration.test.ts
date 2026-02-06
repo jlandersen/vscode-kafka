@@ -16,7 +16,7 @@ import { createPlaintextFixture, TestFixture } from "./kafkaContainers";
 import { createTestClient } from "./testClient";
 
 suite("Plaintext Integration Tests", function () {
-    this.timeout(180000); // 3 minutes
+    this.timeout(180000);
 
     suite("Plaintext Cluster (No Authentication)", function () {
         let fixture: TestFixture;

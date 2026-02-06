@@ -14,11 +14,6 @@ import * as vscode from 'vscode';
  * so we need to explicitly initialize these in the test's module context.
  */
 export async function initializeTestEnvironment(): Promise<void> {
-    // Create a mock extension context for testing
-    // In a real VS Code extension test, we should get this from the activated extension,
-    // but due to module isolation, we create a minimal version here
-    
-    // Create a simple in-memory storage for testing
     const storage = new Map<string, any>();
     const globalState = {
         keys: () => Array.from(storage.keys()),
@@ -33,37 +28,28 @@ export async function initializeTestEnvironment(): Promise<void> {
         setKeysForSync: (keys: readonly string[]) => { }
     } as vscode.Memento;
 
-    // Try to get the real secrets API if available
     let secrets: vscode.SecretStorage | undefined;
     try {
-        // Try to access secrets from the activated extension
         const extension = vscode.extensions.getExtension("jeppeandersen.vscode-kafka");
         if (extension?.isActive) {
-            // The extension should have initialized its own Context/SecretsStorage
-            // We're just ensuring the test module context has access
             const { Context } = await import('../../context');
             const { SecretsStorage } = await import('../../settings/secretsStorage');
             
-            // Check if already initialized
             if (Context.current) {
                 try {
                     SecretsStorage.getInstance();
-                    return; // Already initialized, nothing to do
+                    return;
                 } catch (e) {
-                    // Context exists but SecretsStorage not initialized
                 }
             }
         }
     } catch (e) {
-        // Extension not available or not activated
     }
 
-    // If we get here, we need to initialize manually
-    // Create a minimal ExtensionContext-like object
     const mockContext = {
         globalState,
-        workspaceState: globalState, // Use same mock for workspace state
-        secrets: undefined, // Will use fallback storage
+        workspaceState: globalState,
+        secrets: undefined,
         subscriptions: [],
         extensionPath: '',
         storagePath: undefined,
@@ -80,7 +66,6 @@ export async function initializeTestEnvironment(): Promise<void> {
         languageModelAccessInformation: {} as any,
     } as unknown as vscode.ExtensionContext;
 
-    // Initialize Context and SecretsStorage in the test module's context
     const { Context } = await import('../../context');
     const { SecretsStorage } = await import('../../settings/secretsStorage');
     
@@ -91,7 +76,6 @@ export async function initializeTestEnvironment(): Promise<void> {
     try {
         SecretsStorage.getInstance();
     } catch (e) {
-        // Not initialized, so initialize it
         SecretsStorage.initialize(secrets, globalState);
     }
 }

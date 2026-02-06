@@ -13,8 +13,7 @@ import { createPlaintextFixture, TestFixture } from "./kafkaContainers";
 import { createTestClient } from "./testClient";
 
 suite("Broker Integration Tests", function () {
-    // Increase timeout for container operations
-    this.timeout(180000); // 3 minutes
+    this.timeout(180000);
 
     suite("Plaintext Connection", function () {
         let fixture: TestFixture;
@@ -63,11 +62,9 @@ suite("Broker Integration Tests", function () {
             assert.ok(configs, "Broker configs should be defined");
             assert.ok(Array.isArray(configs), "Broker configs should be an array");
             
-            // Check for some common Kafka broker configs
             const configNames = configs.map(c => c.configName);
             console.log(`Found ${configs.length} broker config(s)`);
             
-            // These are standard Kafka broker configs that should exist
             const expectedConfigs = ["log.dirs", "num.partitions", "default.replication.factor"];
             for (const expected of expectedConfigs) {
                 if (configNames.includes(expected)) {
@@ -88,14 +85,12 @@ suite("Broker Integration Tests", function () {
         test("should create and delete a topic", async function () {
             const topicName = `test-topic-${Date.now()}`;
             
-            // Create topic
             await client.createTopic({
                 topic: topicName,
                 partitions: 1,
                 replicationFactor: 1,
             });
             
-            // Verify topic exists
             const topics = await client.getTopics();
             const createdTopic = topics.find(t => t.id === topicName);
             assert.ok(createdTopic, `Topic ${topicName} should exist after creation`);
@@ -103,10 +98,8 @@ suite("Broker Integration Tests", function () {
             
             console.log(`Created topic: ${topicName}`);
             
-            // Delete topic
             await client.deleteTopic({ topics: [topicName] });
             
-            // Verify topic is deleted (may take a moment)
             await new Promise(resolve => setTimeout(resolve, 1000));
             const topicsAfterDelete = await client.getTopics();
             const deletedTopic = topicsAfterDelete.find(t => t.id === topicName);
@@ -118,8 +111,7 @@ suite("Broker Integration Tests", function () {
 });
 
 suite("VS Code Extension Commands Integration Tests", function () {
-    // Increase timeout for container and extension operations
-    this.timeout(180000); // 3 minutes
+    this.timeout(180000);
 
     let fixture: TestFixture;
 
@@ -139,7 +131,6 @@ suite("VS Code Extension Commands Integration Tests", function () {
         const extension = vscode.extensions.getExtension("jeppeandersen.vscode-kafka");
         assert.ok(extension, "Extension should be present");
         
-        // Activate the extension if not already active
         if (!extension.isActive) {
             await extension.activate();
         }
@@ -149,14 +140,11 @@ suite("VS Code Extension Commands Integration Tests", function () {
     });
 
     test("should be able to execute cluster-related commands", async function () {
-        // Get list of available commands
         const commands = await vscode.commands.getCommands(true);
         
-        // Check for key vscode-kafka commands
         const kafkaCommands = commands.filter(c => c.startsWith("vscode-kafka"));
         console.log(`Found ${kafkaCommands.length} vscode-kafka commands`);
         
-        // Verify essential commands exist
         const essentialCommands = [
             "vscode-kafka.explorer.refresh",
         ];
@@ -170,8 +158,4 @@ suite("VS Code Extension Commands Integration Tests", function () {
         }
     });
 
-    // Note: Full E2E testing of "Add Cluster" and "View Brokers" through the UI
-    // is challenging because VS Code extension tests have limited access to
-    // TreeView contents and input boxes. The tests above verify the client
-    // layer works correctly, which is what the UI commands use internally.
 });

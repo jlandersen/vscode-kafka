@@ -16,7 +16,7 @@ import { createSaslScramFixture, TestFixture } from "./kafkaContainers";
 import { createTestClient } from "./testClient";
 
 suite("SASL/SCRAM Integration Tests", function () {
-    this.timeout(180000); // 3 minutes
+    this.timeout(180000);
 
     suite("SASL/SCRAM-SHA-256 Cluster", function () {
         let fixture: TestFixture;

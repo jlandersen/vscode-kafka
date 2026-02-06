@@ -63,8 +63,7 @@ function decodeJwtPayload(token: string): Record<string, unknown> {
 }
 
 suite("OAUTHBEARER Integration Tests", function () {
-    // Increase timeout for container operations (Keycloak takes a while to start)
-    this.timeout(180000); // 3 minutes
+    this.timeout(180000);
 
     suite("OAuth Token Fetching", function () {
         let fixture: OAuthTestFixture;
@@ -103,14 +102,12 @@ suite("OAUTHBEARER Integration Tests", function () {
                 fixture.clientSecret
             );
 
-            // Decode and inspect the JWT
             const payload = decodeJwtPayload(result.accessToken);
 
             assert.ok(payload.iss, "JWT should have issuer (iss) claim");
             assert.ok(payload.exp, "JWT should have expiration (exp) claim");
             assert.ok(payload.iat, "JWT should have issued at (iat) claim");
 
-            // Check that the issuer contains our realm
             const issuer = payload.iss as string;
             assert.ok(issuer.includes("kafka"), `Issuer should contain 'kafka' realm: ${issuer}`);
 
@@ -140,17 +137,14 @@ suite("OAUTHBEARER Integration Tests", function () {
         });
 
         test("should be able to fetch multiple tokens (simulating token refresh)", async function () {
-            // Fetch first token
             const token1 = await fetchOAuthToken(
                 fixture.tokenEndpoint,
                 fixture.clientId,
                 fixture.clientSecret
             );
 
-            // Wait a moment
             await new Promise((resolve) => setTimeout(resolve, 1000));
 
-            // Fetch second token
             const token2 = await fetchOAuthToken(
                 fixture.tokenEndpoint,
                 fixture.clientId,
@@ -160,8 +154,6 @@ suite("OAUTHBEARER Integration Tests", function () {
             assert.ok(token1.accessToken, "First token should exist");
             assert.ok(token2.accessToken, "Second token should exist");
             
-            // Tokens might be the same or different depending on Keycloak caching
-            // but both should be valid
             console.log(`Token 1 length: ${token1.accessToken.length}`);
             console.log(`Token 2 length: ${token2.accessToken.length}`);
         });

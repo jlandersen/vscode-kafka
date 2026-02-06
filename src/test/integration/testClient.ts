@@ -125,7 +125,6 @@ export class TestKafkaClient implements Client {
             this.admin = this.kafka.admin();
             await this.admin.connect();
 
-            // Fetch cluster metadata
             const clusterInfo = await this.admin.describeCluster();
             this.metadata.brokers = clusterInfo.brokers.map((b) => ({
                 id: String(b.nodeId),

@@ -16,40 +16,32 @@ import { Cluster } from "../../client/client";
 import { initializeTestEnvironment } from "./testSetup";
 
 suite("Settings-Based Cluster Storage Integration Tests", function () {
-    // Increase timeout for VS Code extension operations
     this.timeout(30000);
 
     const testClusterId = "test-migration-cluster";
     const testPassword = "test-password-123";
 
     suiteSetup(async function () {
-        // Increase timeout for extension activation
         this.timeout(30000);
         
-        // Activate the extension
         const extension = vscode.extensions.getExtension("jeppeandersen.vscode-kafka");
         if (extension && !extension.isActive) {
             await extension.activate();
         }
         
-        // Initialize test environment (Context and SecretsStorage)
         await initializeTestEnvironment();
     });
 
     suiteTeardown(async function () {
-        // Clean up test data
         const config = vscode.workspace.getConfiguration('kafka');
         await config.update('clusters', [], vscode.ConfigurationTarget.Global);
-        // Skip workspace settings cleanup if no workspace is open
         try {
             await config.update('clusters.selected', undefined, vscode.ConfigurationTarget.Workspace);
         } catch (e) {
-            // Workspace settings not available in test environment
         }
     });
 
     test("cluster settings should be accessible", async function () {
-        // Basic smoke test to ensure cluster settings can be loaded
         const { getClusterSettings } = await import('../../settings/clusters');
         const clusterSettings = getClusterSettings();
         
@@ -73,10 +65,8 @@ suite("Settings-Based Cluster Storage Integration Tests", function () {
             }
         };
 
-        // Store cluster
         await clusterSettings.upsert(testCluster);
 
-        // Verify cluster is in settings.json
         const config = vscode.workspace.getConfiguration('kafka');
         const clusters = config.get<Cluster[]>('clusters', []);
         
@@ -87,7 +77,6 @@ suite("Settings-Based Cluster Storage Integration Tests", function () {
         assert.strictEqual(storedCluster.name, testCluster.name);
         assert.strictEqual(storedCluster.bootstrap, testCluster.bootstrap);
         
-        // Verify password is NOT in settings.json
         assert.strictEqual(storedCluster.saslOption?.password, undefined,
             "Password should not be stored in settings.json");
     });
@@ -107,16 +96,13 @@ suite("Settings-Based Cluster Storage Integration Tests", function () {
             }
         };
 
-        // Store cluster (password goes to SecretStorage)
         await clusterSettings.upsert(testCluster);
 
-        // Get cluster without credentials
         const clusterWithoutCreds = clusterSettings.get(testCluster.id);
         assert.ok(clusterWithoutCreds, "Should get cluster");
         assert.strictEqual(clusterWithoutCreds?.saslOption?.password, undefined,
             "get() should not include password");
 
-        // Get cluster with credentials
         const clusterWithCreds = await clusterSettings.getWithCredentials(testCluster.id);
         assert.ok(clusterWithCreds, "Should get cluster with credentials");
         assert.strictEqual(clusterWithCreds?.saslOption?.password, testPassword,
@@ -140,10 +126,8 @@ suite("Settings-Based Cluster Storage Integration Tests", function () {
             }
         };
 
-        // Store cluster
         await clusterSettings.upsert(testCluster);
 
-        // Verify secret is not in settings.json
         const config = vscode.workspace.getConfiguration('kafka');
         const clusters = config.get<Cluster[]>('clusters', []);
         const storedCluster = clusters.find(c => c.id === testCluster.id);
@@ -151,7 +135,6 @@ suite("Settings-Based Cluster Storage Integration Tests", function () {
         assert.strictEqual(storedCluster?.saslOption?.oauthClientSecret, undefined,
             "OAuth client secret should not be in settings.json");
 
-        // Verify secret can be retrieved
         const clusterWithCreds = await clusterSettings.getWithCredentials(testCluster.id);
         assert.strictEqual(clusterWithCreds?.saslOption?.oauthClientSecret, oauthSecret,
             "OAuth client secret should be loaded from SecretStorage");
@@ -177,10 +160,8 @@ suite("Settings-Based Cluster Storage Integration Tests", function () {
             }
         };
 
-        // Store cluster
         await clusterSettings.upsert(testCluster);
 
-        // Verify secrets are not in settings.json
         const config = vscode.workspace.getConfiguration('kafka');
         const clusters = config.get<Cluster[]>('clusters', []);
         const storedCluster = clusters.find(c => c.id === testCluster.id);
@@ -190,13 +171,11 @@ suite("Settings-Based Cluster Storage Integration Tests", function () {
         assert.strictEqual(storedCluster?.saslOption?.awsSessionToken, undefined,
             "AWS session token should not be in settings.json");
 
-        // Verify non-secrets are in settings.json
         assert.strictEqual(storedCluster?.saslOption?.awsAccessKeyId, "AKIAIOSFODNN7EXAMPLE",
             "AWS access key ID (non-secret) should be in settings.json");
         assert.strictEqual(storedCluster?.saslOption?.awsRegion, "us-east-1",
             "AWS region should be in settings.json");
 
-        // Verify secrets can be retrieved
         const clusterWithCreds = await clusterSettings.getWithCredentials(testCluster.id);
         assert.strictEqual(clusterWithCreds?.saslOption?.awsSecretAccessKey, awsSecretKey,
             "AWS secret key should be loaded from SecretStorage");
@@ -205,7 +184,7 @@ suite("Settings-Based Cluster Storage Integration Tests", function () {
     });
 
     test("selected cluster should use workspace scope", async function () {
-        this.skip(); // Skip this test - requires an open workspace
+        this.skip();
         
         const { getClusterSettings } = await import('../../settings/clusters');
         const clusterSettings = getClusterSettings();
@@ -219,7 +198,6 @@ suite("Settings-Based Cluster Storage Integration Tests", function () {
         await clusterSettings.upsert(testCluster);
         clusterSettings.selected = testCluster;
 
-        // Verify selected cluster is in workspace settings
         const config = vscode.workspace.getConfiguration('kafka');
         const selectedId = config.get<string>('clusters.selected');
         

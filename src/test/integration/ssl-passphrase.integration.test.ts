@@ -11,12 +11,10 @@ import * as fs from "fs";
 import { createKafka, ConnectionOptions, SslOption } from "../../client/client";
 
 suite("SSL/TLS Passphrase Integration Tests", function () {
-    // Increase timeout for SSL setup
     this.timeout(10000);
 
     const certsDir = path.resolve(__dirname, "../../../test-clusters/ssl");
     
-    // Paths to certificate files
     const caCertPath = path.join(certsDir, "ca-cert.pem");
     const clientCertPath = path.join(certsDir, "client-cert.pem");
     const clientKeyEncryptedPath = path.join(certsDir, "client-key.pem");
@@ -24,7 +22,6 @@ suite("SSL/TLS Passphrase Integration Tests", function () {
     
     const testPassphrase = "test-passphrase";
 
-    // Skip tests if certificates don't exist
     const certificatesExist = fs.existsSync(caCertPath) && 
                                fs.existsSync(clientCertPath) && 
                                fs.existsSync(clientKeyEncryptedPath) &&
@@ -119,18 +116,11 @@ suite("SSL/TLS Passphrase Integration Tests", function () {
                 }
             };
 
-            // This will fail to connect (no Kafka running on localhost:9093),
-            // but we can verify the Kafka instance is created with proper config
             try {
                 const kafka = await createKafka(connectionOptions);
                 assert.ok(kafka, "Kafka instance should be created");
                 
-                // The kafka object exists, which means our SSL config was accepted
-                // We can't easily inspect the internal SSL config, but if it was malformed,
-                // the creation would have failed
             } catch (error) {
-                // Expected - no cluster provider or Kafka not running
-                // This is fine - we're just testing config structure
                 assert.ok(error instanceof Error);
             }
         });
@@ -140,16 +130,12 @@ suite("SSL/TLS Passphrase Integration Tests", function () {
                 ca: caCertPath,
                 key: clientKeyEncryptedPath,
                 cert: clientCertPath,
-                // No passphrase provided for encrypted key
-                rejectUnauthorized: false
-            };
+            rejectUnauthorized: false
+        };
 
-            // This should not throw during construction
-            assert.strictEqual(sslOption.passphrase, undefined);
-            
-            // Note: Actual connection would fail when trying to use encrypted key without passphrase,
-            // but that's a runtime error with Kafka, not a configuration error
-        });
+        assert.strictEqual(sslOption.passphrase, undefined);
+        
+    });
 
         test("should accept empty string as passphrase", () => {
             const sslOption: SslOption = {
@@ -185,8 +171,6 @@ suite("SSL/TLS Passphrase Integration Tests", function () {
                 rejectUnauthorized: false
             };
 
-            // Configuration is valid (string paths), but files don't exist
-            // Actual error would occur when trying to read files during connection
             assert.ok(sslOption.ca);
             assert.ok(sslOption.key);
             assert.ok(sslOption.cert);
