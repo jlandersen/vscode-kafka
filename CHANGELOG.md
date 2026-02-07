@@ -11,6 +11,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 ### Fixed
 - **Error Messaging Consistency**: Unified command error handling to use shared KafkaJS-aware error formatting.
 - **OAuth Token Fetch Resilience**: Added timeout and retry behavior for OAUTHBEARER token requests.
+- **Edit Cluster Validation**: Allow saving edits without triggering a duplicate name error when the name is unchanged.
 
 ### Changed
 - Updated Node.js from 18 to 22 for CI and development.

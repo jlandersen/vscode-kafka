@@ -40,6 +40,7 @@ const authMechanisms: Array<AuthMechanism> = [
 interface ValidationContext {
     clusterSettings: ClusterSettings;
     wizard: WebviewWizard | null;
+    currentClusterName?: string;
 }
 
 // --- Wizard page fields
@@ -184,7 +185,8 @@ function getSelectedClusterProvider(data: any, providers: ClusterProvider[]): Cl
 function createEditClusterForm(cluster: Cluster | undefined, clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext): WebviewWizard {
     const valiationContext = {
         clusterSettings: clusterSettings,
-        wizard: null
+        wizard: null,
+        currentClusterName: cluster?.name
     } as ValidationContext;
 
     const clusterWizardDef: WizardDefinition = {
@@ -411,14 +413,14 @@ function createFields(cluster?: Cluster): (WizardPageFieldDefinition | WizardPag
 
 function createValidator(validationContext: ValidationContext) {
     return (parameters?: any) => {
-        const clusterName = validationContext.wizard?.title;
+        const currentClusterName = validationContext.currentClusterName;
         const diagnostics: Array<ValidatorResponseItem> = [];
         const fieldRefresh = new Map<string, FieldDefinitionState>();
 
         // 1. Validate cluster name
         const clusterSettings = validationContext.clusterSettings;
         const existingClusterNames = clusterSettings.getAll()
-            .filter(c => clusterName === undefined || c.name !== clusterName)
+            .filter(c => currentClusterName === undefined || c.name !== currentClusterName)
             .map(c => c.name);
         const clustername = parameters[CLUSTER_NAME_FIELD];
         let result = validateClusterName(clustername, existingClusterNames);
