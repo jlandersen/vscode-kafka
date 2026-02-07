@@ -387,7 +387,7 @@ class KafkaJsClient implements Client {
         return ClientState.disconnected;
     }
 
-    private async getkafkaClient(): Promise<Kafka> {
+    private async getKafkaClient(): Promise<Kafka> {
         const promise = (await this.getKafkaPromise());
         const client = promise.kafkaJsClient;
         if (!client) {
@@ -399,7 +399,7 @@ class KafkaJsClient implements Client {
         return client;
     }
 
-    private async getkafkaAdminClient(): Promise<Admin> {
+    private async getKafkaAdminClient(): Promise<Admin> {
         const promise = (await this.getKafkaPromise());
         const admin = promise.kafkaAdminClient;
         if (!admin) {
@@ -435,16 +435,16 @@ class KafkaJsClient implements Client {
             maxWaitTimeInMs: config.maxWaitTimeInMs,
             retry: config.retry
         };
-        const consumer = (await this.getkafkaClient()).consumer(kafkaJsConfig);
+        const consumer = (await this.getKafkaClient()).consumer(kafkaJsConfig);
         return new KafkaJsConsumerAdapter(consumer);
     }
 
     async connect(): Promise<void> {
-        return (await this.getkafkaAdminClient()).connect();
+        return (await this.getKafkaAdminClient()).connect();
     }
 
     async getTopics(): Promise<Topic[]> {
-        const listTopicsResponse = await (await this.getkafkaAdminClient()).fetchTopicMetadata();
+        const listTopicsResponse = await (await this.getKafkaAdminClient()).fetchTopicMetadata();
 
         this.metadata = {
             ...this.metadata,
@@ -471,7 +471,7 @@ class KafkaJsClient implements Client {
     }
 
     async getBrokers(): Promise<Broker[]> {
-        const describeClusterResponse = await (await this.getkafkaAdminClient()).describeCluster();
+        const describeClusterResponse = await (await this.getKafkaAdminClient()).describeCluster();
 
         this.metadata = {
             ...this.metadata,
@@ -489,7 +489,7 @@ class KafkaJsClient implements Client {
     }
 
     async getBrokerConfigs(brokerId: string): Promise<ConfigEntry[]> {
-        const describeConfigsResponse = await (await this.getkafkaAdminClient()).describeConfigs({
+        const describeConfigsResponse = await (await this.getKafkaAdminClient()).describeConfigs({
             includeSynonyms: false,
             resources: [
                 {
@@ -503,7 +503,7 @@ class KafkaJsClient implements Client {
     }
 
     async getTopicConfigs(topicId: string): Promise<ConfigEntry[]> {
-        const describeConfigsResponse = await (await this.getkafkaAdminClient()).describeConfigs({
+        const describeConfigsResponse = await (await this.getKafkaAdminClient()).describeConfigs({
             includeSynonyms: false,
             resources: [
                 {
@@ -517,12 +517,12 @@ class KafkaJsClient implements Client {
     }
 
     async getConsumerGroupIds(): Promise<string[]> {
-        const listGroupsResponse = await (await this.getkafkaAdminClient()).listGroups();
+        const listGroupsResponse = await (await this.getKafkaAdminClient()).listGroups();
         return Promise.resolve(listGroupsResponse.groups.map((g) => (g.groupId)));
     }
 
     async getConsumerGroupDetails(groupId: string): Promise<ConsumerGroup> {
-        const admin = await this.getkafkaAdminClient();
+        const admin = await this.getKafkaAdminClient();
         const describeGroupResponse = await admin.describeGroups([groupId]);
 
         const groupTopicOffsets = await admin.fetchOffsets({ groupId: groupId });
@@ -562,11 +562,11 @@ class KafkaJsClient implements Client {
     }
 
     async deleteConsumerGroups(groupIds: string[]): Promise<void> {
-        await (await this.getkafkaAdminClient()).deleteGroups(groupIds);
+        await (await this.getKafkaAdminClient()).deleteGroups(groupIds);
     }
 
     async createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]> {
-        await (await this.getkafkaAdminClient()).createTopics({
+        await (await this.getKafkaAdminClient()).createTopics({
             validateOnly: false,
             waitForLeaders: true,
             topics: [{
@@ -579,14 +579,14 @@ class KafkaJsClient implements Client {
     }
 
     async deleteTopic(deleteTopicRequest: DeleteTopicRequest): Promise<void> {
-        return await (await this.getkafkaAdminClient()).deleteTopics({
+        return await (await this.getKafkaAdminClient()).deleteTopics({
             topics: deleteTopicRequest.topics,
             timeout: deleteTopicRequest.timeout
         });
     }
 
     async deleteTopicRecords(topic: string, partitions: PartitionOffset[]): Promise<void> {
-        return await (await this.getkafkaAdminClient()).deleteTopicRecords({
+        return await (await this.getKafkaAdminClient()).deleteTopicRecords({
             topic,
             partitions
         });
@@ -594,13 +594,13 @@ class KafkaJsClient implements Client {
 
     async fetchTopicPartitions(topic: string): Promise<number[]> {
         // returns the topics partitions
-        const partitionMetadata = await (await this.getkafkaAdminClient()).fetchTopicMetadata({ topics: [topic] });
+        const partitionMetadata = await (await this.getKafkaAdminClient()).fetchTopicMetadata({ topics: [topic] });
         return partitionMetadata?.topics[0].partitions.map(m => m.partitionId) || [0];
     }
 
     async fetchTopicOffsets(topic: string): Promise<TopicPartitionOffsets[]> {
         // returns the topics partitions
-        return (await this.getkafkaAdminClient()).fetchTopicOffsets(topic);
+        return (await this.getKafkaAdminClient()).fetchTopicOffsets(topic);
     }
 
     dispose() {
