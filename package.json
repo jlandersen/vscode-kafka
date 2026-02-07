@@ -601,6 +601,8 @@
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run package",
+		"run-extension": "npm run compile && code --new-window --extensionDevelopmentPath=.",
+		"run-extension:watch": "npm run watch & code --new-window --extensionDevelopmentPath=.",
 		"compile": "webpack --config ./build/node-extension.webpack.config.js",
 		"watch": "webpack --watch --config ./build/node-extension.webpack.config.js",
 		"package": "webpack --mode production --devtool hidden-source-map --config ./build/node-extension.webpack.config.js",
