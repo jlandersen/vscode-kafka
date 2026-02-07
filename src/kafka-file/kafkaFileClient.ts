@@ -330,7 +330,7 @@ class KafkaFileDiagnostics extends AbstractKafkaFileFeature implements vscode.Di
         this.diagnosticCollection = vscode.languages.createDiagnosticCollection('kafka');
         this.delayers = Object.create(null);
         this.producerFakerJSEnabled = settings.producerFakerJSEnabled;
-        // Validation refresh for opened kafka files must occured when:
+        // Validation refresh for opened kafka files must occur when:
 
         // 1) the 'producerFakerJSEnabled' settings changed to revalidate FakerJS expressions
         settings.onDidChangeSettings(() => {
