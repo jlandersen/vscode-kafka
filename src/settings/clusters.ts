@@ -65,6 +65,9 @@ class SettingsClusterSettings implements ClusterSettings {
     public readonly onDidChangeSelected = this.onDidChangeSelectedEmitter.event;
     private migrationPromise?: Promise<void>;
     private configurationChangeListener?: vscode.Disposable;
+    
+    // In-memory fallback for selected cluster when no workspace is open
+    private inMemorySelectedClusterId?: string;
 
     public constructor() {
         this.migrationPromise = this.migrateFromMementoToSettings();
@@ -78,9 +81,21 @@ class SettingsClusterSettings implements ClusterSettings {
         });
     }
 
+    private hasWorkspace(): boolean {
+        return !!(vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0);
+    }
+
     get selected(): Cluster | undefined {
-        const config = vscode.workspace.getConfiguration('kafka');
-        const selectedClusterId = config.get<string>('clusters.selected');
+        let selectedClusterId: string | undefined;
+        
+        if (this.hasWorkspace()) {
+            const config = vscode.workspace.getConfiguration('kafka');
+            const inspection = config.inspect<string>('clusters.selected');
+            selectedClusterId = inspection?.workspaceValue ?? inspection?.globalValue;
+        } else {
+            // No workspace - use in-memory value
+            selectedClusterId = this.inMemorySelectedClusterId;
+        }
 
         if (!selectedClusterId) {
             return undefined;
@@ -91,15 +106,43 @@ class SettingsClusterSettings implements ClusterSettings {
 
     set selected(value: Cluster | undefined) {
         const oldClusterId = this.selected?.id;
-        const config = vscode.workspace.getConfiguration('kafka');
-        config.update('clusters.selected', value?.id, vscode.ConfigurationTarget.Workspace);
-        this.onDidChangeSelectedEmitter.fire({ oldClusterId: oldClusterId, newClusterId: value?.id });
+        const newClusterId = value?.id;
+        
+        if (this.hasWorkspace()) {
+            const config = vscode.workspace.getConfiguration('kafka');
+            config.update('clusters.selected', newClusterId, vscode.ConfigurationTarget.Workspace)
+                .then(() => {
+                    this.onDidChangeSelectedEmitter.fire({ oldClusterId, newClusterId });
+                }, (error) => {
+                    console.error('[vscode-kafka] Failed to save selected cluster:', error);
+                });
+        } else {
+            // No workspace - store in memory only
+            this.inMemorySelectedClusterId = newClusterId;
+            this.onDidChangeSelectedEmitter.fire({ oldClusterId, newClusterId });
+        }
     }
 
     getAll(): Cluster[] {
-        const config = vscode.workspace.getConfiguration('kafka');
-        const clusters = config.get<Cluster[]>('clusters', []);
+        const clusters = this.getClustersFromGlobalConfig();
         return clusters.sort(this.sortByNameAscending);
+    }
+
+    /**
+     * Gets the clusters array from global (machine) config scope.
+     * This avoids issues with VS Code's config merging behavior which can
+     * return unexpected object structures when workspace settings exist.
+     */
+    private getClustersFromGlobalConfig(): Cluster[] {
+        const config = vscode.workspace.getConfiguration('kafka');
+        const inspection = config.inspect<Cluster[]>('clusters');
+        const clusters = inspection?.globalValue ?? inspection?.defaultValue ?? [];
+        
+        if (!Array.isArray(clusters)) {
+            console.error('kafka.clusters setting is not an array. Inspection:', JSON.stringify(inspection));
+            return [];
+        }
+        return clusters;
     }
 
     private sortByNameAscending(a: Cluster, b: Cluster): -1 | 0 | 1 {
@@ -171,7 +214,7 @@ class SettingsClusterSettings implements ClusterSettings {
     async upsert(cluster: Cluster): Promise<void> {
         await this.migrationPromise;
         const config = vscode.workspace.getConfiguration('kafka');
-        const clusters = config.get<Cluster[]>('clusters', []);
+        const clusters = this.getClustersFromGlobalConfig();
         const secretsStorage = SecretsStorage.getInstance();
         
         // Extract all secrets before storing in settings
@@ -246,7 +289,7 @@ class SettingsClusterSettings implements ClusterSettings {
         }
 
         const config = vscode.workspace.getConfiguration('kafka');
-        const clusters = config.get<Cluster[]>('clusters', []);
+        const clusters = this.getClustersFromGlobalConfig();
         const filtered = clusters.filter(c => c.id !== id);
         
         await config.update('clusters', filtered, vscode.ConfigurationTarget.Global);
