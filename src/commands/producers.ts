@@ -287,6 +287,37 @@ export class ProduceRecordCommandHandler {
     }
 }
 
+export class ProduceRecordWithInputCommandHandler {
+
+    public static commandId = 'vscode-kafka.producer.produce.withinput';
+
+    constructor(
+        private produceRecordCommandHandler: ProduceRecordCommandHandler
+    ) {
+    }
+
+    async execute(command: ProduceRecordCommand): Promise<void> {
+        const input = await vscode.window.showInputBox({
+            prompt: 'Enter number of records to produce',
+            placeHolder: '10',
+            validateInput: (value) => {
+                const num = parseInt(value, 10);
+                if (isNaN(num) || num < 1) {
+                    return 'Please enter a valid positive number';
+                }
+                return undefined;
+            }
+        });
+
+        if (input === undefined) {
+            return;
+        }
+
+        const times = parseInt(input, 10);
+        await this.produceRecordCommandHandler.execute(command, times);
+    }
+}
+
 export class StopScheduledProducerCommandHandler {
 
     public static commandId = 'vscode-kafka.producer.stopscheduled';

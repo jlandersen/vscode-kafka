@@ -22,6 +22,7 @@ import {
     OpenConsumerTableViewCommandHandler,
     ProduceRecordCommand,
     ProduceRecordCommandHandler,
+    ProduceRecordWithInputCommandHandler,
     SaveClusterCommandHandler,
     SelectClusterCommandHandler,
     StartConsumerCommandHandler,
@@ -83,6 +84,7 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     const deleteTopicCommandHandler = new DeleteTopicCommandHandler(clientAccessor, explorer);
     const deleteTopicRecordsCommandHandler = new DeleteTopicRecordsCommandHandler(clientAccessor, explorer);
     const produceRecordCommandHandler = new ProduceRecordCommandHandler(clientAccessor, producerCollection, outputChannelProvider, explorer, workspaceSettings);
+    const produceRecordWithInputCommandHandler = new ProduceRecordWithInputCommandHandler(produceRecordCommandHandler);
     const stopScheduledProducerCommandHandler = new StopScheduledProducerCommandHandler(producerCollection, outputChannelProvider, explorer);
     const startConsumerCommandHandler = new StartConsumerCommandHandler(clientAccessor, consumerCollection, explorer);
     const stopConsumerCommandHandler = new StopConsumerCommandHandler(clientAccessor, consumerCollection, explorer);
@@ -162,6 +164,8 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
         handleErrors((command: DeleteConsumerGroupCommand) => deleteConsumerGroupCommandHandler.execute(command))));
     context.subscriptions.push(vscode.commands.registerCommand(ProduceRecordCommandHandler.commandId,
         handleErrors((command: ProduceRecordCommand, times: number) => produceRecordCommandHandler.execute(command, times))));
+    context.subscriptions.push(vscode.commands.registerCommand(ProduceRecordWithInputCommandHandler.commandId,
+        handleErrors((command: ProduceRecordCommand) => produceRecordWithInputCommandHandler.execute(command))));
     context.subscriptions.push(vscode.commands.registerCommand(
         StopScheduledProducerCommandHandler.commandId,
         handleErrors((command: ProduceRecordCommand) => stopScheduledProducerCommandHandler.execute(command))));

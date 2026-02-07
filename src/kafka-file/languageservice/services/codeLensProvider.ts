@@ -1,7 +1,7 @@
 import { CodeLens, Range, TextDocument } from "vscode";
 import { ClientState, ConsumerLaunchState } from "../../../client";
 import { createProducerUri, ProducerLaunchState } from "../../../client/producer";
-import { ProduceRecordCommandHandler, SelectClusterCommandHandler, StartConsumerCommandHandler, StopConsumerCommandHandler, StopScheduledProducerCommandHandler } from "../../../commands";
+import { ProduceRecordCommandHandler, ProduceRecordWithInputCommandHandler, SelectClusterCommandHandler, StartConsumerCommandHandler, StopConsumerCommandHandler, StopScheduledProducerCommandHandler } from "../../../commands";
 import { ConsumerLaunchStateProvider, ProducerLaunchStateProvider, SelectedClusterProvider } from "../kafkaFileLanguageService";
 import { Block, BlockType, ConsumerBlock, KafkaFileDocument, ProducerBlock } from "../parser/kafkaFileParser";
 
@@ -101,6 +101,11 @@ export class KafkaFileCodeLenses {
                             title: "$(run-all) Produce record x 10",
                             command: ProduceRecordCommandHandler.commandId,
                             arguments: [produceRecordCommand, 10]
+                        }));
+                        lenses.push(new CodeLens(lineRange, {
+                            title: "$(run-all) Produce records...",
+                            command: ProduceRecordWithInputCommandHandler.commandId,
+                            arguments: [produceRecordCommand]
                         }));
                     }
                     break;

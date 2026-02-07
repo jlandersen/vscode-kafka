@@ -106,6 +106,23 @@ suite("Kafka File PRODUCER CodeLens Test Suite", () => {
                 ]
             }),
             codeLens(position(0, 0), position(0, 0), {
+                command: 'vscode-kafka.producer.produce.withinput',
+                title: '$(run-all) Produce records...',
+                arguments: [
+                    {
+                        clusterId: 'cluster1',
+                        key: undefined,
+                        messageKeyFormat: undefined,
+                        messageKeyFormatSettings: undefined,
+                        messageValueFormat: undefined,
+                        messageValueFormatSettings: undefined,
+                        topicId: undefined,
+                        value: undefined,
+                        headers: undefined
+                    } as ProduceRecordCommand
+                ]
+            }),
+            codeLens(position(0, 0), position(0, 0), {
                 command: 'vscode-kafka.explorer.selectcluster',
                 title: 'CLUSTER_1'
             })
@@ -153,6 +170,23 @@ suite("Kafka File PRODUCER CodeLens Test Suite", () => {
                         headers: undefined
                     } as ProduceRecordCommand,
                     10
+                ]
+            }),
+            codeLens(position(0, 0), position(0, 0), {
+                command: 'vscode-kafka.producer.produce.withinput',
+                title: '$(run-all) Produce records...',
+                arguments: [
+                    {
+                        clusterId: 'cluster1',
+                        key: 'a-key',
+                        messageKeyFormat: 'long',
+                        messageKeyFormatSettings: undefined,
+                        messageValueFormat: 'string',
+                        messageValueFormatSettings: undefined,
+                        topicId: 'abcd',
+                        value: 'ABCD\nEFGH',
+                        headers: undefined
+                    } as ProduceRecordCommand
                 ]
             }),
             codeLens(position(0, 0), position(0, 0), {
@@ -211,6 +245,23 @@ suite("Kafka File PRODUCER CodeLens Test Suite", () => {
                         headers: undefined
                     } as ProduceRecordCommand,
                     10
+                ]
+            }),
+            codeLens(position(0, 0), position(0, 0), {
+                command: 'vscode-kafka.producer.produce.withinput',
+                title: '$(run-all) Produce records...',
+                arguments: [
+                    {
+                        clusterId: 'cluster1',
+                        key: 'a-key',
+                        messageKeyFormat: 'string',
+                        messageKeyFormatSettings: [{ value: 'base64' }],
+                        messageValueFormat: 'string',
+                        messageValueFormatSettings: [{ value: 'ascii' }],
+                        topicId: 'abcd',
+                        value: 'ABCD\nEFGH',
+                        headers: undefined
+                    } as ProduceRecordCommand
                 ]
             }),
             codeLens(position(0, 0), position(0, 0), {

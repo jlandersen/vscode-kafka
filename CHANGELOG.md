@@ -3,6 +3,9 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Produce Records Input**: Added "Produce records..." code lens action that opens an input box to specify a custom number of records to produce. See [#95](https://github.com/jlandersen/vscode-kafka/issues/95).
+
 ### Changed
 - Updated Node.js from 18 to 22 for CI and development.
 
