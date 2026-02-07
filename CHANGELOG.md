@@ -3,6 +3,9 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Updated Node.js from 18 to 22 for CI and development.
+
 ## [0.20.0] - 2026-02-07
 ### Fixed
 - **Cluster Selection in .kafka Files**: Fixed issue where selecting a cluster in .kafka files would not work. The fix addresses two problems: VS Code's configuration API returning unexpected object structures instead of arrays when reading cluster settings, and cluster selection not working when no workspace folder is open (now uses in-memory storage as fallback).

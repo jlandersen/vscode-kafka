@@ -628,7 +628,7 @@
 		"@types/js-yaml": "^4.0.9",
 		"@types/minimatch": "^5.1.2",
 		"@types/mocha": "^10.0.10",
-		"@types/node": "^18.19.68",
+		"@types/node": "^22.15.21",
 		"@types/vscode": "^1.75.0",
 		"@typescript-eslint/eslint-plugin": "^7.18.0",
 		"@typescript-eslint/parser": "^7.18.0",
