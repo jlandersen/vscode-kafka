@@ -18,6 +18,16 @@ export class ErrorItem extends NodeBase {
     }
 }
 
+export const getErrorMessage = (error: unknown): string => {
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+    if (typeof error === "string" && error) {
+        return error;
+    }
+    return "Unknown error";
+};
+
 /**
  * A node used to display an info message
  */
@@ -45,10 +55,14 @@ export class ConfigsItem extends NodeBase {
     }
 
     async computeChildren(): Promise<NodeBase[]> {
-        const configEntries = await this.provider();
-        return configEntries
-            .sort((a, b) => (a.configName < b.configName ? -1 : (a.configName > b.configName) ? 1 : 0))
-            .map((configEntry) => (new ConfigEntryItem(configEntry, this)));
+        try {
+            const configEntries = await this.provider();
+            return configEntries
+                .sort((a, b) => (a.configName < b.configName ? -1 : (a.configName > b.configName) ? 1 : 0))
+                .map((configEntry) => (new ConfigEntryItem(configEntry, this)));
+        } catch (error) {
+            return [new ErrorItem(`Failed to load configs: ${getErrorMessage(error)}`, this)];
+        }
     }
 }
 

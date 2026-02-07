@@ -601,8 +601,8 @@
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run package",
-		"run-extension": "npm run compile && code --new-window --extensionDevelopmentPath=.",
-		"run-extension:watch": "npm run watch & code --new-window --extensionDevelopmentPath=.",
+		"run-extension": "npm run compile && code --new-window --extensionDevelopmentPath=\"$PWD\" --user-data-dir \"$PWD/.vscode-test\" --extensions-dir \"$PWD/.vscode-test/extensions\" \"$PWD\"",
+		"run-extension:watch": "npm run watch & code --new-window --extensionDevelopmentPath=\"$PWD\" --user-data-dir \"$PWD/.vscode-test\" --extensions-dir \"$PWD/.vscode-test/extensions\" \"$PWD\"",
 		"compile": "webpack --config ./build/node-extension.webpack.config.js",
 		"watch": "webpack --watch --config ./build/node-extension.webpack.config.js",
 		"package": "webpack --mode production --devtool hidden-source-map --config ./build/node-extension.webpack.config.js",

@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import { ConsumerGroupMember, ConsumerGroupOffset } from "../../client";
 import { Icons } from "../../constants";
 import { getWorkspaceSettings } from "../../settings";
+import { ErrorItem, getErrorMessage, InformationItem } from "./common";
 import { NodeBase } from "./nodeBase";
 import { ClusterItem } from "./cluster";
 import * as minimatch from "minimatch";
@@ -17,13 +18,20 @@ export class ConsumerGroupsItem extends NodeBase {
     }
 
     async computeChildren(): Promise<NodeBase[]> {
-        const client = await this.getParent().getClient();
-        const settings = getWorkspaceSettings();
-        const consumerGroupIds = (await client.getConsumerGroupIds())
-            .filter(cg => this.isDisplayed(cg, settings.consumerFilters))
-            .sort(this.sortByAscending);
-        return Promise.resolve(
-            consumerGroupIds.map((consumerGroupId) => (new ConsumerGroupItem(consumerGroupId, this))));
+        try {
+            const client = await this.getParent().getClient();
+            const settings = getWorkspaceSettings();
+            const consumerGroupIds = (await client.getConsumerGroupIds())
+                .filter(cg => this.isDisplayed(cg, settings.consumerFilters))
+                .sort(this.sortByAscending);
+            if (consumerGroupIds.length === 0) {
+                return [new InformationItem("No consumer groups", this)];
+            }
+            return Promise.resolve(
+                consumerGroupIds.map((consumerGroupId) => (new ConsumerGroupItem(consumerGroupId, this))));
+        } catch (error) {
+            return [new ErrorItem(`Failed to load consumer groups: ${getErrorMessage(error)}`, this)];
+        }
     }
 
     private sortByAscending(a: string, b: string): -1 | 0 | 1 {
@@ -57,15 +65,19 @@ export class ConsumerGroupItem extends NodeBase {
     }
 
     async computeChildren(): Promise<NodeBase[]> {
-        const client = await this.getParent().getParent().getClient();
-        const groupDetails = await client.getConsumerGroupDetails(this.consumerGroupId);
-        const members = groupDetails.members.sort(this.sortByMemberIdAscending);
-        const offsets = groupDetails.offsets.sort(this.sortByTopicAndPartitionAscending);
-        return [
-            new ConsumerGroupDetailsItem("State", groupDetails.state, this),
-            new ConsumerGroupMembersItem(members, this),
-            new ConsumerGroupOffsetsItem(offsets, this),
-        ];
+        try {
+            const client = await this.getParent().getParent().getClient();
+            const groupDetails = await client.getConsumerGroupDetails(this.consumerGroupId);
+            const members = groupDetails.members.sort(this.sortByMemberIdAscending);
+            const offsets = groupDetails.offsets.sort(this.sortByTopicAndPartitionAscending);
+            return [
+                new ConsumerGroupDetailsItem("State", groupDetails.state, this),
+                new ConsumerGroupMembersItem(members, this),
+                new ConsumerGroupOffsetsItem(offsets, this),
+            ];
+        } catch (error) {
+            return [new ErrorItem(`Failed to load consumer group: ${getErrorMessage(error)}`, this)];
+        }
     }
 
     private sortByMemberIdAscending(a: ConsumerGroupMember, b: ConsumerGroupMember): -1 | 0 | 1 {

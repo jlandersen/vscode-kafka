@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 import { Broker } from "../../client";
 import { Icons } from "../../constants";
 import { ClusterItem } from "./cluster";
-import { ConfigsItem } from "./common";
+import { ConfigsItem, ErrorItem, getErrorMessage } from "./common";
 import { NodeBase } from "./nodeBase";
 
 export class BrokerGroupItem extends NodeBase {
@@ -16,12 +16,16 @@ export class BrokerGroupItem extends NodeBase {
     }
 
     public async computeChildren(): Promise<NodeBase[]> {
-        const client = await this.getParent().getClient();
-        const brokers = (await client.getBrokers())
-            .sort(this.sortByNameAscending);
-        return brokers.map((broker) => {
-            return new BrokerItem(broker, this);
-        });
+        try {
+            const client = await this.getParent().getClient();
+            const brokers = (await client.getBrokers())
+                .sort(this.sortByNameAscending);
+            return brokers.map((broker) => {
+                return new BrokerItem(broker, this);
+            });
+        } catch (error) {
+            return [new ErrorItem(`Failed to load brokers: ${getErrorMessage(error)}`, this)];
+        }
     }
     getParent(): ClusterItem {
         return <ClusterItem>super.getParent();
@@ -50,9 +54,13 @@ export class BrokerItem extends NodeBase {
     }
 
     async computeChildren(): Promise<NodeBase[]> {
-        const client = await this.getParent().getParent().getClient();
-        const configNode = new ConfigsItem(() => client.getBrokerConfigs(this.broker.id), this);
-        return Promise.resolve([configNode]);
+        try {
+            const client = await this.getParent().getParent().getClient();
+            const configNode = new ConfigsItem(() => client.getBrokerConfigs(this.broker.id), this);
+            return Promise.resolve([configNode]);
+        } catch (error) {
+            return [new ErrorItem(`Failed to load broker: ${getErrorMessage(error)}`, this)];
+        }
     }
 
     getParent(): BrokerGroupItem {

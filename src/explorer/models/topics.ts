@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 import { isVisible, sortTopics, Topic, TopicPartition } from "../../client";
 import { Icons } from "../../constants";
 import { ClusterItem } from "./cluster";
-import { ConfigsItem } from "./common";
+import { ConfigsItem, ErrorItem, getErrorMessage, InformationItem } from "./common";
 import { NodeBase } from "./nodeBase";
 
 export class TopicGroupItem extends NodeBase {
@@ -16,14 +16,19 @@ export class TopicGroupItem extends NodeBase {
     }
 
     public async computeChildren(): Promise<NodeBase[]> {
-        const client = await this.getParent().getClient();
-        const allTopics = await client.getTopics();
-        //Filter topics before sorting them
-        let visibleTopics = allTopics.filter(t => isVisible(t));
-        visibleTopics = sortTopics(visibleTopics);
-        return visibleTopics.map((topic) => {
-            return new TopicItem(topic, this);
-        });
+        try {
+            const client = await this.getParent().getClient();
+            const allTopics = await client.getTopics();
+            //Filter topics before sorting them
+            let visibleTopics = allTopics.filter(t => isVisible(t));
+            visibleTopics = sortTopics(visibleTopics);
+            if (visibleTopics.length === 0) {
+                return [new InformationItem("No topics", this)];
+            }
+            return visibleTopics.map((topic) => (new TopicItem(topic, this)));
+        } catch (error) {
+            return [new ErrorItem(`Failed to load topics: ${getErrorMessage(error)}`, this)];
+        }
     }
 
     getParent(): ClusterItem {
@@ -47,12 +52,16 @@ export class TopicItem extends NodeBase {
     }
 
     async computeChildren(): Promise<NodeBase[]> {
-        const client = await this.getParent().getParent().getClient();
-        const configNode = new ConfigsItem(() => client.getTopicConfigs(this.topic.id), this);
-        const partitionNodes = Object.keys(this.topic.partitions).map((partition) => {
-            return new TopicPartitionItem(this.topic.partitions[partition], this);
-        });
-        return Promise.resolve([configNode, ...partitionNodes]);
+        try {
+            const client = await this.getParent().getParent().getClient();
+            const configNode = new ConfigsItem(() => client.getTopicConfigs(this.topic.id), this);
+            const partitionNodes = Object.keys(this.topic.partitions).map((partition) => {
+                return new TopicPartitionItem(this.topic.partitions[partition], this);
+            });
+            return Promise.resolve([configNode, ...partitionNodes]);
+        } catch (error) {
+            return [new ErrorItem(`Failed to load topic: ${getErrorMessage(error)}`, this)];
+        }
     }
 
     getParent(): TopicGroupItem {
