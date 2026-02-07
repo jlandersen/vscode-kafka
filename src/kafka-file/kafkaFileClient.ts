@@ -186,6 +186,14 @@ export function startLanguageClient(
         vscode.languages.registerFoldingRangeProvider(documentSelector, folding)
     );
 
+    // Code Actions
+    const codeActions = new KafkaFileCodeActionProvider(kafkaFileDocuments, languageService);
+    context.subscriptions.push(
+        vscode.languages.registerCodeActionsProvider(documentSelector, codeActions, {
+            providedCodeActionKinds: KafkaFileCodeActionProvider.providedCodeActionKinds
+        })
+    );
+
     // Open / Close document
     context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(e => {
         if (e.languageId === 'kafka') {
@@ -398,5 +406,24 @@ class KafkaFileFoldingRangeProvider extends AbstractKafkaFileFeature implements 
             const kafkaFileDocument = this.getKafkaFileDocument(document);
             return this.languageService.getFoldingRanges(document, kafkaFileDocument);
         }, [], `Error while computing folding ranges for ${document.uri}`, token);
+    }
+}
+
+class KafkaFileCodeActionProvider extends AbstractKafkaFileFeature implements vscode.CodeActionProvider {
+
+    public static readonly providedCodeActionKinds = [
+        vscode.CodeActionKind.QuickFix
+    ];
+
+    provideCodeActions(
+        document: vscode.TextDocument,
+        range: vscode.Range,
+        context: vscode.CodeActionContext,
+        token: vscode.CancellationToken
+    ): vscode.ProviderResult<vscode.CodeAction[]> {
+        return runSafeAsync(async () => {
+            const kafkaFileDocument = this.getKafkaFileDocument(document);
+            return this.languageService.getCodeActions(document, kafkaFileDocument, context);
+        }, [], `Error while computing code actions for ${document.uri}`, token);
     }
 }
