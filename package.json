@@ -171,7 +171,11 @@
 					"markdownDescription": "Kafka cluster configurations. Sensitive credentials (passwords, tokens) are stored securely in the system keychain.",
 					"items": {
 						"type": "object",
-						"required": ["id", "name", "bootstrap"],
+						"required": [
+							"id",
+							"name",
+							"bootstrap"
+						],
 						"properties": {
 							"id": {
 								"type": "string",
@@ -192,11 +196,19 @@
 							"saslOption": {
 								"type": "object",
 								"description": "SASL authentication options",
-								"required": ["mechanism"],
+								"required": [
+									"mechanism"
+								],
 								"properties": {
 									"mechanism": {
 										"type": "string",
-										"enum": ["plain", "scram-sha-256", "scram-sha-512", "oauthbearer", "aws"],
+										"enum": [
+											"plain",
+											"scram-sha-256",
+											"scram-sha-512",
+											"oauthbearer",
+											"aws"
+										],
 										"description": "SASL mechanism"
 									},
 									"username": {
@@ -602,7 +614,7 @@
 	},
 	"dependencies": {
 		"@faker-js/faker": "^9.3.0",
-		"@redhat-developer/vscode-wizard": "^0.2.30",
+		"@redhat-developer/vscode-wizard": "^0.3.1",
 		"fs-extra": "^11.2.0",
 		"glob": "^10.4.5",
 		"handlebars": "^4.7.8",
