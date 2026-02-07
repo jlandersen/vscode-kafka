@@ -3,6 +3,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-02-07
 ### Fixed
 - **Cluster Selection in .kafka Files**: Fixed issue where selecting a cluster in .kafka files would not work. The fix addresses two problems: VS Code's configuration API returning unexpected object structures instead of arrays when reading cluster settings, and cluster selection not working when no workspace folder is open (now uses in-memory storage as fallback).
 - **Custom Helper Diagnostics**: Fixed false syntax error "Missing '.' after '$timestamp'" for custom template helpers like `{{$timestamp}}`, `{{$date.now}}`, `{{$date.iso}}`, and `{{$date.unix}}`.
