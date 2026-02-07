@@ -4,6 +4,17 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      publish_target:
+        description: "Publish target"
+        required: true
+        default: "both"
+        type: choice
+        options:
+          - both
+          - vsce
+          - ovsx
 
 jobs:
   # First, run CI to ensure everything passes
@@ -63,6 +74,8 @@ jobs:
   publish:
     needs: [ci, integration-tests]
     runs-on: ubuntu-latest
+    env:
+      PUBLISH_TARGET: ${{ github.event.inputs.publish_target || 'both' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -76,11 +89,13 @@ jobs:
         run: npm install
 
       - name: Publish to VSCode Marketplace
+        if: ${{ env.PUBLISH_TARGET == 'vsce' || env.PUBLISH_TARGET == 'both' }}
         run: npx @vscode/vsce publish -p $VSCE_TOKEN
         env:
           VSCE_TOKEN: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
 
       - name: Publish to Open VSX
+        if: ${{ env.PUBLISH_TARGET == 'ovsx' || env.PUBLISH_TARGET == 'both' }}
         run: npx ovsx@0.9.3 publish -p $OVSX_TOKEN
         env:
           OVSX_TOKEN: ${{ secrets.OPENVSX_MARKETPLACE_TOKEN }}
