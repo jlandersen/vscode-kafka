@@ -724,14 +724,14 @@ function createOAuthBearerProvider(
         try {
             // Build the token request
             const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-            const response = await fetch(tokenEndpoint, {
+            const response = await fetchWithRetry(tokenEndpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                     'Authorization': `Basic ${credentials}`
                 },
                 body: 'grant_type=client_credentials'
-            });
+            }, { timeoutMs: 10000, retries: 2, backoffMs: 500 });
 
             if (!response.ok) {
                 const errorText = await response.text();
@@ -758,6 +758,39 @@ function createOAuthBearerProvider(
             throw new Error(`Failed to obtain OAuth token: ${message}`);
         }
     };
+}
+
+async function fetchWithRetry(url: string, init: RequestInit, options: { timeoutMs: number; retries: number; backoffMs: number }): Promise<Response> {
+    let attempt = 0;
+    while (true) {
+        try {
+            const response = await fetchWithTimeout(url, init, options.timeoutMs);
+            if (response.ok || response.status < 500 || attempt >= options.retries) {
+                return response;
+            }
+            response.body?.cancel?.();
+        } catch (error) {
+            if (attempt >= options.retries) {
+                throw error;
+            }
+        }
+        attempt += 1;
+        await delay(options.backoffMs * attempt);
+    }
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...init, signal: controller.signal });
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+async function delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function createSsl(connectionOptions: ConnectionOptions): KafkaClientConfig['ssl'] {

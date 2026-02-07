@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { getErrorMessage } from "../errors";
 
 type Handler = (...args: any[]) => Promise<any>;
 
@@ -7,13 +8,7 @@ export const handleErrors = (handler: Handler): ((...args: any[]) => Promise<any
         try {
             await handler(...args);
         } catch (error) {
-            const message = error instanceof Error ? error.message : undefined;
-            if (message) {
-                vscode.window.showErrorMessage(message);
-            } else {
-                console.log(error);
-                vscode.window.showErrorMessage('An unexpected error occured');
-            }
+            vscode.window.showErrorMessage(getErrorMessage(error));
         }
     };
 };
