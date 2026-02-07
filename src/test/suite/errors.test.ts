@@ -267,6 +267,11 @@ suite("Error Message Extraction Test Suite", () => {
             assert.strictEqual(result, "undefined", "Should handle undefined");
         });
 
+        test("should handle symbol values", () => {
+            const result = getErrorMessage(Symbol("failure"));
+            assert.strictEqual(result, "Symbol(failure)", "Should stringify symbol");
+        });
+
         test("should handle object without message", () => {
             const error = { code: 123, status: "failed" };
             const result = getErrorMessage(error);
