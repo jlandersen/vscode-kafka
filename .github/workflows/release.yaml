@@ -81,6 +81,6 @@ jobs:
           VSCE_TOKEN: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
 
       - name: Publish to Open VSX
-        run: npx ovsx publish -p $OVSX_TOKEN
+        run: npx ovsx@0.9.3 publish -p $OVSX_TOKEN
         env:
           OVSX_TOKEN: ${{ secrets.OPENVSX_MARKETPLACE_TOKEN }}
