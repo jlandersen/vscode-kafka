@@ -80,8 +80,7 @@ jobs:
         env:
           VSCE_TOKEN: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
 
-      # TODO: Re-enable Open VSX publishing when token is configured
-      # - name: Publish to Open VSX
-      #   run: npx ovsx publish -p $OVSX_TOKEN
-      #   env:
-      #     OVSX_TOKEN: ${{ secrets.OPENVSX_MARKETPLACE_TOKEN }}
+      - name: Publish to Open VSX
+        run: npx ovsx publish -p $OVSX_TOKEN
+        env:
+          OVSX_TOKEN: ${{ secrets.OPENVSX_MARKETPLACE_TOKEN }}
