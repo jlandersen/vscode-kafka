@@ -125,6 +125,10 @@ export class KafkaFileDiagnostics {
         const content = expression.content;
         switch (parts.length) {
             case 1: {
+                // Custom helpers prefixed with $ (like $timestamp) are valid with single part
+                if (content.startsWith('$') && fakerjsAPIModel.getPart(content)) {
+                    return true;
+                }
                 const range = expression.enclosedExpressionRange;
                 const message = content.trim().length === 0 ? `Required expression` : `Missing '.' after '${content}'`;
                 diagnostics.push(new Diagnostic(range, message, DiagnosticSeverity.Error));

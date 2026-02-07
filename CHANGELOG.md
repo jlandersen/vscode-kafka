@@ -5,6 +5,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ### Fixed
 - **Cluster Selection in .kafka Files**: Fixed issue where selecting a cluster in .kafka files would not work. The fix addresses two problems: VS Code's configuration API returning unexpected object structures instead of arrays when reading cluster settings, and cluster selection not working when no workspace folder is open (now uses in-memory storage as fallback).
+- **Custom Helper Diagnostics**: Fixed false syntax error "Missing '.' after '$timestamp'" for custom template helpers like `{{$timestamp}}`, `{{$date.now}}`, `{{$date.iso}}`, and `{{$date.unix}}`.
 
 ### Added
 - **Folding Support for .kafka Files**: Added AST-based folding support for PRODUCER and CONSUMER blocks in .kafka files. This replaces the TextMate-based folding which failed when CONSUMER blocks didn't end with `###`. See [#179](https://github.com/jlandersen/vscode-kafka/issues/179).

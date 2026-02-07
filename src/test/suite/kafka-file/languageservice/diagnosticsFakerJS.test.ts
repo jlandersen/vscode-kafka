@@ -12,6 +12,43 @@ suite("Kafka File PRODUCER FakerJS Diagnostics Test Suite", () => {
             []
         );
 
+        // Custom helpers with $ prefix should be valid
+        await assertDiagnostics(
+            'PRODUCER\n' +
+            'topic:abcd\n' +
+            '{{$timestamp}}',
+            []
+        );
+
+        await assertDiagnostics(
+            'PRODUCER\n' +
+            'topic:abcd\n' +
+            '{{$date.now}}',
+            []
+        );
+
+        await assertDiagnostics(
+            'PRODUCER\n' +
+            'topic:abcd\n' +
+            '{{$date.iso}}',
+            []
+        );
+
+        await assertDiagnostics(
+            'PRODUCER\n' +
+            'topic:abcd\n' +
+            '{{$date.unix}}',
+            []
+        );
+
+        // Mix of custom helpers and faker expressions
+        await assertDiagnostics(
+            'PRODUCER\n' +
+            'topic:abcd\n' +
+            '{"timestamp": {{$timestamp}}, "name": "{{person.firstName}}"}',
+            []
+        );
+
         await assertDiagnostics(
             'PRODUCER\n' +
             'topic:abcd\n' +
