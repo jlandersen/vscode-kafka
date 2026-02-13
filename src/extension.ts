@@ -125,7 +125,7 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
         (topic?: TopicItem) => dumpTopicMetadataCommandHandler.execute(topic)));
     context.subscriptions.push(vscode.commands.registerCommand(
         DeleteTopicCommandHandler.commandId,
-        (topic?: TopicItem) => deleteTopicCommandHandler.execute(topic)));
+        (topic?: TopicItem, selection?: TopicItem[]) => deleteTopicCommandHandler.execute(selection && selection.length > 0 ? selection : topic)));
     context.subscriptions.push(vscode.commands.registerCommand(
         DeleteTopicRecordsCommandHandler.commandId,
         (topic?: TopicItem) => deleteTopicRecordsCommandHandler.execute(topic)));

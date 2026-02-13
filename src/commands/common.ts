@@ -63,6 +63,23 @@ export async function pickTopic(client: Client): Promise<Topic | undefined> {
     return pickedTopic?.topic;
 }
 
+export async function pickTopics(client: Client): Promise<Topic[] | undefined> {
+    const topics = await client.getTopics();
+    const topicQuickPickItems = topics.map((topic) => {
+        return {
+            label: topic.id,
+            description: `Partitions: ${topic.partitionCount}`,
+            topic,
+        };
+    });
+
+    const pickedTopics = await vscode.window.showQuickPick(topicQuickPickItems, {
+        canPickMany: true,
+        placeHolder: "Select topics to delete"
+    });
+    return pickedTopics?.map(pickedTopic => pickedTopic.topic);
+}
+
 export async function pickConsumerGroupId(client: Client): Promise<string | undefined> {
     const groupIds = await client.getConsumerGroupIds();
     const groupIdQuickPickItems = groupIds.map((groupId) => {

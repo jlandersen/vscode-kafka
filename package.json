@@ -541,6 +541,11 @@
 					"command": "vscode-kafka.explorer.deleteselected",
 					"when": "view == kafkaExplorer && viewItem =~ /^cluster.*$|^selectedCluster.*$|^topic$|^consumergroupitem$/ && !listMultiSelection",
 					"group": "3_modification"
+				},
+				{
+					"command": "vscode-kafka.explorer.deleteselected",
+					"when": "view == kafkaExplorer && viewItem == topic && listMultiSelection",
+					"group": "3_modification"
 				}
 			],
 			"editor/title": [
