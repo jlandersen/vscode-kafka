@@ -21,9 +21,11 @@ export class KafkaModel extends NodeBase implements Disposable {
 
     public async computeChildren(): Promise<NodeBase[]> {
         const clusters = this.clusterSettings.getAll();
-        return clusters.map((c) => {
+        const clusterItems = clusters.map((c) => {
             return new ClusterItem(this.clientAccessor, c, this);
         });
+        await Promise.all(clusterItems.map(clusterItem => clusterItem.refreshConnectionState()));
+        return clusterItems;
     }
 
     public dispose(): void {

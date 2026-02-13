@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import { ClientAccessor } from "../client";
+import { ClientAccessor, ClientState } from "../client";
 import { WorkspaceSettings, ClusterSettings } from "../settings";
 import { NodeBase } from "./models/nodeBase";
 import { TreeView } from "vscode";
@@ -33,6 +33,7 @@ export class KafkaExplorer implements KafkaModelProvider, vscode.Disposable, vsc
 
     private readonly onDidChangeDataModelEmitter = new vscode.EventEmitter<KafkaModel>();
     public readonly onDidChangeDataModel = this.onDidChangeDataModelEmitter.event;
+    private readonly disposables: vscode.Disposable[] = [];
 
     constructor(
         settings: WorkspaceSettings,
@@ -45,9 +46,25 @@ export class KafkaExplorer implements KafkaModelProvider, vscode.Disposable, vsc
             treeDataProvider: this,
             canSelectMany: true
         });
-        this.clusterSettings.onDidChangeSelected((e) => {
+        this.disposables.push(this.clusterSettings.onDidChangeSelected((e) => {
             this.updateClusterSelection(e);
-        });
+        }));
+        this.disposables.push(this.clientAccessor.onDidChangeClientState(async ({ client }) => {
+            if (client.state === ClientState.connecting || client.state === ClientState.disconnecting) {
+                return;
+            }
+            const clusterItem = await this.root?.findClusterItemById(client.cluster.id);
+            if (!clusterItem) {
+                return;
+            }
+            if (!clusterItem.updateConnectionState(client.state)) {
+                return;
+            }
+            if (client.state !== ClientState.connected) {
+                clusterItem.clearChildrenCache();
+            }
+            this.onDidChangeTreeDataEvent.fire(clusterItem);
+        }));
     }
     public refresh(): void {
         // reset the kafka model
@@ -82,6 +99,7 @@ export class KafkaExplorer implements KafkaModelProvider, vscode.Disposable, vsc
         if (this.root) {
             this.root.dispose();
         }
+        this.disposables.forEach(disposable => disposable.dispose());
     }
 
     /**

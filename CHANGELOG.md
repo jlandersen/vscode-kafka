@@ -3,6 +3,9 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- **Cluster Connection Status in Explorer**: Hide cluster children when disconnected, show a connected icon when online, and show a failure icon with hover details when connection fails. See [#22](https://github.com/jlandersen/vscode-kafka/issues/22).
+
 ## [0.21.0] - 2026-02-13
 
 ### Added

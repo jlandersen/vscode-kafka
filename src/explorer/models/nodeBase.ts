@@ -37,6 +37,10 @@ export abstract class NodeBase {
         return this.parent;
     }
 
+    clearChildrenCache(): void {
+        this.children = null;
+    }
+
     public toString(): string {
         return this?.label || this.contextValue;
     }

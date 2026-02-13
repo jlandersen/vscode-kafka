@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import { Cluster, Client, ClientAccessor } from "../../client";
+import { Cluster, Client, ClientAccessor, ClientState } from "../../client";
 import { NodeBase } from "./nodeBase";
 import { BrokerGroupItem } from "./brokers";
 import { TopicGroupItem, TopicItem } from "./topics";
@@ -9,12 +9,15 @@ import { ConsumerGroupsItem } from "./consumerGroups";
 import { KafkaModel } from "./kafka";
 import { Disposable } from "vscode";
 import { GlyphChars } from "../../constants";
+import { getErrorMessage } from "./common";
 
 const TOPIC_INDEX = 1;
 
 export class ClusterItem extends NodeBase implements Disposable {
     public contextValue = "cluster";
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+    private clientState = ClientState.disconnected;
+    private connectionError: string | undefined;
 
     constructor(private clientAccessor: ClientAccessor, public readonly cluster: Cluster, parent: KafkaModel) {
         super(parent);
@@ -26,7 +29,40 @@ export class ClusterItem extends NodeBase implements Disposable {
         return await this.clientAccessor.get(this.cluster.id);
     }
 
+    public async refreshConnectionState(): Promise<void> {
+        this.clientState = await this.clientAccessor.getState(this.cluster.id);
+    }
+
+    public updateConnectionState(state: ClientState): boolean {
+        if (this.clientState === state) {
+            return false;
+        }
+        this.clientState = state;
+        if (state !== ClientState.invalid) {
+            this.connectionError = undefined;
+        }
+        return true;
+    }
+
     async computeChildren(): Promise<NodeBase[]> {
+        await this.refreshConnectionState();
+        if (this.clientState !== ClientState.connected) {
+            try {
+                const client = await this.getClient();
+                await client.getBrokers();
+            } catch (error) {
+                this.connectionError = getErrorMessage(error);
+                await this.refreshConnectionState();
+                return [];
+            }
+            await this.refreshConnectionState();
+        }
+
+        if (this.clientState !== ClientState.connected) {
+            return [];
+        }
+
+        this.connectionError = undefined;
         return [
             new BrokerGroupItem(this),
             new TopicGroupItem(this),
@@ -39,6 +75,10 @@ export class ClusterItem extends NodeBase implements Disposable {
 
     getTreeItem(): vscode.TreeItem {
         const treeItem = super.getTreeItem();
+        treeItem.iconPath = this.getConnectionIcon();
+        if (this.clientState === ClientState.invalid) {
+            treeItem.tooltip = this.connectionError || "Cluster connection failed";
+        }
         // to prevent from tree expansion after a refresh, we need to force the id to a static value
         // because we change the label according if cluster is selected or not.
         treeItem.id = this.cluster.name;
@@ -55,6 +95,16 @@ export class ClusterItem extends NodeBase implements Disposable {
         }
         treeItem.contextValue = clusterContext;
         return treeItem;
+    }
+
+    private getConnectionIcon(): vscode.ThemeIcon | undefined {
+        if (this.clientState === ClientState.connected) {
+            return new vscode.ThemeIcon("circle-filled", new vscode.ThemeColor("charts.green"));
+        }
+        if (this.clientState === ClientState.invalid) {
+            return new vscode.ThemeIcon("warning");
+        }
+        return undefined;
     }
 
     public get selected(): boolean {
@@ -84,5 +134,3 @@ export class ClusterItem extends NodeBase implements Disposable {
         return (await this.getChildren())[TOPIC_INDEX];
     }
 }
-
-
