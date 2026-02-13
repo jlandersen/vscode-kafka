@@ -55,6 +55,7 @@ const DEFAULT_BROKER = 'localhost:9092';
 
 // SASL fields
 const CLUSTER_SASL_MECHANISM_FIELD = "saslOptions.mechanism";
+const CLUSTER_SASL_JAAS_CONFIG_FIELD = "saslOptions.jaasConfig";
 const CLUSTER_SASL_USERNAME_FIELD = "saslOptions.username";
 const CLUSTER_SASL_PASSWORD_FIELD = "saslOptions.password";
 // OAUTHBEARER fields
@@ -276,6 +277,13 @@ function createFields(cluster?: Cluster): (WizardPageFieldDefinition | WizardPag
                         }
                     }
                 },
+                {
+                    id: CLUSTER_SASL_JAAS_CONFIG_FIELD,
+                    label: "JAAS Config:",
+                    type: "textbox",
+                    placeholder: 'org.apache.kafka.common.security.scram.ScramLoginModule required username="user" password="pass";',
+                    description: "Optional. Parsed live to auto-select mechanism and fill SASL fields."
+                },
                 // Username/Password fields (for plain, scram-sha-256, scram-sha-512)
                 {
                     id: CLUSTER_SASL_USERNAME_FIELD,
@@ -452,11 +460,20 @@ function createValidator(validationContext: ValidationContext) {
         }
 
         // 3. Determine which auth mechanism is selected
-        const mechanism = parameters[CLUSTER_SASL_MECHANISM_FIELD];
-        const isUsernamePasswordAuth = mechanism === 'plain' || mechanism === 'scram-sha-256' || mechanism === 'scram-sha-512';
-        const isOAuthAuth = mechanism === 'oauthbearer';
-        const isAwsAuth = mechanism === 'aws';
+        let mechanism = parameters[CLUSTER_SASL_MECHANISM_FIELD];
+        const jaasConfig = parameters[CLUSTER_SASL_JAAS_CONFIG_FIELD];
+        const jaasOptions = parseJaasConfigOptions(jaasConfig);
+        const inferredMechanism = inferMechanismFromJaasConfig(jaasConfig, jaasOptions);
+        if (inferredMechanism && (!mechanism || mechanism === 'none')) {
+            mechanism = inferredMechanism;
+            parameters[CLUSTER_SASL_MECHANISM_FIELD] = inferredMechanism;
+            setFieldState(fieldRefresh, CLUSTER_SASL_MECHANISM_FIELD, { forceRefresh: true });
+        }
+
+        const { isUsernamePasswordAuth, isOAuthAuth, isAwsAuth, isJaasCompatibleAuth } = getAuthFieldState(mechanism);
         const saslEnabled = mechanism && mechanism !== 'none';
+
+        applyJaasAutofill(parameters, mechanism, jaasOptions, fieldRefresh);
 
         function isSSLEnabled(data: any) {
             return (data[CLUSTER_SSL_FIELD] === true || data[CLUSTER_SSL_FIELD] === 'true');
@@ -466,7 +483,7 @@ function createValidator(validationContext: ValidationContext) {
 
         // 4. Validate fields based on selected mechanism
         if (isUsernamePasswordAuth) {
-            const username = parameters[CLUSTER_SASL_USERNAME_FIELD];
+            const username = parameters[CLUSTER_SASL_USERNAME_FIELD] || jaasOptions.username;
             result = validateAuthentificationUserName(username);
             if (result) {
                 diagnostics.push(
@@ -482,7 +499,7 @@ function createValidator(validationContext: ValidationContext) {
         }
 
         if (isOAuthAuth) {
-            const tokenEndpoint = parameters[CLUSTER_OAUTH_TOKEN_ENDPOINT_FIELD];
+            const tokenEndpoint = parameters[CLUSTER_OAUTH_TOKEN_ENDPOINT_FIELD] || jaasOptions["oauth.token.endpoint.uri"];
             if (!tokenEndpoint || tokenEndpoint.trim() === '') {
                 diagnostics.push(
                     {
@@ -505,7 +522,7 @@ function createValidator(validationContext: ValidationContext) {
                 );
             }
 
-            const clientId = parameters[CLUSTER_OAUTH_CLIENT_ID_FIELD];
+            const clientId = parameters[CLUSTER_OAUTH_CLIENT_ID_FIELD] || jaasOptions["oauth.client.id"];
             if (!clientId || clientId.trim() === '') {
                 diagnostics.push(
                     {
@@ -518,7 +535,7 @@ function createValidator(validationContext: ValidationContext) {
                 );
             }
 
-            const clientSecret = parameters[CLUSTER_OAUTH_CLIENT_SECRET_FIELD];
+            const clientSecret = parameters[CLUSTER_OAUTH_CLIENT_SECRET_FIELD] || jaasOptions["oauth.client.secret"];
             if (!clientSecret || clientSecret.trim() === '') {
                 diagnostics.push(
                     {
@@ -592,27 +609,29 @@ function createValidator(validationContext: ValidationContext) {
         validateCertificateFile(parameters, CLUSTER_SSL_CERT_FIELD, diagnostics);
 
         // 7. Manage enabled state for auth fields based on mechanism
+        setFieldState(fieldRefresh, CLUSTER_SASL_JAAS_CONFIG_FIELD, { enabled: isJaasCompatibleAuth });
+
         // Username/Password fields
-        fieldRefresh.set(CLUSTER_SASL_USERNAME_FIELD, { enabled: isUsernamePasswordAuth });
-        fieldRefresh.set(CLUSTER_SASL_PASSWORD_FIELD, { enabled: isUsernamePasswordAuth });
+        setFieldState(fieldRefresh, CLUSTER_SASL_USERNAME_FIELD, { enabled: isUsernamePasswordAuth });
+        setFieldState(fieldRefresh, CLUSTER_SASL_PASSWORD_FIELD, { enabled: isUsernamePasswordAuth });
 
         // OAUTHBEARER fields
-        fieldRefresh.set(CLUSTER_OAUTH_TOKEN_ENDPOINT_FIELD, { enabled: isOAuthAuth });
-        fieldRefresh.set(CLUSTER_OAUTH_CLIENT_ID_FIELD, { enabled: isOAuthAuth });
-        fieldRefresh.set(CLUSTER_OAUTH_CLIENT_SECRET_FIELD, { enabled: isOAuthAuth });
+        setFieldState(fieldRefresh, CLUSTER_OAUTH_TOKEN_ENDPOINT_FIELD, { enabled: isOAuthAuth });
+        setFieldState(fieldRefresh, CLUSTER_OAUTH_CLIENT_ID_FIELD, { enabled: isOAuthAuth });
+        setFieldState(fieldRefresh, CLUSTER_OAUTH_CLIENT_SECRET_FIELD, { enabled: isOAuthAuth });
 
         // AWS fields
-        fieldRefresh.set(CLUSTER_AWS_REGION_FIELD, { enabled: isAwsAuth });
-        fieldRefresh.set(CLUSTER_AWS_ACCESS_KEY_ID_FIELD, { enabled: isAwsAuth });
-        fieldRefresh.set(CLUSTER_AWS_SECRET_ACCESS_KEY_FIELD, { enabled: isAwsAuth });
-        fieldRefresh.set(CLUSTER_AWS_SESSION_TOKEN_FIELD, { enabled: isAwsAuth });
+        setFieldState(fieldRefresh, CLUSTER_AWS_REGION_FIELD, { enabled: isAwsAuth });
+        setFieldState(fieldRefresh, CLUSTER_AWS_ACCESS_KEY_ID_FIELD, { enabled: isAwsAuth });
+        setFieldState(fieldRefresh, CLUSTER_AWS_SECRET_ACCESS_KEY_FIELD, { enabled: isAwsAuth });
+        setFieldState(fieldRefresh, CLUSTER_AWS_SESSION_TOKEN_FIELD, { enabled: isAwsAuth });
 
         // SSL fields
-        fieldRefresh.set(CLUSTER_SSL_CA_FIELD, { enabled: sslEnabled });
-        fieldRefresh.set(CLUSTER_SSL_KEY_FIELD, { enabled: sslEnabled });
-        fieldRefresh.set(CLUSTER_SSL_CERT_FIELD, { enabled: sslEnabled });
-        fieldRefresh.set(CLUSTER_SSL_PASSPHRASE_FIELD, { enabled: sslEnabled });
-        fieldRefresh.set(CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD, { enabled: sslEnabled });
+        setFieldState(fieldRefresh, CLUSTER_SSL_CA_FIELD, { enabled: sslEnabled });
+        setFieldState(fieldRefresh, CLUSTER_SSL_KEY_FIELD, { enabled: sslEnabled });
+        setFieldState(fieldRefresh, CLUSTER_SSL_CERT_FIELD, { enabled: sslEnabled });
+        setFieldState(fieldRefresh, CLUSTER_SSL_PASSPHRASE_FIELD, { enabled: sslEnabled });
+        setFieldState(fieldRefresh, CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD, { enabled: sslEnabled });
 
         return { items: diagnostics, fieldRefresh };
     };
@@ -649,18 +668,19 @@ function createSaslOption(data: any): SaslOption | undefined {
     }
 
     const saslOption: SaslOption = { mechanism: mechanism as SaslMechanism };
+    const jaasOptions = parseJaasConfigOptions(data[CLUSTER_SASL_JAAS_CONFIG_FIELD]);
 
     // Username/Password for plain, scram-sha-256, scram-sha-512
     if (mechanism === 'plain' || mechanism === 'scram-sha-256' || mechanism === 'scram-sha-512') {
-        saslOption.username = data[CLUSTER_SASL_USERNAME_FIELD];
-        saslOption.password = data[CLUSTER_SASL_PASSWORD_FIELD];
+        saslOption.username = data[CLUSTER_SASL_USERNAME_FIELD] || jaasOptions.username;
+        saslOption.password = data[CLUSTER_SASL_PASSWORD_FIELD] || jaasOptions.password;
     }
 
     // OAUTHBEARER fields
     if (mechanism === 'oauthbearer') {
-        saslOption.oauthTokenEndpoint = data[CLUSTER_OAUTH_TOKEN_ENDPOINT_FIELD];
-        saslOption.oauthClientId = data[CLUSTER_OAUTH_CLIENT_ID_FIELD];
-        saslOption.oauthClientSecret = data[CLUSTER_OAUTH_CLIENT_SECRET_FIELD];
+        saslOption.oauthTokenEndpoint = data[CLUSTER_OAUTH_TOKEN_ENDPOINT_FIELD] || jaasOptions["oauth.token.endpoint.uri"];
+        saslOption.oauthClientId = data[CLUSTER_OAUTH_CLIENT_ID_FIELD] || jaasOptions["oauth.client.id"];
+        saslOption.oauthClientSecret = data[CLUSTER_OAUTH_CLIENT_SECRET_FIELD] || jaasOptions["oauth.client.secret"];
     }
 
     // AWS MSK IAM fields
@@ -713,6 +733,135 @@ function createSsl(data: any): SslOption | boolean {
     
     // Simple SSL enabled (use default certificates)
     return true;
+}
+
+function parseJaasConfigOptions(jaasConfig?: string): Record<string, string> {
+    if (!jaasConfig) {
+        return {};
+    }
+
+    const options: Record<string, string> = {};
+    const optionRegex = /([A-Za-z0-9._-]+)\s*=\s*("(?:\\.|[^"])*"|'(?:\\.|[^'])*'|[^\s;]+)/g;
+
+    for (const match of jaasConfig.matchAll(optionRegex)) {
+        const key = match[1];
+        let value = match[2];
+        if (!key || !value) {
+            continue;
+        }
+
+        if (
+            (value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'"))
+        ) {
+            value = value.slice(1, -1);
+        }
+
+        value = value
+            .replace(/\\"/g, '"')
+            .replace(/\\'/g, "'")
+            .replace(/\\\\/g, "\\");
+
+        options[key] = value;
+    }
+
+    return options;
+}
+
+function inferMechanismFromJaasConfig(jaasConfig: string | undefined, jaasOptions: Record<string, string>): SaslMechanism | undefined {
+    if (!jaasConfig || jaasConfig.trim().length === 0) {
+        return undefined;
+    }
+
+    const lowerJaasConfig = jaasConfig.toLowerCase();
+
+    if (lowerJaasConfig.includes('oauthbearerloginmodule') ||
+        jaasOptions["oauth.token.endpoint.uri"] ||
+        jaasOptions["oauth.client.id"] ||
+        jaasOptions["oauth.client.secret"]) {
+        return 'oauthbearer';
+    }
+
+    if (lowerJaasConfig.includes('plainloginmodule')) {
+        return 'plain';
+    }
+
+    if (lowerJaasConfig.includes('scram-sha-512')) {
+        return 'scram-sha-512';
+    }
+
+    if (lowerJaasConfig.includes('scram-sha-256') || lowerJaasConfig.includes('scramloginmodule')) {
+        return 'scram-sha-256';
+    }
+
+    return undefined;
+}
+
+function getAuthFieldState(mechanism: string | undefined) {
+    const isUsernamePasswordAuth = mechanism === 'plain' || mechanism === 'scram-sha-256' || mechanism === 'scram-sha-512';
+    const isOAuthAuth = mechanism === 'oauthbearer';
+    const isAwsAuth = mechanism === 'aws';
+    const isJaasCompatibleAuth = !isAwsAuth;
+
+    return {
+        isUsernamePasswordAuth,
+        isOAuthAuth,
+        isAwsAuth,
+        isJaasCompatibleAuth
+    };
+}
+
+export const __clusterWizardTestHooks = {
+    parseJaasConfigOptions,
+    inferMechanismFromJaasConfig,
+    getAuthFieldState
+};
+
+function applyJaasAutofill(
+    parameters: any,
+    mechanism: string,
+    jaasOptions: Record<string, string>,
+    fieldRefresh: Map<string, FieldDefinitionState>
+) {
+    if (!jaasOptions || Object.keys(jaasOptions).length === 0) {
+        return;
+    }
+
+    if (mechanism === 'plain' || mechanism === 'scram-sha-256' || mechanism === 'scram-sha-512') {
+        autofillField(parameters, fieldRefresh, CLUSTER_SASL_USERNAME_FIELD, jaasOptions.username);
+        autofillField(parameters, fieldRefresh, CLUSTER_SASL_PASSWORD_FIELD, jaasOptions.password);
+    }
+
+    if (mechanism === 'oauthbearer') {
+        autofillField(parameters, fieldRefresh, CLUSTER_OAUTH_TOKEN_ENDPOINT_FIELD, jaasOptions["oauth.token.endpoint.uri"]);
+        autofillField(parameters, fieldRefresh, CLUSTER_OAUTH_CLIENT_ID_FIELD, jaasOptions["oauth.client.id"]);
+        autofillField(parameters, fieldRefresh, CLUSTER_OAUTH_CLIENT_SECRET_FIELD, jaasOptions["oauth.client.secret"]);
+    }
+}
+
+function autofillField(
+    parameters: any,
+    fieldRefresh: Map<string, FieldDefinitionState>,
+    fieldId: string,
+    value?: string
+) {
+    if (!value || parameters[fieldId]) {
+        return;
+    }
+    parameters[fieldId] = value;
+    setFieldState(fieldRefresh, fieldId, { forceRefresh: true });
+}
+
+function setFieldState(
+    fieldRefresh: Map<string, FieldDefinitionState>,
+    fieldId: string,
+    state: FieldDefinitionState
+) {
+    const existing = fieldRefresh.get(fieldId) || {};
+    fieldRefresh.set(fieldId, {
+        ...existing,
+        ...state
+    });
 }
 
 function createCluster(data: any): Cluster {

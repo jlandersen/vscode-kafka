@@ -3,6 +3,9 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **JAAS Config Wizard Input**: Added a JAAS config input field in the cluster wizard with live parsing that auto-selects SASL mechanism and fills existing PLAIN/SCRAM/OAUTHBEARER fields. See [#8](https://github.com/jlandersen/vscode-kafka/issues/8).
+
 ### Fixed
 - **Cluster Connection Status in Explorer**: Hide cluster children when disconnected, show a connected icon when online, and show a failure icon with hover details when connection fails. See [#22](https://github.com/jlandersen/vscode-kafka/issues/22).
 
