@@ -31,6 +31,7 @@ The `PRODUCER` block defines:
  * `key-format` : [serializer](#Serializer) to use for the key *[optional]*.
  * `headers`: the headers of message comma separated list in format `key=value` *[optional]*
  * `value-format` : [serializer](#Serializer) to use for the value *[optional]*.
+ * `value-schema` : JSON schema used to validate the producer value when `value-format: json` is set. Can be inline JSON or a file reference like `file(./schemas/event.schema.json)` *[optional]*.
  
  * the rest of the content is the value until `###`.
 
@@ -79,6 +80,8 @@ Completion is available for
 Validation will help you write valid producers in .kafka files.
 
  * here is an example of value validation:
+
+ * when using `value-format: json`, you can add `value-schema:` with either a single-line JSON Schema or `file(path/to/schema.json)` to validate the message payload.
 
 ![Empty value](assets/kafka-file-producer-empty-value-validation.png)
 
