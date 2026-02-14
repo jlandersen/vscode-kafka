@@ -73,6 +73,8 @@ const CLUSTER_SSL_CA_FIELD = "ssl.ca";
 const CLUSTER_SSL_KEY_FIELD = "ssl.key";
 const CLUSTER_SSL_CERT_FIELD = "ssl.cert";
 const CLUSTER_SSL_PASSPHRASE_FIELD = "ssl.passphrase";
+const CLUSTER_SSL_TRUSTSTORE_FIELD = "ssl.truststore";
+const CLUSTER_SSL_TRUSTSTORE_PASSWORD_FIELD = "ssl.truststorePassword";
 const CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD = "ssl.rejectUnauthorized";
 
 // --- Wizard page ID
@@ -408,6 +410,27 @@ function createFields(cluster?: Cluster): (WizardPageFieldDefinition | WizardPag
                     type: "password"
                 },
                 {
+                    id: CLUSTER_SSL_TRUSTSTORE_FIELD,
+                    label: "Truststore (JKS):",
+                    initialValue: tlsConnectionOptions?.truststore,
+                    type: "file-picker",
+                    placeholder: "Select truststore in JKS format.",
+                    dialogOptions: {
+                        canSelectMany: false,
+                        filters: {
+                            'All': ['*'],
+                            'JKS': ['jks']
+                        }
+                    }
+                },
+                {
+                    id: CLUSTER_SSL_TRUSTSTORE_PASSWORD_FIELD,
+                    label: "Truststore password:",
+                    description: "Required when truststore is configured.",
+                    initialValue: `${tlsConnectionOptions?.truststorePassword || ''}`,
+                    type: "password"
+                },
+                {
                     id: CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD,
                     label: "Reject Unauthorized Certificates",
                     description: "When disabled, accepts self-signed certificates and hostname mismatches. Use only for development!",
@@ -607,6 +630,19 @@ function createValidator(validationContext: ValidationContext) {
         validateCertificateFile(parameters, CLUSTER_SSL_CA_FIELD, diagnostics);
         validateCertificateFile(parameters, CLUSTER_SSL_KEY_FIELD, diagnostics);
         validateCertificateFile(parameters, CLUSTER_SSL_CERT_FIELD, diagnostics);
+        validateCertificateFile(parameters, CLUSTER_SSL_TRUSTSTORE_FIELD, diagnostics);
+
+        if (parameters[CLUSTER_SSL_TRUSTSTORE_FIELD] && !parameters[CLUSTER_SSL_TRUSTSTORE_PASSWORD_FIELD]) {
+            diagnostics.push(
+                {
+                    template: {
+                        id: CLUSTER_SSL_TRUSTSTORE_PASSWORD_FIELD,
+                        content: 'Truststore password is required when a truststore is configured.'
+                    },
+                    severity: SEVERITY.ERROR
+                }
+            );
+        }
 
         // 7. Manage enabled state for auth fields based on mechanism
         setFieldState(fieldRefresh, CLUSTER_SASL_JAAS_CONFIG_FIELD, { enabled: isJaasCompatibleAuth });
@@ -631,6 +667,8 @@ function createValidator(validationContext: ValidationContext) {
         setFieldState(fieldRefresh, CLUSTER_SSL_KEY_FIELD, { enabled: sslEnabled });
         setFieldState(fieldRefresh, CLUSTER_SSL_CERT_FIELD, { enabled: sslEnabled });
         setFieldState(fieldRefresh, CLUSTER_SSL_PASSPHRASE_FIELD, { enabled: sslEnabled });
+        setFieldState(fieldRefresh, CLUSTER_SSL_TRUSTSTORE_FIELD, { enabled: sslEnabled });
+        setFieldState(fieldRefresh, CLUSTER_SSL_TRUSTSTORE_PASSWORD_FIELD, { enabled: sslEnabled });
         setFieldState(fieldRefresh, CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD, { enabled: sslEnabled });
 
         return { items: diagnostics, fieldRefresh };
@@ -706,15 +744,19 @@ function createSsl(data: any): SslOption | boolean {
     const key = data[CLUSTER_SSL_KEY_FIELD];
     const cert = data[CLUSTER_SSL_CERT_FIELD];
     const passphrase = data[CLUSTER_SSL_PASSPHRASE_FIELD];
+    const truststore = data[CLUSTER_SSL_TRUSTSTORE_FIELD];
+    const truststorePassword = data[CLUSTER_SSL_TRUSTSTORE_PASSWORD_FIELD];
     const rejectUnauthorized = data[CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD];
     
     // If any SSL certificate option is configured, return SslOption object
-    if (ca || key || cert || passphrase) {
+    if (ca || key || cert || passphrase || truststore || truststorePassword) {
         const sslOption: SslOption = {
             ca,
             key,
             cert,
-            passphrase
+            passphrase,
+            truststore,
+            truststorePassword
         };
         
         // Only set rejectUnauthorized if explicitly set to false
@@ -814,7 +856,8 @@ function getAuthFieldState(mechanism: string | undefined) {
 export const __clusterWizardTestHooks = {
     parseJaasConfigOptions,
     inferMechanismFromJaasConfig,
-    getAuthFieldState
+    getAuthFieldState,
+    createSsl
 };
 
 function applyJaasAutofill(

@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { ConnectionOptions, SslOption } from "../../../client";
+import { clientTestHooks, ConnectionOptions, SslOption } from "../../../client";
 
 // Note: We're testing the interface structure and type compatibility here
 // The actual createSsl function is internal to client.ts and requires filesystem access
@@ -126,6 +126,29 @@ suite("SSL Configuration Test Suite", () => {
         assert.strictEqual(sslOption.key, undefined);
         assert.strictEqual(sslOption.cert, undefined);
         assert.strictEqual(sslOption.rejectUnauthorized, false);
+    });
+
+    test("SslOption should accept truststore fields", () => {
+        const sslOption: SslOption = {
+            truststore: "/path/to/truststore.jks",
+            truststorePassword: "changeit"
+        };
+
+        assert.strictEqual(sslOption.truststore, "/path/to/truststore.jks");
+        assert.strictEqual(sslOption.truststorePassword, "changeit");
+    });
+
+    test("extracts CA certificates from truststore entries", () => {
+        const certs = clientTestHooks.extractCertificatesFromTruststoreEntries({
+            first: { ca: "-----BEGIN CERTIFICATE-----FIRST" },
+            second: { cert: "-----BEGIN CERTIFICATE-----SECOND" },
+            ignored: { key: "-----BEGIN PRIVATE KEY-----" }
+        });
+
+        assert.deepStrictEqual(certs, [
+            "-----BEGIN CERTIFICATE-----FIRST",
+            "-----BEGIN CERTIFICATE-----SECOND"
+        ]);
     });
 
 });

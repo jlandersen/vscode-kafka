@@ -32,4 +32,15 @@ suite("Cluster Wizard JAAS Test Suite", () => {
         const mechanism = __clusterWizardTestHooks.inferMechanismFromJaasConfig(jaasConfig, options);
         assert.strictEqual(mechanism, "scram-sha-512");
     });
+
+    test("creates SSL options with truststore fields", () => {
+        const data: Record<string, unknown> = { ssl: true };
+        data["ssl.truststore"] = "/tmp/truststore.jks";
+        data["ssl.truststorePassword"] = "changeit";
+
+        const ssl = __clusterWizardTestHooks.createSsl(data);
+
+        assert.strictEqual((ssl as { truststore?: string }).truststore, "/tmp/truststore.jks");
+        assert.strictEqual((ssl as { truststorePassword?: string }).truststorePassword, "changeit");
+    });
 });

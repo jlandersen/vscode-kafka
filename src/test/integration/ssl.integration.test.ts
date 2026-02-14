@@ -13,10 +13,56 @@
  */
 
 import * as assert from "assert";
-import { Client } from "../../client/client";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+import { Client, createKafka } from "../../client/client";
 import { KafkaProducer, KafkaConsumer } from "../../client/types";
 import { createSslFixture, TestFixture } from "./kafkaContainers";
 import { createTestClient } from "./testClient";
+import { GenericContainer, Wait } from "testcontainers";
+
+async function createJksTruststore(caCert: string, password: string): Promise<{ truststorePath: string; cleanup: () => void }> {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kafka-jks-truststore-"));
+    try {
+        fs.writeFileSync(path.join(tmpDir, "ca-cert.pem"), caCert);
+
+        const script = `
+            set -e
+            cd /certs
+            keytool -importcert \
+                -storetype JKS \
+                -keystore truststore.jks \
+                -storepass ${password} \
+                -alias ca \
+                -file ca-cert.pem \
+                -noprompt
+            chmod 644 truststore.jks
+        `;
+
+        fs.writeFileSync(path.join(tmpDir, "generate.sh"), script);
+
+        const container = await new GenericContainer("eclipse-temurin:17-jdk")
+            .withBindMounts([{
+                source: tmpDir,
+                target: "/certs",
+                mode: "rw"
+            }])
+            .withCommand(["bash", "/certs/generate.sh"])
+            .withWaitStrategy(Wait.forOneShotStartup())
+            .start();
+
+        await container.stop();
+
+        return {
+            truststorePath: path.join(tmpDir, "truststore.jks"),
+            cleanup: () => fs.rmSync(tmpDir, { recursive: true, force: true })
+        };
+    } catch (error) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+        throw error;
+    }
+}
 
 suite("SSL Integration Tests", function () {
     this.timeout(180000);
@@ -65,6 +111,33 @@ suite("SSL Integration Tests", function () {
             assert.ok(Array.isArray(topics), "Topics should be an array");
             
             console.log(`SSL cluster: Found ${topics.length} topic(s)`);
+        });
+
+        test("should connect using JKS truststore", async function () {
+            const truststorePassword = "test-password";
+            const caCert = fixture.connectionInfo.sslOption?.ca;
+            assert.ok(caCert, "CA certificate should be available from fixture");
+
+            const truststore = await createJksTruststore(caCert!, truststorePassword);
+            try {
+                const kafka = await createKafka({
+                    bootstrap: fixture.connectionInfo.bootstrap,
+                    saslOption: fixture.connectionInfo.saslOption,
+                    ssl: {
+                        truststore: truststore.truststorePath,
+                        truststorePassword,
+                        rejectUnauthorized: false
+                    }
+                });
+
+                const admin = kafka.admin();
+                await admin.connect();
+                const cluster = await admin.describeCluster();
+                assert.ok(cluster.brokers.length > 0, "Expected brokers when using JKS truststore");
+                await admin.disconnect();
+            } finally {
+                truststore.cleanup();
+            }
         });
 
         test("should produce messages to SSL cluster", async function () {
