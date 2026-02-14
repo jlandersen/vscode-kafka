@@ -56,6 +56,13 @@ export class ClientAccessor implements Disposable {
         return client.state;
     }
 
+    public getStateSync(clusterId: string): ClientState {
+        if (!this.has(clusterId)) {
+            return ClientState.disconnected;
+        }
+        return this.clientsById[clusterId].state;
+    }
+
     changeState(client: Client, state: ClientState) {
         client.state = state;
         this.onDidChangeClientStateEmitter.fire({

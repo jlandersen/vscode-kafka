@@ -17,7 +17,7 @@ interface CreateTopicState extends State {
     maxReplicas: number;
 }
 
-export async function addTopicWizard(clientAccessor: ClientAccessor, clusterSettings: ClusterSettings, explorer: KafkaExplorer, clusterId?: string): Promise<void> {
+export async function addTopicWizard(clientAccessor: ClientAccessor, clusterSettings: ClusterSettings, explorer: KafkaExplorer, clusterId?: string, topicName?: string): Promise<void> {
     const clusters = clusterSettings.getAll();
     if (clusters.length === 0) {
         window.showErrorMessage('No clusters');
@@ -25,6 +25,7 @@ export async function addTopicWizard(clientAccessor: ClientAccessor, clusterSett
     }
     const state: Partial<CreateTopicState> = {
         clusterId: clusterId,
+        topicName: topicName,
         totalSteps: clusterId ? 3 : 4
     };
 

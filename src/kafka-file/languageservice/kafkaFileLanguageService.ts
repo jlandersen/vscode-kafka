@@ -141,7 +141,7 @@ export function getLanguageService(producerLaunchStateProvider: ProducerLaunchSt
     const diagnostics = new KafkaFileDiagnostics(selectedClusterProvider, topicProvider);
     const foldingRanges = new KafkaFileFoldingRanges();
     const hover = new KafkaFileHover(selectedClusterProvider, topicProvider);
-    const codeActions = new KafkaFileCodeActions();
+    const codeActions = new KafkaFileCodeActions(selectedClusterProvider);
     return {
         parseKafkaFileDocument: (document: TextDocument) => parseKafkaFile(document),
         getCodeLenses: codeLenses.getCodeLenses.bind(codeLenses),

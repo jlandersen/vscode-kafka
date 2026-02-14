@@ -107,7 +107,12 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
         handleErrors(() => Promise.resolve(explorer.refresh()))));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.createtopic",
-        handleErrors((topicGroupItem?: TopicGroupItem) => createTopicCommandHandler.execute(topicGroupItem?.getParent().cluster.id))));
+        handleErrors((topicGroupItemOrClusterId?: TopicGroupItem | string, topicName?: string) => {
+            const clusterId = typeof topicGroupItemOrClusterId === "string"
+                ? topicGroupItemOrClusterId
+                : topicGroupItemOrClusterId?.getParent().cluster.id;
+            return createTopicCommandHandler.execute(clusterId, topicName);
+        })));
     context.subscriptions.push(vscode.commands.registerCommand(
         AddClusterCommandHandler.commandId,
         handleErrors(() => addClusterCommandHandler.execute())));

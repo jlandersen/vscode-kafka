@@ -242,7 +242,7 @@ function createLanguageService(clusterSettings: ClusterSettings, clientAccessor:
         getSelectedCluster() {
             const selected = clusterSettings.selected;
             const clusterId = selected?.id;
-            const clusterState = clusterId ? clientAccessor.getState(clusterId) : undefined;
+            const clusterState = clusterId ? clientAccessor.getStateSync(clusterId) : undefined;
             return {
                 clusterId,
                 clusterName: selected?.name,

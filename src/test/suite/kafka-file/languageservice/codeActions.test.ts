@@ -1,6 +1,8 @@
 import * as assert from "assert";
 import { CodeActionContext, CodeActionTriggerKind, EndOfLine, workspace } from "vscode";
-import { getSimpleLanguageService } from "./kafkaAssert";
+import { ClientState } from "../../../../client";
+import { getLanguageService } from "../../../../kafka-file/languageservice/kafkaFileLanguageService";
+import { getSimpleLanguageService, LanguageServiceConfig } from "./kafkaAssert";
 
 suite("Kafka File Code Actions Test Suite", () => {
 
@@ -59,5 +61,23 @@ suite("Kafka File Code Actions Test Suite", () => {
         const updated = updatedDoc.getText();
         const eol = updatedDoc.eol === EndOfLine.CRLF ? "\r\n" : "\n";
         assert.strictEqual(updated, `CONSUMER${eol}topic:abcd${eol}key: `);
+    });
+
+    test("Create topic action for unknown topic", async () => {
+        const languageServiceConfig = new LanguageServiceConfig();
+        languageServiceConfig.setSelectedCluster({ clusterId: "cluster1", clusterName: "Cluster 1", clusterState: ClientState.connected });
+        languageServiceConfig.setAutoCreateConfig({ type: "disabled" });
+        const languageService = getLanguageService(languageServiceConfig, languageServiceConfig, languageServiceConfig, languageServiceConfig);
+        const document = await workspace.openTextDocument({
+            language: "kafka",
+            content: "CONSUMER\ntopic:missing-topic"
+        });
+        const ast = languageService.parseKafkaFileDocument(document);
+        const diagnostics = await languageService.doDiagnostics(document, ast, true);
+        const context: CodeActionContext = { diagnostics, only: undefined, triggerKind: CodeActionTriggerKind.Invoke };
+        const actions = languageService.getCodeActions(document, ast, context);
+        const action = actions.find(item => item.title === "Create topic 'missing-topic'");
+        assert.strictEqual(action?.command?.command, "vscode-kafka.explorer.createtopic");
+        assert.deepStrictEqual(action?.command?.arguments, ["cluster1", "missing-topic"]);
     });
 });

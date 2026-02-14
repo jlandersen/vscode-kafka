@@ -1,10 +1,16 @@
 import { CodeAction, CodeActionContext, CodeActionKind, Diagnostic, EndOfLine, TextDocument, WorkspaceEdit } from "vscode";
+import { SelectedClusterProvider } from "../kafkaFileLanguageService";
 import { Block, KafkaFileDocument, Property } from "../parser/kafkaFileParser";
 
 const missingAssignerMessage = "Missing ':' sign after '";
 const missingTopicPropertyMessage = "must declare the 'topic:' property.";
+const unknownTopicMessage = "Unknown topic '";
+const createTopicCommandId = "vscode-kafka.explorer.createtopic";
 
 export class KafkaFileCodeActions {
+
+    constructor(private selectedClusterProvider: SelectedClusterProvider) {
+    }
 
     getCodeActions(document: TextDocument, kafkaFileDocument: KafkaFileDocument, context: CodeActionContext): CodeAction[] {
         const actions: CodeAction[] = [];
@@ -26,6 +32,13 @@ export class KafkaFileCodeActions {
                 }
                 const action = this.createInsertAssignerAction(document, diagnostic, property);
                 actions.push(action);
+                continue;
+            }
+            if (diagnostic.message.startsWith(unknownTopicMessage)) {
+                const action = this.createTopicAction(diagnostic);
+                if (action) {
+                    actions.push(action);
+                }
             }
         }
         return actions;
@@ -55,6 +68,27 @@ export class KafkaFileCodeActions {
         edit.insert(document.uri, insertPosition, ": ");
         action.edit = edit;
         return action;
+    }
+
+    private createTopicAction(diagnostic: Diagnostic): CodeAction | undefined {
+        const topicId = this.getUnknownTopicId(diagnostic.message);
+        if (!topicId) {
+            return;
+        }
+        const action = new CodeAction(`Create topic '${topicId}'`, CodeActionKind.QuickFix);
+        action.diagnostics = [diagnostic];
+        const { clusterId } = this.selectedClusterProvider.getSelectedCluster();
+        action.command = {
+            title: action.title,
+            command: createTopicCommandId,
+            arguments: [clusterId, topicId],
+        };
+        return action;
+    }
+
+    private getUnknownTopicId(message: string): string | undefined {
+        const match = /^Unknown topic '([^']+)'\./.exec(message);
+        return match?.[1];
     }
 
     private findBlockAtLine(kafkaFileDocument: KafkaFileDocument, line: number): Block | undefined {

@@ -14,8 +14,8 @@ export class CreateTopicCommandHandler {
     constructor(private clientAccessor: ClientAccessor, private clusterSettings: ClusterSettings, private explorer: KafkaExplorer) {
     }
 
-    async execute(clusterId?: string): Promise<void> {
-        addTopicWizard(this.clientAccessor, this.clusterSettings, this.explorer, clusterId);
+    async execute(clusterId?: string, topicName?: string): Promise<void> {
+        addTopicWizard(this.clientAccessor, this.clusterSettings, this.explorer, clusterId, topicName);
     }
 }
 
