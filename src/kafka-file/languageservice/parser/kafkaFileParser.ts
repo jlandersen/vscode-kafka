@@ -305,7 +305,7 @@ export class ConsumerBlock extends Block {
         super(start, end, BlockType.consumer, consumerModel);
     }
 
-    createCommand(selectedClusterId: string | undefined): LaunchConsumerCommand {
+    createCommand(selectedClusterId: string | undefined, kafkaFileUri?: TextDocument["uri"]): LaunchConsumerCommand {
         let consumerGroupId = this.consumerGroupId?.content;
         let topicId;
         let partitions;
@@ -314,6 +314,7 @@ export class ConsumerBlock extends Block {
         let keyFormatSettings;
         let valueFormat;
         let valueFormatSettings;
+        let valueSchema;
         this.properties.forEach(property => {
             switch (property.propertyName) {
                 case 'topic':
@@ -337,10 +338,13 @@ export class ConsumerBlock extends Block {
                     valueFormatSettings = getSerializationSettings(callee);
                     break;
                 }
+                case 'value-schema':
+                    valueSchema = property.propertyValue;
+                    break;
             }
         });
-    
-        return {
+
+        const command: LaunchConsumerCommand = {
             clusterId: selectedClusterId,
             consumerGroupId,
             topicId: topicId || '',
@@ -351,6 +355,16 @@ export class ConsumerBlock extends Block {
             messageKeyFormatSettings: keyFormatSettings,
             messageValueFormatSettings: valueFormatSettings
         } as LaunchConsumerCommand;
+        if (kafkaFileUri) {
+            command.kafkaFileUri = kafkaFileUri;
+        }
+        if (valueFormat === "avro" && valueSchema) {
+            command.messageValueFormatSettings = [
+                ...(command.messageValueFormatSettings || []),
+                { name: "value-schema", value: valueSchema }
+            ];
+        }
+        return command;
     }
 }
 

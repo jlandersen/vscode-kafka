@@ -27,7 +27,7 @@ export class KafkaFileDiagnostics {
         const diagnostics: Diagnostic[] = [];
         for (const block of kafkaFileDocument.blocks) {
             if (block.type === BlockType.consumer) {
-                await this.validateConsumerBlock(<ConsumerBlock>block, diagnostics);
+                await this.validateConsumerBlock(document, <ConsumerBlock>block, diagnostics);
             } else {
                 await this.validateProducerBlock(document, <ProducerBlock>block, producerFakerJSEnabled, diagnostics);
             }
@@ -35,8 +35,53 @@ export class KafkaFileDiagnostics {
         return diagnostics;
     }
 
-    async validateConsumerBlock(block: ConsumerBlock, diagnostics: Diagnostic[]) {
+    async validateConsumerBlock(document: TextDocument, block: ConsumerBlock, diagnostics: Diagnostic[]) {
         await this.validateProperties(block, false, diagnostics);
+        await this.validateConsumerValueSchema(document, block, diagnostics);
+    }
+
+    private async validateConsumerValueSchema(document: TextDocument, block: ConsumerBlock, diagnostics: Diagnostic[]) {
+        const valueFormat = this.getConsumerValueFormat(block);
+        const valueSchemaProperty = this.getConsumerValueSchema(block);
+        if (valueSchemaProperty && valueFormat !== 'avro') {
+            const range = valueSchemaProperty.propertyTrimmedValueRange || valueSchemaProperty.propertyKeyRange;
+            diagnostics.push(new Diagnostic(range, "'value-schema' requires 'value-format: avro'.", DiagnosticSeverity.Error));
+            return;
+        }
+        if (valueFormat === 'avro' && !valueSchemaProperty) {
+            const valueFormatProperty = block.getProperty('value-format');
+            const range = valueFormatProperty?.propertyTrimmedValueRange || valueFormatProperty?.propertyKeyRange;
+            if (range) {
+                diagnostics.push(new Diagnostic(range, "'value-schema' is required when 'value-format: avro' is used.", DiagnosticSeverity.Error));
+            }
+            return;
+        }
+        if (!valueSchemaProperty) {
+            return;
+        }
+        const schemaContent = valueSchemaProperty.propertyValue?.trim();
+        if (!schemaContent) {
+            return;
+        }
+        const schemaRange = valueSchemaProperty.propertyTrimmedValueRange || valueSchemaProperty.propertyKeyRange;
+        const schemaContentOrError = await this.resolveSchemaContent(document, schemaContent);
+        if (schemaContentOrError.error) {
+            diagnostics.push(new Diagnostic(schemaRange, schemaContentOrError.error, DiagnosticSeverity.Error));
+            return;
+        }
+        let schema: unknown;
+        try {
+            schema = JSON.parse(schemaContentOrError.content);
+        } catch {
+            diagnostics.push(new Diagnostic(schemaRange, 'Invalid Avro schema in value-schema.', DiagnosticSeverity.Error));
+            return;
+        }
+        try {
+            avro.Type.forSchema(schema as avro.Schema);
+        } catch (e) {
+            const message = e instanceof Error ? e.message : String(e);
+            diagnostics.push(new Diagnostic(schemaRange, `Invalid Avro schema in value-schema: ${message}`, DiagnosticSeverity.Error));
+        }
     }
 
     async validateProducerBlock(document: TextDocument, block: ProducerBlock, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
@@ -83,6 +128,15 @@ export class KafkaFileDiagnostics {
     }
 
     private getProducerValueSchema(block: ProducerBlock): Property | undefined {
+        return block.getProperty('value-schema');
+    }
+
+    private getConsumerValueFormat(block: ConsumerBlock): string | undefined {
+        const property = block.getProperty('value-format');
+        return (<CalleeFunction | undefined>property?.value)?.functionName;
+    }
+
+    private getConsumerValueSchema(block: ConsumerBlock): Property | undefined {
         return block.getProperty('value-schema');
     }
 

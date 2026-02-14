@@ -16,6 +16,7 @@ interface ConsumerOptions extends ConnectionOptions {
     messageKeyFormatSettings?: SerializationSetting[];
     messageValueFormat?: MessageFormat;
     messageValueFormatSettings?: SerializationSetting[];
+    kafkaFileUri?: vscode.Uri;
 }
 
 export interface RecordReceivedEvent {
@@ -71,7 +72,7 @@ export class Consumer implements vscode.Disposable {
     public error: any;
 
     constructor(public uri: vscode.Uri, clusterSettings: ClusterSettings, private clientAccessor: ClientAccessor) {
-        const { clusterId, consumerGroupId, topicId, fromOffset, partitions, messageKeyFormat, messageKeyFormatSettings, messageValueFormat,messageValueFormatSettings } = extractConsumerInfoUri(uri);
+        const { clusterId, consumerGroupId, topicId, fromOffset, partitions, messageKeyFormat, messageKeyFormatSettings, messageValueFormat, messageValueFormatSettings, kafkaFileUri } = extractConsumerInfoUri(uri);
         this.clusterId = clusterId;
         const cluster = clusterSettings.get(clusterId);
 
@@ -92,7 +93,8 @@ export class Consumer implements vscode.Disposable {
                 messageKeyFormat,
                 messageKeyFormatSettings,
                 messageValueFormat,
-                messageValueFormatSettings
+                messageValueFormatSettings,
+                kafkaFileUri
             };
         }
         catch (e) {
@@ -125,8 +127,8 @@ export class Consumer implements vscode.Disposable {
 
         this.consumer.run({
             eachMessage: async ({ topic, partition, message }) => {
-                message.key = deserialize(message.key, this.options.messageKeyFormat, this.options.messageKeyFormatSettings);
-                message.value = deserialize(message.value, this.options.messageValueFormat, this.options.messageValueFormatSettings);
+                message.key = deserialize(message.key, this.options.messageKeyFormat, this.options.messageKeyFormatSettings, this.options.kafkaFileUri);
+                message.value = deserialize(message.value, this.options.messageValueFormat, this.options.messageValueFormatSettings, this.options.kafkaFileUri);
                 this.onDidReceiveMessageEmitter.fire({
                     uri: this.uri,
                     record: { topic: topic, partition: partition, ...message },
@@ -396,6 +398,7 @@ export interface ConsumerInfoUri {
     messageKeyFormatSettings?: SerializationSetting[];
     messageValueFormat?: MessageFormat;
     messageValueFormatSettings?: SerializationSetting[];
+    kafkaFileUri?: vscode.Uri;
 }
 
 const TOPIC_QUERY_PARAMETER = 'topic';
@@ -405,6 +408,7 @@ const KEY_FORMAT_QUERY_PARAMETER = 'key';
 const KEY_FORMAT_SETTINGS_QUERY_PARAMETER = 'key-settings';
 const VALUE_FORMAT_QUERY_PARAMETER = 'value';
 const VALUE_FORMAT_SETTINGS_QUERY_PARAMETER = 'value-settings';
+const KAFKA_FILE_QUERY_PARAMETER = 'kafka-file';
 
 export function createConsumerUri(info: ConsumerInfoUri): vscode.Uri {
     const path = `kafka:${info.clusterId}/${info.consumerGroupId}`;
@@ -416,6 +420,7 @@ export function createConsumerUri(info: ConsumerInfoUri): vscode.Uri {
     query = addQueryParameter(query, KEY_FORMAT_SETTINGS_QUERY_PARAMETER, info.messageKeyFormatSettings?.map(p => p.value).join(','));
     query = addQueryParameter(query, VALUE_FORMAT_QUERY_PARAMETER, info.messageValueFormat);
     query = addQueryParameter(query, VALUE_FORMAT_SETTINGS_QUERY_PARAMETER, info.messageValueFormatSettings?.map(p => p.value).join(','));
+    query = addQueryParameter(query, KAFKA_FILE_QUERY_PARAMETER, info.kafkaFileUri?.fsPath ? encodeURIComponent(info.kafkaFileUri.fsPath) : undefined);
     return vscode.Uri.parse(path + query);
 }
 
@@ -429,6 +434,7 @@ export function extractConsumerInfoUri(uri: vscode.Uri): ConsumerInfoUri {
     const messageKeyFormatSettings = urlParams.get(KEY_FORMAT_SETTINGS_QUERY_PARAMETER);
     const messageValueFormat = urlParams.get(VALUE_FORMAT_QUERY_PARAMETER);
     const messageValueFormatSettings = urlParams.get(VALUE_FORMAT_SETTINGS_QUERY_PARAMETER);
+    const kafkaFilePath = urlParams.get(KAFKA_FILE_QUERY_PARAMETER);
     const result: ConsumerInfoUri = {
         clusterId,
         consumerGroupId,
@@ -455,6 +461,9 @@ export function extractConsumerInfoUri(uri: vscode.Uri): ConsumerInfoUri {
         const settings = messageValueFormatSettings.split(',').
             map(value => <SerializationSetting>{ value });
         result.messageValueFormatSettings = settings;
+    }
+    if (kafkaFilePath && kafkaFilePath.trim().length > 0) {
+        result.kafkaFileUri = vscode.Uri.file(decodeURIComponent(kafkaFilePath));
     }
     return result;
 }

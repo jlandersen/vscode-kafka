@@ -27,7 +27,7 @@ export class KafkaFileCodeLenses {
         const range = new Range(block.start, block.end);
         const lineRange = new Range(block.start, block.start);
         if (block.type === BlockType.consumer) {
-            return this.createConsumerLens(<ConsumerBlock>block, lineRange, range, clusterName, clusterId, clusterState);
+            return this.createConsumerLens(document, <ConsumerBlock>block, lineRange, range, clusterName, clusterId, clusterState);
         }
         return this.createProducerLens(document, <ProducerBlock>block, lineRange, range, clusterName, clusterId, clusterState);
     }
@@ -134,8 +134,9 @@ export class KafkaFileCodeLenses {
         }
     }
 
-    private createConsumerLens(block: ConsumerBlock, lineRange: Range, range: Range, clusterName: string | undefined, clusterId: string | undefined, clusterState: ClientState | undefined): CodeLens[] {
-        const launchCommand = block.createCommand(clusterId);
+    private createConsumerLens(document: TextDocument, block: ConsumerBlock, lineRange: Range, range: Range, clusterName: string | undefined, clusterId: string | undefined, clusterState: ClientState | undefined): CodeLens[] {
+        const kafkaFileUri = document.uri.scheme === 'file' ? document.uri : undefined;
+        const launchCommand = block.createCommand(clusterId, kafkaFileUri);
         const lenses: CodeLens[] = [];
         if (clusterName) {
             const consumerState = this.consumerLaunchStateProvider.getConsumerLaunchState(launchCommand.clusterId, launchCommand.consumerGroupId);

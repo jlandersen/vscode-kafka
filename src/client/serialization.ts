@@ -128,12 +128,12 @@ serializerRegistry.set("avro", new AvroSerializer());
 // ---------------- Deserializers ----------------
 
 interface Deserializer {
-    deserialize(data: Buffer, settings?: SerializationSetting[]): any;
+    deserialize(data: Buffer, settings?: SerializationSetting[], baseFileUri?: Uri): any;
 }
 
 const deserializerRegistry: Map<MessageFormat, Deserializer> = new Map();
 
-export function deserialize(data: Buffer | null, format?: MessageFormat, settings?: SerializationSetting[]): SerializationdResult | null {
+export function deserialize(data: Buffer | null, format?: MessageFormat, settings?: SerializationSetting[], baseFileUri?: Uri): SerializationdResult | null {
     if (data === null || !format) {
         return data;
     }
@@ -145,7 +145,7 @@ export function deserialize(data: Buffer | null, format?: MessageFormat, setting
         if (!deserializer) {
             throw new SerializationException(`Cannot find a deserializer for ${format} format.`);
         }
-        return deserializer.deserialize(data, settings);
+        return deserializer.deserialize(data, settings, baseFileUri);
     }
     catch (e) {
         return e;

@@ -4,7 +4,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 ## [Unreleased]
 
 ### Added
-- **Avro Value Format for Producer Blocks**: Added `value-format: avro` for `.kafka` producer blocks with `value-schema` support for inline/file schemas, schema-aware validation diagnostics, and Avro serialization when producing messages. See [#114](https://github.com/jlandersen/vscode-kafka/issues/114).
+- **Avro Value Format for Producer/Consumer Blocks**: Added `value-format: avro` for `.kafka` producer and consumer blocks with `value-schema` support for inline/file schemas, schema-aware validation diagnostics, and Avro serialization/deserialization when producing and consuming messages. See [#114](https://github.com/jlandersen/vscode-kafka/issues/114).
 
 ## [0.22.0] - 2026-02-14
 

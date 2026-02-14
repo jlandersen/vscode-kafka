@@ -271,6 +271,42 @@ suite("Kafka File CONSUMER Diagnostics Test Suite", () => {
             []
         );
 
+        await assertDiagnostics(
+            'CONSUMER\n' +
+            'topic:abcd\n' +
+            'value-schema: {"type":"record","name":"Event","fields":[{"name":"id","type":"int"}]}',
+            [
+                diagnostic(
+                    position(2, 14),
+                    position(2, 84),
+                    "'value-schema' requires 'value-format: avro'.",
+                    DiagnosticSeverity.Error
+                )
+            ]
+        );
+
+        await assertDiagnostics(
+            'CONSUMER\n' +
+            'topic:abcd\n' +
+            'value-format: avro',
+            [
+                diagnostic(
+                    position(2, 14),
+                    position(2, 18),
+                    "'value-schema' is required when 'value-format: avro' is used.",
+                    DiagnosticSeverity.Error
+                )
+            ]
+        );
+
+        await assertDiagnostics(
+            'CONSUMER\n' +
+            'topic:abcd\n' +
+            'value-format: avro\n' +
+            'value-schema: {"type":"record","name":"Event","fields":[{"name":"id","type":"int"}]}',
+            []
+        );
+
     });
 
 });

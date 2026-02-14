@@ -113,6 +113,10 @@ const consumerProperties = [
                 description: "Similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.StringDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringDeserializer.java)."
             },
             {
+                name: "avro",
+                description: "Deserialize Avro bytes using the schema declared in `value-schema`."
+            },
+            {
                 name: "double",
                 description: "Similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.DoubleDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/DoubleDeserializer.java)."
             },
@@ -133,6 +137,10 @@ const consumerProperties = [
                 description: "Similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.ShortDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/ShortDeserializer.java)."
             }
         ]
+    },
+    {
+        name: "value-schema",
+        description: "Schema for consumer values when `value-format: avro` is used. Supports inline schema JSON or `file(path/to/schema.json)` *[optional]*."
     },
     {
         name: "partitions",

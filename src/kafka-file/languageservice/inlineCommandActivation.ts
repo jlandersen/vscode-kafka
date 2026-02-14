@@ -37,7 +37,8 @@ export async function executeInlineCommand(kafkaFileDocument: KafkaFileDocument,
     } else if (isConsumerBlock(node)) {
         const consumerState = consumerLaunchStateProvider.getConsumerLaunchState(clusterId, node.consumerGroupId!.content);
         command = consumerState === ConsumerLaunchState.started ? StopConsumerCommandHandler.commandId : StartConsumerCommandHandler.commandId;
-        commandArguments = [node.createCommand(clusterId)];
+        const kafkaFileUri = editor?.document.uri.scheme === 'file' ? editor.document.uri : undefined;
+        commandArguments = [node.createCommand(clusterId, kafkaFileUri)];
     }
 
     if (command !== undefined && commandArguments !== undefined) {
