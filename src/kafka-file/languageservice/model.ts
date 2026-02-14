@@ -198,6 +198,10 @@ const producerProperties = [
                 description: "Similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.StringSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringSerializer.java)."
             },
             {
+                name: "json",
+                description: "Validate the body as JSON before producing and serialize it as UTF-8 JSON text."
+            },
+            {
                 name: "double",
                 description: "Similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.DoubleSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/DoubleSerializer.java)."
             },

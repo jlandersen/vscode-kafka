@@ -27,6 +27,18 @@ suite("Serializer Test Suite", () => {
         );
     });
 
+    test("Json serializer", () => {
+
+        assert.deepStrictEqual(
+            serialize('{"id":1}', "json"),
+            '{"id":1}'
+        );
+
+        assert.throws(
+            () => serialize('{"id":}', "json"),
+        );
+    });
+
     test("Double serializer", () => {
 
         assert.deepStrictEqual(
@@ -132,6 +144,14 @@ suite("Deserializer Test Suite", () => {
         assert.deepStrictEqual(
             deserialize(Buffer.from([97, 98, 99, 100]), "string"),
             'abcd'
+        );
+    });
+
+    test("Json deserializer", () => {
+
+        assert.deepStrictEqual(
+            deserialize(Buffer.from([123, 34, 105, 100, 34, 58, 49, 125]), "json"),
+            '{"id":1}'
         );
     });
 

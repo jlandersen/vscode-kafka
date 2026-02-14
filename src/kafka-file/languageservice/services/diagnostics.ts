@@ -40,16 +40,84 @@ export class KafkaFileDiagnostics {
 
     validateProducerValue(block: ProducerBlock, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
         const value = block.value;
+        const valueFormat = this.getProducerValueFormat(block);
         // 1. Check if producer defines a value content
         const errorMessage = ProducerValidator.validateProducerValue(value?.content);
         if (errorMessage) {
             const range = new Range(block.start, new Position(block.start.line, block.start.character + 8));
             diagnostics.push(new Diagnostic(range, errorMessage, DiagnosticSeverity.Error));
         }
+        // 2. Producer value with json format must be valid JSON.
+        if (valueFormat === 'json' && value) {
+            this.validateJsonProducerValue(value, diagnostics);
+        }
         // 2. Producer value can declare FakerJS expressions, validate them.
         if (producerFakerJSEnabled && value) {
             this.validateFakerJSExpressions(value, diagnostics);
         }
+    }
+
+    private getProducerValueFormat(block: ProducerBlock): string | undefined {
+        const property = block.getProperty('value-format');
+        return (<CalleeFunction | undefined>property?.value)?.functionName;
+    }
+
+    private validateJsonProducerValue(value: DynamicChunk, diagnostics: Diagnostic[]) {
+        const sanitizedValue = this.sanitizeMustacheExpressions(value.content);
+        try {
+            JSON.parse(sanitizedValue);
+        } catch (e) {
+            const message = e instanceof Error ? e.message : String(e);
+            const offset = this.extractJsonErrorOffset(message);
+            if (offset === undefined) {
+                diagnostics.push(new Diagnostic(value.range(), 'Invalid JSON value.', DiagnosticSeverity.Error));
+                return;
+            }
+            const start = this.positionAtOffset(value.start, value.content, offset);
+            const end = this.positionAtOffset(value.start, value.content, offset + 1);
+            diagnostics.push(new Diagnostic(new Range(start, end), 'Invalid JSON value.', DiagnosticSeverity.Error));
+        }
+    }
+
+    private sanitizeMustacheExpressions(content: string): string {
+        return content.replace(/\{\{[\s\S]*?\}\}/g, (expression) => {
+            if (expression.length < 2) {
+                return expression;
+            }
+            return `0${' '.repeat(expression.length - 1)}`;
+        });
+    }
+
+    private extractJsonErrorOffset(message: string): number | undefined {
+        const match = /position\s(\d+)/.exec(message);
+        if (!match) {
+            return;
+        }
+        return Number(match[1]);
+    }
+
+    private positionAtOffset(start: Position, content: string, targetOffset: number): Position {
+        let line = start.line;
+        let character = start.character;
+        const endOffset = Math.min(Math.max(targetOffset, 0), content.length);
+        for (let i = 0; i < endOffset; i++) {
+            const current = content[i];
+            const previous = content[i - 1];
+            if (current === '\r') {
+                line++;
+                character = 0;
+                continue;
+            }
+            if (current === '\n') {
+                if (previous !== '\r') {
+                    line++;
+                }
+                character = 0;
+                continue;
+            }
+            character++;
+        }
+        return new Position(line, character);
     }
 
     validateFakerJSExpressions(value: DynamicChunk, diagnostics: Diagnostic[]) {

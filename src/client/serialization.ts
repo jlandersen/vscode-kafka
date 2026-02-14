@@ -1,4 +1,4 @@
-export type MessageFormat = "none" | "string" | "double" | "float" | "integer" | "long" | "short";
+export type MessageFormat = "none" | "string" | "json" | "double" | "float" | "integer" | "long" | "short";
 
 export type SerializationdResult = any | Error;
 
@@ -93,12 +93,21 @@ class StringSerializer implements Serializer {
     };
 }
 
+class JsonSerializer implements Serializer {
+
+    serialize(value: string): Buffer | string | null {
+        JSON.parse(value);
+        return value;
+    };
+}
+
 serializerRegistry.set("double", new DoubleSerializer());
 serializerRegistry.set("float", new FloatSerializer());
 serializerRegistry.set("integer", new IntegerSerializer());
 serializerRegistry.set("long", new LongSerializer());
 serializerRegistry.set("short", new ShortSerializer());
 serializerRegistry.set("string", new StringSerializer());
+serializerRegistry.set("json", new JsonSerializer());
 
 // ---------------- Deserializers ----------------
 
@@ -207,9 +216,21 @@ class StringDeserializer implements Deserializer {
     }
 }
 
+class JsonDeserializer implements Deserializer {
+
+    deserialize(data: Buffer | null, settings?: SerializationSetting[]): any {
+        if (data === null) {
+            return null;
+        }
+        const encoding = settings?.[0].value as BufferEncoding | undefined;
+        return data.toString(encoding);
+    }
+}
+
 deserializerRegistry.set("double", new DoubleDeserializer());
 deserializerRegistry.set("float", new FloatDeserializer());
 deserializerRegistry.set("integer", new IntegerDeserializer());
 deserializerRegistry.set("long", new LongDeserializer());
 deserializerRegistry.set("short", new ShortDeserializer());
 deserializerRegistry.set("string", new StringDeserializer());
+deserializerRegistry.set("json", new JsonDeserializer());

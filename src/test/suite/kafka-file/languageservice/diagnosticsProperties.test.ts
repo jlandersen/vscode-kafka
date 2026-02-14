@@ -396,6 +396,29 @@ suite("Kafka File PRODUCER Diagnostics Test Suite", () => {
             []
         );
 
+        await assertDiagnostics(
+            'PRODUCER\n' +
+            'topic:abcd\n' +
+            'value-format: json\n' +
+            '{"id": 1}',
+            []
+        );
+
+        await assertDiagnostics(
+            'PRODUCER\n' +
+            'topic:abcd\n' +
+            'value-format: json\n' +
+            '{"id":}',
+            [
+                diagnostic(
+                    position(3, 0),
+                    position(4, 0),
+                    'Invalid JSON value.',
+                    DiagnosticSeverity.Error
+                )
+            ]
+        );
+
     });
 
 });
