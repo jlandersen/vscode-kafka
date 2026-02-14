@@ -56,6 +56,15 @@ value-schema: {"type":"object","required":["id"],"properties":{"id":{"type":"num
 {"id":1}
 ```
 
+**Avro with schema validation:**
+```kafka
+PRODUCER
+topic: user-events
+value-format: avro
+value-schema: {"type":"record","name":"UserEvent","fields":[{"name":"id","type":"int"}]}
+{"id":1}
+```
+
 Or from file:
 ```kafka
 value-schema: file(./schemas/user-event.schema.json)
@@ -80,6 +89,15 @@ CONSUMER analytics-team
 topic: user-events
 from: earliest
 partitions: 0,1,2
+```
+
+**Consume Avro values with schema:**
+```kafka
+CONSUMER analytics-team
+topic: user-events
+from: earliest
+value-format: avro
+value-schema: file(./schemas/user-event.avsc)
 ```
 
 ![Consumer Table View](docs/assets/start-consumer-from-kafkafile.png)
