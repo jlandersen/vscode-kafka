@@ -17,19 +17,19 @@ export class KafkaFileCodeLenses {
         const lenses: CodeLens[] = [];
         const { clusterName, clusterId, clusterState } = this.selectedClusterProvider.getSelectedCluster();
         kafkaFileDocument.blocks.forEach(block => {
-            lenses.push(...this.createBlockLens(block, clusterName, clusterId, clusterState));
+            lenses.push(...this.createBlockLens(document, block, clusterName, clusterId, clusterState));
         });
         return lenses;
     }
 
 
-    private createBlockLens(block: Block, clusterName: string | undefined, clusterId: string | undefined, clusterState: ClientState | undefined): CodeLens[] {
+    private createBlockLens(document: TextDocument, block: Block, clusterName: string | undefined, clusterId: string | undefined, clusterState: ClientState | undefined): CodeLens[] {
         const range = new Range(block.start, block.end);
         const lineRange = new Range(block.start, block.start);
         if (block.type === BlockType.consumer) {
             return this.createConsumerLens(<ConsumerBlock>block, lineRange, range, clusterName, clusterId, clusterState);
         }
-        return this.createProducerLens(<ProducerBlock>block, lineRange, range, clusterName, clusterId, clusterState);
+        return this.createProducerLens(document, <ProducerBlock>block, lineRange, range, clusterName, clusterId, clusterState);
     }
 
     createClusterLens(lineRange: Range, clusterName: string | undefined, clusterState: ClientState | undefined): CodeLens {
@@ -55,10 +55,11 @@ export class KafkaFileCodeLenses {
         }
     }
 
-    private createProducerLens(block: ProducerBlock, lineRange: Range, range: Range, clusterName: string | undefined, clusterId: string | undefined, clusterState: ClientState | undefined): CodeLens[] {
+    private createProducerLens(document: TextDocument, block: ProducerBlock, lineRange: Range, range: Range, clusterName: string | undefined, clusterId: string | undefined, clusterState: ClientState | undefined): CodeLens[] {
         const lenses: CodeLens[] = [];
         if (clusterId) {
-            const produceRecordCommand = block.createCommand(clusterId);
+            const kafkaFileUri = document.uri.scheme === 'file' ? document.uri : undefined;
+            const produceRecordCommand = block.createCommand(clusterId, kafkaFileUri);
             const producerUri = createProducerUri(produceRecordCommand);
             const producerState = this.producerLaunchStateProvider.getProducerLaunchState(producerUri);
             

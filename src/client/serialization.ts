@@ -1,4 +1,9 @@
-export type MessageFormat = "none" | "string" | "json" | "double" | "float" | "integer" | "long" | "short";
+import * as avro from "avsc";
+import * as fs from "fs";
+import * as path from "path";
+import { Uri } from "vscode";
+
+export type MessageFormat = "none" | "string" | "json" | "avro" | "double" | "float" | "integer" | "long" | "short";
 
 export type SerializationdResult = any | Error;
 
@@ -12,12 +17,12 @@ export interface SerializationSetting {
 // ---------------- Serializers ----------------
 
 interface Serializer {
-    serialize(data: string, settings?: SerializationSetting[]): Buffer | string | null;
+    serialize(data: string, settings?: SerializationSetting[], baseFileUri?: Uri): Buffer | string | null;
 }
 
 const serializerRegistry: Map<MessageFormat, Serializer> = new Map();
 
-export function serialize(data?: string, format?: MessageFormat, settings?: SerializationSetting[]): Buffer | string | null {
+export function serialize(data?: string, format?: MessageFormat, settings?: SerializationSetting[], baseFileUri?: Uri): Buffer | string | null {
     if (!data || !format) {
         return data || null;
     }
@@ -25,7 +30,7 @@ export function serialize(data?: string, format?: MessageFormat, settings?: Seri
     if (!serializer) {
         throw new SerializationException(`Cannot find a serializer for ${format} format.`);
     }
-    return serializer.serialize(data, settings);
+    return serializer.serialize(data, settings, baseFileUri);
 }
 
 function getSerializer(format: MessageFormat): Serializer | undefined {
@@ -101,6 +106,16 @@ class JsonSerializer implements Serializer {
     };
 }
 
+class AvroSerializer implements Serializer {
+
+    serialize(value: string, settings?: SerializationSetting[], baseFileUri?: Uri): Buffer | string | null {
+        const schema = resolveAvroSchema(settings, baseFileUri);
+        const data = JSON.parse(value);
+        const avroType = avro.Type.forSchema(schema);
+        return avroType.toBuffer(data);
+    }
+}
+
 serializerRegistry.set("double", new DoubleSerializer());
 serializerRegistry.set("float", new FloatSerializer());
 serializerRegistry.set("integer", new IntegerSerializer());
@@ -108,6 +123,7 @@ serializerRegistry.set("long", new LongSerializer());
 serializerRegistry.set("short", new ShortSerializer());
 serializerRegistry.set("string", new StringSerializer());
 serializerRegistry.set("json", new JsonSerializer());
+serializerRegistry.set("avro", new AvroSerializer());
 
 // ---------------- Deserializers ----------------
 
@@ -227,6 +243,18 @@ class JsonDeserializer implements Deserializer {
     }
 }
 
+class AvroDeserializer implements Deserializer {
+
+    deserialize(data: Buffer | null, settings?: SerializationSetting[], baseFileUri?: Uri): any {
+        if (data === null) {
+            return null;
+        }
+        const schema = resolveAvroSchema(settings, baseFileUri);
+        const avroType = avro.Type.forSchema(schema);
+        return avroType.fromBuffer(data);
+    }
+}
+
 deserializerRegistry.set("double", new DoubleDeserializer());
 deserializerRegistry.set("float", new FloatDeserializer());
 deserializerRegistry.set("integer", new IntegerDeserializer());
@@ -234,3 +262,56 @@ deserializerRegistry.set("long", new LongDeserializer());
 deserializerRegistry.set("short", new ShortDeserializer());
 deserializerRegistry.set("string", new StringDeserializer());
 deserializerRegistry.set("json", new JsonDeserializer());
+deserializerRegistry.set("avro", new AvroDeserializer());
+
+function getAvroSchemaSetting(settings?: SerializationSetting[]): string | undefined {
+    if (!settings) {
+        return;
+    }
+    const schemaSetting = settings.find(setting => setting.name === "value-schema");
+    if (schemaSetting?.value) {
+        return schemaSetting.value;
+    }
+    return settings[0]?.value;
+}
+
+function resolveAvroSchema(settings?: SerializationSetting[], baseFileUri?: Uri): avro.Schema {
+    const schemaSetting = getAvroSchemaSetting(settings);
+    if (!schemaSetting) {
+        throw new SerializationException("The value-schema is required for avro serialization.");
+    }
+
+    const schemaContent = resolveSchemaContent(schemaSetting, baseFileUri);
+    return JSON.parse(schemaContent) as avro.Schema;
+}
+
+function resolveSchemaContent(schemaSetting: string, baseFileUri?: Uri): string {
+    const fileReference = parseSchemaFileReference(schemaSetting);
+    if (!fileReference) {
+        return schemaSetting;
+    }
+    const schemaPath = resolveSchemaFilePath(fileReference, baseFileUri);
+    return fs.readFileSync(schemaPath, { encoding: "utf8" });
+}
+
+function parseSchemaFileReference(schemaContent: string): string | undefined {
+    const match = /^file\((.*)\)$/.exec(schemaContent.trim());
+    if (!match) {
+        return;
+    }
+    const rawPath = match[1].trim();
+    if ((rawPath.startsWith('"') && rawPath.endsWith('"')) || (rawPath.startsWith("'") && rawPath.endsWith("'"))) {
+        return rawPath.slice(1, -1);
+    }
+    return rawPath;
+}
+
+function resolveSchemaFilePath(schemaPath: string, baseFileUri?: Uri): string {
+    if (path.isAbsolute(schemaPath)) {
+        return schemaPath;
+    }
+    if (baseFileUri?.scheme === "file") {
+        return path.resolve(path.dirname(baseFileUri.fsPath), schemaPath);
+    }
+    return path.resolve(process.cwd(), schemaPath);
+}

@@ -1,5 +1,6 @@
 import { Diagnostic, DiagnosticSeverity, Position, Range, TextDocument } from "vscode";
 import Ajv2020 from "ajv/dist/2020";
+import * as avro from "avsc";
 import { promises as fs } from "fs";
 import * as path from "path";
 import { Block, BlockType, Chunk, ConsumerBlock, DynamicChunk, KafkaFileDocument, CalleeFunction, MustacheExpression, ProducerBlock, Property } from "../parser/kafkaFileParser";
@@ -53,21 +54,24 @@ export class KafkaFileDiagnostics {
             const range = new Range(block.start, new Position(block.start.line, block.start.character + 8));
             diagnostics.push(new Diagnostic(range, errorMessage, DiagnosticSeverity.Error));
         }
-        // 2. Producer schema can only be used with json value format.
-        if (valueSchemaProperty && valueFormat !== 'json') {
+        // 2. Producer schema can only be used with json/avro value formats.
+        if (valueSchemaProperty && valueFormat !== 'json' && valueFormat !== 'avro') {
             const range = valueSchemaProperty.propertyTrimmedValueRange || valueSchemaProperty.propertyKeyRange;
-            diagnostics.push(new Diagnostic(range, "'value-schema' requires 'value-format: json'.", DiagnosticSeverity.Error));
+            diagnostics.push(new Diagnostic(range, "'value-schema' requires 'value-format: json' or 'value-format: avro'.", DiagnosticSeverity.Error));
         }
-        // 2. Producer value with json format must be valid JSON.
+        // 3. Producer value with json/avro format must be valid JSON.
         let parsedJsonValue: unknown;
-        if (valueFormat === 'json' && value) {
+        if ((valueFormat === 'json' || valueFormat === 'avro') && value) {
             parsedJsonValue = this.parseJsonProducerValue(value, diagnostics);
         }
-        // 3. Validate producer JSON value against the declared JSON schema.
+        // 4. Validate producer value against the declared schema.
         if (valueFormat === 'json' && value && valueSchemaProperty && parsedJsonValue !== undefined) {
-            await this.validateProducerSchema(document, valueSchemaProperty, parsedJsonValue, value, diagnostics);
+            await this.validateProducerJsonSchema(document, valueSchemaProperty, parsedJsonValue, value, diagnostics);
         }
-        // 4. Producer value can declare FakerJS expressions, validate them.
+        if (valueFormat === 'avro' && value && valueSchemaProperty && parsedJsonValue !== undefined) {
+            await this.validateProducerAvroSchema(document, valueSchemaProperty, parsedJsonValue, value, diagnostics);
+        }
+        // 5. Producer value can declare FakerJS expressions, validate them.
         if (producerFakerJSEnabled && value) {
             this.validateFakerJSExpressions(value, diagnostics);
         }
@@ -99,7 +103,7 @@ export class KafkaFileDiagnostics {
         }
     }
 
-    private async validateProducerSchema(document: TextDocument, schemaProperty: Property, jsonValue: unknown, value: DynamicChunk, diagnostics: Diagnostic[]) {
+    private async validateProducerJsonSchema(document: TextDocument, schemaProperty: Property, jsonValue: unknown, value: DynamicChunk, diagnostics: Diagnostic[]) {
         const schemaContent = schemaProperty.propertyValue?.trim();
         if (!schemaContent) {
             return;
@@ -137,6 +141,53 @@ export class KafkaFileDiagnostics {
             const keywordMessage = firstError?.message || 'does not match the schema';
             const propertyPath = firstError?.instancePath ? ` at '${firstError.instancePath}'` : '';
             diagnostics.push(new Diagnostic(value.range(), `JSON value${propertyPath} ${keywordMessage}.`, DiagnosticSeverity.Error));
+        }
+    }
+
+    private async validateProducerAvroSchema(document: TextDocument, schemaProperty: Property, jsonValue: unknown, value: DynamicChunk, diagnostics: Diagnostic[]) {
+        const schemaContent = schemaProperty.propertyValue?.trim();
+        if (!schemaContent) {
+            return;
+        }
+        const schemaRange = schemaProperty.propertyTrimmedValueRange || schemaProperty.propertyKeyRange;
+        const schemaContentOrError = await this.resolveSchemaContent(document, schemaContent);
+        if (schemaContentOrError.error) {
+            diagnostics.push(new Diagnostic(schemaRange, schemaContentOrError.error, DiagnosticSeverity.Error));
+            return;
+        }
+
+        let schema: unknown;
+        try {
+            schema = JSON.parse(schemaContentOrError.content);
+        } catch {
+            diagnostics.push(new Diagnostic(schemaRange, 'Invalid Avro schema in value-schema.', DiagnosticSeverity.Error));
+            return;
+        }
+
+        let avroType: avro.Type;
+        try {
+            avroType = avro.Type.forSchema(schema as avro.Schema);
+        } catch (e) {
+            const message = e instanceof Error ? e.message : String(e);
+            diagnostics.push(new Diagnostic(schemaRange, `Invalid Avro schema in value-schema: ${message}`, DiagnosticSeverity.Error));
+            return;
+        }
+
+        let firstValidationError: { path: readonly (string | number)[]; expectedType?: string } | undefined;
+        const valid = avroType.isValid(jsonValue, {
+            errorHook: (errorPath: readonly (string | number)[], _invalidValue: unknown, expectedType: avro.Type) => {
+                if (!firstValidationError) {
+                    firstValidationError = {
+                        path: errorPath,
+                        expectedType: expectedType?.toString()
+                    };
+                }
+            }
+        });
+        if (!valid) {
+            const propertyPath = firstValidationError?.path?.length ? ` at '${firstValidationError.path.map(segment => String(segment)).join('.')}'` : '';
+            const expectedType = firstValidationError?.expectedType ? ` (expected ${firstValidationError.expectedType})` : '';
+            diagnostics.push(new Diagnostic(value.range(), `Avro value${propertyPath} does not match the schema${expectedType}.`, DiagnosticSeverity.Error));
         }
     }
 

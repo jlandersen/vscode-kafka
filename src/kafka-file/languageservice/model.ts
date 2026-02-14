@@ -202,6 +202,10 @@ const producerProperties = [
                 description: "Validate the body as JSON before producing and serialize it as UTF-8 JSON text."
             },
             {
+                name: "avro",
+                description: "Validate the body as JSON and serialize it with the Avro schema declared in `value-schema`."
+            },
+            {
                 name: "double",
                 description: "Similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.DoubleSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/DoubleSerializer.java)."
             },
@@ -225,7 +229,7 @@ const producerProperties = [
     },
     {
         name: "value-schema",
-        description: "JSON schema to validate producer values when `value-format: json` is used. Supports inline JSON or `file(path/to/schema.json)` *[optional]*."
+        description: "Schema for producer values when `value-format` is `json` or `avro`. Supports inline schema JSON or `file(path/to/schema.json)` *[optional]*."
     },
     {
         name: "every",

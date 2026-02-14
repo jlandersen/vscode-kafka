@@ -222,7 +222,8 @@ export class ProducerBlock extends Block {
     }
 
     createCommand(
-        clusterId: string
+        clusterId: string,
+        kafkaFileUri?: TextDocument["uri"]
     ): ProduceRecordCommand {
         let topicId;
         let key;
@@ -231,6 +232,7 @@ export class ProducerBlock extends Block {
         let keyFormatSettings: Array<SerializationSetting> | undefined;
         let valueFormat;
         let valueFormatSettings: Array<SerializationSetting> | undefined;
+        let valueSchema;
         let headers: Map<String, String> | undefined;
         let every;
         this.properties.forEach((property) => {
@@ -253,6 +255,10 @@ export class ProducerBlock extends Block {
                     valueFormatSettings = getSerializationSettings(callee);
                     break;
                 }
+                case "value-schema": {
+                    valueSchema = property.propertyValue;
+                    break;
+                }
                 case "headers": {
                     headers = parseHeaders(property.propertyValue);
                     break;
@@ -272,8 +278,17 @@ export class ProducerBlock extends Block {
             messageKeyFormatSettings: keyFormatSettings,
             messageValueFormat: valueFormat,
             messageValueFormatSettings: valueFormatSettings,
-            headers: headers as Map<string, string> | undefined,
+            headers: headers as Map<string, string> | undefined
         };
+        if (kafkaFileUri) {
+            command.kafkaFileUri = kafkaFileUri;
+        }
+        if (valueFormat === "avro" && valueSchema) {
+            command.messageValueFormatSettings = [
+                ...(command.messageValueFormatSettings || []),
+                { name: "value-schema", value: valueSchema }
+            ];
+        }
         if (every) {
             command.every = every;
         }

@@ -631,6 +631,7 @@
 		"@faker-js/faker": "^9.3.0",
 		"@redhat-developer/vscode-wizard": "^0.3.1",
 		"ajv": "^8.17.1",
+		"avsc": "^5.7.9",
 		"fs-extra": "^11.2.0",
 		"glob": "^10.4.5",
 		"handlebars": "^4.7.8",

@@ -39,6 +39,24 @@ suite("Serializer Test Suite", () => {
         );
     });
 
+    test("Avro serializer", () => {
+        const avroSchemaSetting = [
+            {
+                name: "value-schema",
+                value: '{"type":"record","name":"Event","fields":[{"name":"id","type":"int"}]}'
+            }
+        ];
+
+        assert.deepStrictEqual(
+            serialize('{"id":1}', "avro", avroSchemaSetting),
+            Buffer.from([2])
+        );
+
+        assert.throws(
+            () => serialize('{"name":"john"}', "avro", avroSchemaSetting),
+        );
+    });
+
     test("Double serializer", () => {
 
         assert.deepStrictEqual(
@@ -153,6 +171,18 @@ suite("Deserializer Test Suite", () => {
             deserialize(Buffer.from([123, 34, 105, 100, 34, 58, 49, 125]), "json"),
             '{"id":1}'
         );
+    });
+
+    test("Avro deserializer", () => {
+        const avroSchemaSetting = [
+            {
+                name: "value-schema",
+                value: '{"type":"record","name":"Event","fields":[{"name":"id","type":"int"}]}'
+            }
+        ];
+
+        const result = deserialize(Buffer.from([2]), "avro", avroSchemaSetting) as { id: number };
+        assert.deepStrictEqual(result.id, 1);
     });
 
     test("Double deserializer", () => {

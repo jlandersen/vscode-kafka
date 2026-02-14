@@ -432,10 +432,35 @@ suite("Kafka File PRODUCER Diagnostics Test Suite", () => {
                 diagnostic(
                     position(3, 14),
                     position(3, 31),
-                    "'value-schema' requires 'value-format: json'.",
+                    "'value-schema' requires 'value-format: json' or 'value-format: avro'.",
                     DiagnosticSeverity.Error
                 )
             ]
+        );
+
+        await assertDiagnostics(
+            'PRODUCER\n' +
+            'topic:abcd\n' +
+            'value-format: avro\n' +
+            'value-schema: {"type":"record","name":"Event","fields":[{"name":"id","type":"int"}]}\n' +
+            '{"name": "john"}',
+            [
+                diagnostic(
+                    position(4, 0),
+                    position(5, 0),
+                    "Avro value at 'id' does not match the schema (expected \"int\").",
+                    DiagnosticSeverity.Error
+                )
+            ]
+        );
+
+        await assertDiagnostics(
+            'PRODUCER\n' +
+            'topic:abcd\n' +
+            'value-format: avro\n' +
+            'value-schema: {"type":"record","name":"Event","fields":[{"name":"id","type":"int"}]}\n' +
+            '{"id": 1}',
+            []
         );
 
         await assertDiagnostics(

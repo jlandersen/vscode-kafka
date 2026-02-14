@@ -64,6 +64,7 @@ export interface ProduceRecordCommand extends ProducerInfoUri {
     messageKeyFormatSettings?: SerializationSetting[];
     messageValueFormat?: MessageFormat;
     messageValueFormatSettings?: SerializationSetting[];
+    kafkaFileUri?: vscode.Uri;
     every?: string;
 }
 
@@ -151,16 +152,16 @@ export class ProduceRecordCommandHandler {
                         });
                     }
                     return {
-                        key: serialize(randomizedKey, command.messageKeyFormat, command.messageKeyFormatSettings),
-                        value: serialize(randomizedValue, command.messageValueFormat, command.messageValueFormatSettings),
+                        key: serialize(randomizedKey, command.messageKeyFormat, command.messageKeyFormatSettings, command.kafkaFileUri),
+                        value: serialize(randomizedValue, command.messageValueFormat, command.messageValueFormatSettings, command.kafkaFileUri),
                         headers: messageHeaders
                     };
                 }
 
                 // Return key/value message as-is
                 return {
-                    key: serialize(key, command.messageKeyFormat, command.messageKeyFormatSettings),
-                    value: serialize(value, command.messageValueFormat, command.messageValueFormatSettings),
+                    key: serialize(key, command.messageKeyFormat, command.messageKeyFormatSettings, command.kafkaFileUri),
+                    value: serialize(value, command.messageValueFormat, command.messageValueFormatSettings, command.kafkaFileUri),
                     headers: messageHeaders
                 };
             });
@@ -244,11 +245,11 @@ export class ProduceRecordCommandHandler {
                                 messageHeaders[val] = faker.helpers.fake(processedHeader);
                             });
                         }
-                        messageKey = serialize(randomizedKey, command.messageKeyFormat, command.messageKeyFormatSettings);
-                        messageValue = serialize(randomizedValue, command.messageValueFormat, command.messageValueFormatSettings);
+                        messageKey = serialize(randomizedKey, command.messageKeyFormat, command.messageKeyFormatSettings, command.kafkaFileUri);
+                        messageValue = serialize(randomizedValue, command.messageValueFormat, command.messageValueFormatSettings, command.kafkaFileUri);
                     } else {
-                        messageKey = serialize(key, command.messageKeyFormat, command.messageKeyFormatSettings);
-                        messageValue = serialize(value, command.messageValueFormat, command.messageValueFormatSettings);
+                        messageKey = serialize(key, command.messageKeyFormat, command.messageKeyFormatSettings, command.kafkaFileUri);
+                        messageValue = serialize(value, command.messageValueFormat, command.messageValueFormatSettings, command.kafkaFileUri);
                     }
 
                     const record = {
