@@ -1,4 +1,7 @@
 import { Diagnostic, DiagnosticSeverity, Position, Range, TextDocument } from "vscode";
+import Ajv2020 from "ajv/dist/2020";
+import { promises as fs } from "fs";
+import * as path from "path";
 import { Block, BlockType, Chunk, ConsumerBlock, DynamicChunk, KafkaFileDocument, CalleeFunction, MustacheExpression, ProducerBlock, Property } from "../parser/kafkaFileParser";
 import { ConsumerValidator } from "../../../validators/consumer";
 import { ProducerValidator } from "../../../validators/producer";
@@ -13,6 +16,8 @@ import { BrokerConfigs } from "../../../client/config";
  */
 export class KafkaFileDiagnostics {
 
+    private readonly jsonSchemaValidator = new Ajv2020({ allErrors: false });
+
     constructor(private selectedClusterProvider: SelectedClusterProvider, private topicProvider: TopicProvider) {
 
     }
@@ -23,7 +28,7 @@ export class KafkaFileDiagnostics {
             if (block.type === BlockType.consumer) {
                 await this.validateConsumerBlock(<ConsumerBlock>block, diagnostics);
             } else {
-                await this.validateProducerBlock(<ProducerBlock>block, producerFakerJSEnabled, diagnostics);
+                await this.validateProducerBlock(document, <ProducerBlock>block, producerFakerJSEnabled, diagnostics);
             }
         }
         return diagnostics;
@@ -33,25 +38,36 @@ export class KafkaFileDiagnostics {
         await this.validateProperties(block, false, diagnostics);
     }
 
-    async validateProducerBlock(block: ProducerBlock, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
+    async validateProducerBlock(document: TextDocument, block: ProducerBlock, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
         await this.validateProperties(block, producerFakerJSEnabled, diagnostics);
-        this.validateProducerValue(block, producerFakerJSEnabled, diagnostics);
+        await this.validateProducerValue(document, block, producerFakerJSEnabled, diagnostics);
     }
 
-    validateProducerValue(block: ProducerBlock, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
+    async validateProducerValue(document: TextDocument, block: ProducerBlock, producerFakerJSEnabled: boolean, diagnostics: Diagnostic[]) {
         const value = block.value;
         const valueFormat = this.getProducerValueFormat(block);
+        const valueSchemaProperty = this.getProducerValueSchema(block);
         // 1. Check if producer defines a value content
         const errorMessage = ProducerValidator.validateProducerValue(value?.content);
         if (errorMessage) {
             const range = new Range(block.start, new Position(block.start.line, block.start.character + 8));
             diagnostics.push(new Diagnostic(range, errorMessage, DiagnosticSeverity.Error));
         }
-        // 2. Producer value with json format must be valid JSON.
-        if (valueFormat === 'json' && value) {
-            this.validateJsonProducerValue(value, diagnostics);
+        // 2. Producer schema can only be used with json value format.
+        if (valueSchemaProperty && valueFormat !== 'json') {
+            const range = valueSchemaProperty.propertyTrimmedValueRange || valueSchemaProperty.propertyKeyRange;
+            diagnostics.push(new Diagnostic(range, "'value-schema' requires 'value-format: json'.", DiagnosticSeverity.Error));
         }
-        // 2. Producer value can declare FakerJS expressions, validate them.
+        // 2. Producer value with json format must be valid JSON.
+        let parsedJsonValue: unknown;
+        if (valueFormat === 'json' && value) {
+            parsedJsonValue = this.parseJsonProducerValue(value, diagnostics);
+        }
+        // 3. Validate producer JSON value against the declared JSON schema.
+        if (valueFormat === 'json' && value && valueSchemaProperty && parsedJsonValue !== undefined) {
+            await this.validateProducerSchema(document, valueSchemaProperty, parsedJsonValue, value, diagnostics);
+        }
+        // 4. Producer value can declare FakerJS expressions, validate them.
         if (producerFakerJSEnabled && value) {
             this.validateFakerJSExpressions(value, diagnostics);
         }
@@ -62,10 +78,14 @@ export class KafkaFileDiagnostics {
         return (<CalleeFunction | undefined>property?.value)?.functionName;
     }
 
-    private validateJsonProducerValue(value: DynamicChunk, diagnostics: Diagnostic[]) {
+    private getProducerValueSchema(block: ProducerBlock): Property | undefined {
+        return block.getProperty('value-schema');
+    }
+
+    private parseJsonProducerValue(value: DynamicChunk, diagnostics: Diagnostic[]): unknown | undefined {
         const sanitizedValue = this.sanitizeMustacheExpressions(value.content);
         try {
-            JSON.parse(sanitizedValue);
+            return JSON.parse(sanitizedValue);
         } catch (e) {
             const message = e instanceof Error ? e.message : String(e);
             const offset = this.extractJsonErrorOffset(message);
@@ -77,6 +97,99 @@ export class KafkaFileDiagnostics {
             const end = this.positionAtOffset(value.start, value.content, offset + 1);
             diagnostics.push(new Diagnostic(new Range(start, end), 'Invalid JSON value.', DiagnosticSeverity.Error));
         }
+    }
+
+    private async validateProducerSchema(document: TextDocument, schemaProperty: Property, jsonValue: unknown, value: DynamicChunk, diagnostics: Diagnostic[]) {
+        const schemaContent = schemaProperty.propertyValue?.trim();
+        if (!schemaContent) {
+            return;
+        }
+        const schemaRange = schemaProperty.propertyTrimmedValueRange || schemaProperty.propertyKeyRange;
+        const schemaContentOrError = await this.resolveSchemaContent(document, schemaContent);
+        if (schemaContentOrError.error) {
+            diagnostics.push(new Diagnostic(schemaRange, schemaContentOrError.error, DiagnosticSeverity.Error));
+            return;
+        }
+        let schema: unknown;
+        try {
+            schema = JSON.parse(schemaContentOrError.content);
+        } catch {
+            diagnostics.push(new Diagnostic(schemaRange, 'Invalid JSON schema in value-schema.', DiagnosticSeverity.Error));
+            return;
+        }
+
+        let validate;
+        try {
+            const schemaId = this.getSchemaId(schema);
+            if (schemaId) {
+                this.jsonSchemaValidator.removeSchema(schemaId);
+            }
+            validate = this.jsonSchemaValidator.compile(schema as object | boolean);
+        } catch (e) {
+            const message = e instanceof Error ? e.message : String(e);
+            diagnostics.push(new Diagnostic(schemaRange, `Invalid JSON schema in value-schema: ${message}`, DiagnosticSeverity.Error));
+            return;
+        }
+
+        const valid = validate(jsonValue);
+        if (!valid) {
+            const firstError = validate.errors?.[0];
+            const keywordMessage = firstError?.message || 'does not match the schema';
+            const propertyPath = firstError?.instancePath ? ` at '${firstError.instancePath}'` : '';
+            diagnostics.push(new Diagnostic(value.range(), `JSON value${propertyPath} ${keywordMessage}.`, DiagnosticSeverity.Error));
+        }
+    }
+
+    private async resolveSchemaContent(document: TextDocument, schemaContent: string): Promise<{ content: string; error?: undefined } | { content: string; error: string }> {
+        const fileReference = this.parseSchemaFileReference(schemaContent);
+        if (!fileReference) {
+            return { content: schemaContent };
+        }
+
+        const schemaPath = this.resolveSchemaFilePath(document, fileReference);
+        try {
+            const content = await fs.readFile(schemaPath, { encoding: 'utf8' });
+            return { content };
+        } catch {
+            return { content: schemaContent, error: `Unable to read schema file '${fileReference}'.` };
+        }
+    }
+
+    private parseSchemaFileReference(schemaContent: string): string | undefined {
+        const match = /^file\((.*)\)$/.exec(schemaContent.trim());
+        if (!match) {
+            return;
+        }
+        const rawPath = match[1].trim();
+        if ((rawPath.startsWith('"') && rawPath.endsWith('"')) || (rawPath.startsWith("'") && rawPath.endsWith("'"))) {
+            return rawPath.slice(1, -1);
+        }
+        return rawPath;
+    }
+
+    private resolveSchemaFilePath(document: TextDocument, schemaPath: string): string {
+        if (path.isAbsolute(schemaPath)) {
+            return schemaPath;
+        }
+        if (document.uri.scheme === 'file') {
+            return path.resolve(path.dirname(document.uri.fsPath), schemaPath);
+        }
+        return path.resolve(process.cwd(), schemaPath);
+    }
+
+    private getSchemaId(schema: unknown): string | undefined {
+        if (!schema || typeof schema !== 'object') {
+            return;
+        }
+
+        const schemaObject = schema as { $id?: unknown; id?: unknown };
+        if (typeof schemaObject.$id === 'string') {
+            return schemaObject.$id;
+        }
+        if (typeof schemaObject.id === 'string') {
+            return schemaObject.id;
+        }
+        return;
     }
 
     private sanitizeMustacheExpressions(content: string): string {

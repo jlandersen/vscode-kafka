@@ -27,6 +27,7 @@ Create producers using simple `.kafka` files with rich features:
 - ⏱️ **Scheduled Production** - Produce messages at regular intervals (`every: 5s`, `every: 1m`)
 - 🔁 **Batch Production** - Send multiple messages at once for load testing
 - 🎯 **Multiple Producers** - Define multiple producers in a single file
+- ✅ **JSON Schema Validation** - Validate `value-format: json` payloads with inline schema or `file(...)` reference
 
 **Example:**
 ```kafka
@@ -44,6 +45,20 @@ headers: source=web-app, version=1.0
     "email": "{{internet.email}}"
   }
 }
+```
+
+**JSON with schema validation:**
+```kafka
+PRODUCER
+topic: user-events
+value-format: json
+value-schema: {"type":"object","required":["id"],"properties":{"id":{"type":"number"}}}
+{"id":1}
+```
+
+Or from file:
+```kafka
+value-schema: file(./schemas/user-event.schema.json)
 ```
 
 ![Producing Messages](docs/assets/kafka-file-producers.png)

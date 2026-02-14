@@ -571,6 +571,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                         range: range(position(1, 0), position(1, 0))
                     },
                     {
+                        label: 'value-schema', kind: CompletionItemKind.Property,
+                        insertText: 'value-schema: ${1:value-schema}',
+                        range: range(position(1, 0), position(1, 0))
+                    },
+                    {
                         label: 'every', kind: CompletionItemKind.Property,
                         insertText: 'every: ${1|3s,5m,1h|}',
                         range: range(position(1, 0), position(1, 0))
@@ -609,6 +614,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
                         insertText: 'value-format: ${1|string,json,double,float,integer,long,short|}',
+                        range: range(position(1, 0), position(1, 1))
+                    },
+                    {
+                        label: 'value-schema', kind: CompletionItemKind.Property,
+                        insertText: 'value-schema: ${1:value-schema}',
                         range: range(position(1, 0), position(1, 1))
                     },
                     {
@@ -652,6 +662,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                         range: range(position(1, 0), position(1, 5))
                     },
                     {
+                        label: 'value-schema', kind: CompletionItemKind.Property,
+                        insertText: 'value-schema: ${1:value-schema}',
+                        range: range(position(1, 0), position(1, 5))
+                    },
+                    {
                         label: 'every', kind: CompletionItemKind.Property,
                         insertText: 'every: ${1|3s,5m,1h|}',
                         range: range(position(1, 0), position(1, 5))
@@ -689,6 +704,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
                         insertText: 'value-format: ${1|string,json,double,float,integer,long,short|}',
+                        range: range(position(1, 0), position(1, 6))
+                    },
+                    {
+                        label: 'value-schema', kind: CompletionItemKind.Property,
+                        insertText: 'value-schema: ${1:value-schema}',
                         range: range(position(1, 0), position(1, 6))
                     },
                     {
@@ -732,6 +752,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                         range: range(position(1, 0), position(1, 6))
                     },
                     {
+                        label: 'value-schema', kind: CompletionItemKind.Property,
+                        insertText: 'value-schema: ${1:value-schema}',
+                        range: range(position(1, 0), position(1, 6))
+                    },
+                    {
                         label: 'every', kind: CompletionItemKind.Property,
                         insertText: 'every: ${1|3s,5m,1h|}',
                         range: range(position(1, 0), position(1, 6))
@@ -769,6 +794,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
                         insertText: 'value-format: ${1|string,json,double,float,integer,long,short|}',
+                        range: range(position(1, 0), position(1, 11))
+                    },
+                    {
+                        label: 'value-schema', kind: CompletionItemKind.Property,
+                        insertText: 'value-schema: ${1:value-schema}',
                         range: range(position(1, 0), position(1, 11))
                     },
                     {
@@ -811,6 +841,11 @@ suite("Kafka File PRODUCER Completion Test Suite", () => {
                     {
                         label: 'value-format', kind: CompletionItemKind.Property,
                         insertText: 'value-format: ${1|string,json,double,float,integer,long,short|}',
+                        range: range(position(2, 0), position(2, 5))
+                    },
+                    {
+                        label: 'value-schema', kind: CompletionItemKind.Property,
+                        insertText: 'value-schema: ${1:value-schema}',
                         range: range(position(2, 0), position(2, 5))
                     },
                     {

@@ -104,7 +104,7 @@
             ]
         },
         "kafka.producer.header": {
-            "begin": "(?i)^(?:(topic|key-format|value-format|key|headers))",
+            "begin": "(?i)^(?:(topic|key-format|value-format|value-schema|key|headers))",
             "end": "$",
             "name": "meta.producer.header.kafka",
             "beginCaptures": {

@@ -224,6 +224,10 @@ const producerProperties = [
         ]
     },
     {
+        name: "value-schema",
+        description: "JSON schema to validate producer values when `value-format: json` is used. Supports inline JSON or `file(path/to/schema.json)` *[optional]*."
+    },
+    {
         name: "every",
         description: "Produce messages repeatedly at a given interval. Supports time units: `s` (seconds), `m` (minutes), `h` (hours). Examples: `3s`, `5m`, `1h` *[optional]*.",
         enum: [

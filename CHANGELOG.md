@@ -10,6 +10,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 - **Kafka File Topic Creation Quick Fix**: Added a quick fix for `Unknown topic` diagnostics in `.kafka` files that opens the create-topic wizard with the topic name prefilled. See [#168](https://github.com/jlandersen/vscode-kafka/issues/168).
 - **FakerJS Quick Fixes in .kafka Files**: Added code actions for FakerJS syntax and model errors, including missing braces, unexpected tokens, and invalid module/method names. See [#167](https://github.com/jlandersen/vscode-kafka/issues/167).
 - **JSON Value Format for Producer Blocks**: Added `value-format: json` for `.kafka` producer blocks with JSON body validation diagnostics and completion support. See [#229](https://github.com/jlandersen/vscode-kafka/issues/229).
+- **JSON Schema Validation for Producer Blocks**: Added `value-schema` for `.kafka` producer blocks to validate `value-format: json` payloads against inline JSON Schema or `file(...)` schema references. See [#229](https://github.com/jlandersen/vscode-kafka/issues/229).
 
 ### Fixed
 - **Cluster Connection Status in Explorer**: Hide cluster children when disconnected, show a connected icon when online, and show a failure icon with hover details when connection fails. See [#22](https://github.com/jlandersen/vscode-kafka/issues/22).

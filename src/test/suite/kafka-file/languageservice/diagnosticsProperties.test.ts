@@ -1,4 +1,7 @@
 import { DiagnosticSeverity } from "vscode";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import { assertDiagnostics, diagnostic, position } from "./kafkaAssert";
 
 suite("Kafka File Diagnostics Test Suite", () => {
@@ -418,6 +421,80 @@ suite("Kafka File PRODUCER Diagnostics Test Suite", () => {
                 )
             ]
         );
+
+        await assertDiagnostics(
+            'PRODUCER\n' +
+            'topic:abcd\n' +
+            'value-format: string\n' +
+            'value-schema: {"type":"object"}\n' +
+            'efgh',
+            [
+                diagnostic(
+                    position(3, 14),
+                    position(3, 31),
+                    "'value-schema' requires 'value-format: json'.",
+                    DiagnosticSeverity.Error
+                )
+            ]
+        );
+
+        await assertDiagnostics(
+            'PRODUCER\n' +
+            'topic:abcd\n' +
+            'value-format: json\n' +
+            'value-schema: {"type":"object","required":["id"],"properties":{"id":{"type":"number"}}}\n' +
+            '{"name": "john"}',
+            [
+                diagnostic(
+                    position(4, 0),
+                    position(5, 0),
+                    "JSON value must have required property 'id'.",
+                    DiagnosticSeverity.Error
+                )
+            ]
+        );
+
+        await assertDiagnostics(
+            'PRODUCER\n' +
+            'topic:abcd\n' +
+            'value-format: json\n' +
+            'value-schema: {"$id":"https://example.com/address.schema.json","type":"object","required":["countryName"],"properties":{"countryName":{"type":"string"}}}\n' +
+            '{"countryName": "FR"}',
+            []
+        );
+
+        await assertDiagnostics(
+            'PRODUCER\n' +
+            'topic:abcd\n' +
+            'value-format: json\n' +
+            'value-schema: {"$id":"https://example.com/address.schema.json","type":"object","required":["countryName"],"properties":{"countryName":{"type":"string"}}}\n' +
+            '{"countryName": "FR"}',
+            []
+        );
+
+        const schemaDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vscode-kafka-schema-'));
+        const schemaFile = path.join(schemaDir, 'event.schema.json');
+        try {
+            fs.writeFileSync(schemaFile, '{"type":"object","required":["id"],"properties":{"id":{"type":"number"}}}', 'utf8');
+
+            await assertDiagnostics(
+                'PRODUCER\n' +
+                'topic:abcd\n' +
+                'value-format: json\n' +
+                `value-schema: file(${schemaFile})\n` +
+                '{"name": "john"}',
+                [
+                    diagnostic(
+                        position(4, 0),
+                        position(5, 0),
+                        "JSON value must have required property 'id'.",
+                        DiagnosticSeverity.Error
+                    )
+                ]
+            );
+        } finally {
+            fs.rmSync(schemaDir, { recursive: true, force: true });
+        }
 
     });
 
