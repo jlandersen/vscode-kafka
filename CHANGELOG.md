@@ -3,6 +3,8 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-02-14
+
 ### Added
 - **JAAS Config Wizard Input**: Added a JAAS config input field in the cluster wizard with live parsing that auto-selects SASL mechanism and fills existing PLAIN/SCRAM/OAUTHBEARER fields. See [#8](https://github.com/jlandersen/vscode-kafka/issues/8).
 - **Bulk Topic Deletion**: Added support for deleting multiple topics in one action from the Explorer and from the `Delete Topic` command. See [#107](https://github.com/jlandersen/vscode-kafka/issues/107).
