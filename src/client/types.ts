@@ -127,7 +127,7 @@ export interface KafkaClientConfig {
     clientId?: string;
     brokers: string[];
     ssl?: boolean | {
-        ca?: Buffer | string;
+        ca?: Buffer | string | Array<Buffer | string>;
         key?: Buffer | string;
         cert?: Buffer | string;
         passphrase?: string;

@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import * as jks from "jks-js";
 import * as minimatch from "minimatch";
 import { Admin, ConfigResourceTypes, Consumer as KafkaJsConsumer, ConsumerConfig as KafkaJsConsumerConfig, Kafka, KafkaConfig, Producer as KafkaJsProducer, SASLOptions, ProducerRecord as KafkaJsProducerRecord } from "kafkajs";
 
@@ -143,6 +144,8 @@ export interface SslOption {
     cert?: string;
     passphrase?: string;
     rejectUnauthorized?: boolean;
+    truststore?: string;
+    truststorePassword?: string;
 }
 
 export interface Broker {
@@ -799,7 +802,7 @@ function createSsl(connectionOptions: ConnectionOptions): KafkaClientConfig['ssl
         if (typeof sslOption === 'boolean') {
             return sslOption;
         }
-        const ca = sslOption.ca ? fs.readFileSync(sslOption.ca) : undefined;
+        const ca = createCaCertificates(sslOption);
         const key = sslOption.key ? fs.readFileSync(sslOption.key) : undefined;
         const cert = sslOption.cert ? fs.readFileSync(sslOption.cert) : undefined;
         return {
@@ -812,6 +815,56 @@ function createSsl(connectionOptions: ConnectionOptions): KafkaClientConfig['ssl
     }
     return undefined;
 }
+
+interface TruststorePemEntry {
+    ca?: string;
+    cert?: string;
+    key?: string;
+}
+
+function createCaCertificates(sslOption: SslOption): Buffer | string | Array<Buffer | string> | undefined {
+    const caCertificates: Array<Buffer | string> = [];
+    if (sslOption.ca) {
+        caCertificates.push(fs.readFileSync(sslOption.ca));
+    }
+
+    if (sslOption.truststore) {
+        const truststoreCertificates = readTruststoreCertificates(sslOption.truststore, sslOption.truststorePassword);
+        caCertificates.push(...truststoreCertificates);
+    }
+
+    if (caCertificates.length === 0) {
+        return undefined;
+    }
+    if (caCertificates.length === 1) {
+        return caCertificates[0];
+    }
+    return caCertificates;
+}
+
+function readTruststoreCertificates(truststorePath: string, truststorePassword?: string): string[] {
+    if (!truststorePassword) {
+        throw new Error(`A truststore password is required for '${truststorePath}'.`);
+    }
+
+    const truststoreContent = fs.readFileSync(truststorePath);
+    const entries = jks.toPem(truststoreContent, truststorePassword) as Record<string, TruststorePemEntry>;
+    const certificates = extractCertificatesFromTruststoreEntries(entries);
+    if (certificates.length === 0) {
+        throw new Error(`No CA certificates were found in truststore '${truststorePath}'.`);
+    }
+    return certificates;
+}
+
+function extractCertificatesFromTruststoreEntries(entries: Record<string, TruststorePemEntry>): string[] {
+    return Object.values(entries)
+        .map(entry => entry.ca || entry.cert)
+        .filter((certificate): certificate is string => !!certificate);
+}
+
+export const clientTestHooks = {
+    extractCertificatesFromTruststoreEntries
+};
 
 export function addQueryParameter(query: string, name: string, value?: string): string {
     if (value === undefined) {
