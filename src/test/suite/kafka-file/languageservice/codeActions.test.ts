@@ -80,4 +80,94 @@ suite("Kafka File Code Actions Test Suite", () => {
         assert.strictEqual(action?.command?.command, "vscode-kafka.explorer.createtopic");
         assert.deepStrictEqual(action?.command?.arguments, ["cluster1", "missing-topic"]);
     });
+
+    test("FakerJS fix: add missing open token", async () => {
+        const languageService = getSimpleLanguageService();
+        const document = await workspace.openTextDocument({
+            language: "kafka",
+            content: "PRODUCER\ntopic:abcd\nlorem.words}}"
+        });
+        const ast = languageService.parseKafkaFileDocument(document);
+        const diagnostics = await languageService.doDiagnostics(document, ast, true);
+        const context: CodeActionContext = { diagnostics, only: undefined, triggerKind: CodeActionTriggerKind.Invoke };
+        const actions = languageService.getCodeActions(document, ast, context);
+        const action = actions.find(item => item.title === "Add '{{'");
+        assert.ok(action?.edit, "Expected code action edit for missing '{{'");
+        await workspace.applyEdit(action!.edit!);
+        const updatedDoc = await workspace.openTextDocument(document.uri);
+        const eol = updatedDoc.eol === EndOfLine.CRLF ? "\r\n" : "\n";
+        assert.strictEqual(updatedDoc.getText(), `PRODUCER${eol}topic:abcd${eol}{{lorem.words}}`);
+    });
+
+    test("FakerJS fix: add missing close token", async () => {
+        const languageService = getSimpleLanguageService();
+        const document = await workspace.openTextDocument({
+            language: "kafka",
+            content: "PRODUCER\ntopic:abcd\n{{lorem.words"
+        });
+        const ast = languageService.parseKafkaFileDocument(document);
+        const diagnostics = await languageService.doDiagnostics(document, ast, true);
+        const context: CodeActionContext = { diagnostics, only: undefined, triggerKind: CodeActionTriggerKind.Invoke };
+        const actions = languageService.getCodeActions(document, ast, context);
+        const action = actions.find(item => item.title === "Add '}}'");
+        assert.ok(action?.edit, "Expected code action edit for missing '}}'");
+        await workspace.applyEdit(action!.edit!);
+        const updatedDoc = await workspace.openTextDocument(document.uri);
+        const eol = updatedDoc.eol === EndOfLine.CRLF ? "\r\n" : "\n";
+        assert.strictEqual(updatedDoc.getText(), `PRODUCER${eol}topic:abcd${eol}{{lorem.words}}`);
+    });
+
+    test("FakerJS fix: remove unexpected token", async () => {
+        const languageService = getSimpleLanguageService();
+        const document = await workspace.openTextDocument({
+            language: "kafka",
+            content: "PRODUCER\ntopic:abcd\n{{lorem.w{{ords}}"
+        });
+        const ast = languageService.parseKafkaFileDocument(document);
+        const diagnostics = await languageService.doDiagnostics(document, ast, true);
+        const context: CodeActionContext = { diagnostics, only: undefined, triggerKind: CodeActionTriggerKind.Invoke };
+        const actions = languageService.getCodeActions(document, ast, context);
+        const action = actions.find(item => item.title === "Remove unexpected token");
+        assert.ok(action?.edit, "Expected code action edit for unexpected token");
+        await workspace.applyEdit(action!.edit!);
+        const updatedDoc = await workspace.openTextDocument(document.uri);
+        const eol = updatedDoc.eol === EndOfLine.CRLF ? "\r\n" : "\n";
+        assert.strictEqual(updatedDoc.getText(), `PRODUCER${eol}topic:abcd${eol}{{lorem.words}}`);
+    });
+
+    test("FakerJS fix: replace invalid module", async () => {
+        const languageService = getSimpleLanguageService();
+        const document = await workspace.openTextDocument({
+            language: "kafka",
+            content: "PRODUCER\ntopic:abcd\n{{loram.words(5)}}"
+        });
+        const ast = languageService.parseKafkaFileDocument(document);
+        const diagnostics = await languageService.doDiagnostics(document, ast, true);
+        const context: CodeActionContext = { diagnostics, only: undefined, triggerKind: CodeActionTriggerKind.Invoke };
+        const actions = languageService.getCodeActions(document, ast, context);
+        const action = actions.find(item => item.title === "Replace with 'lorem'");
+        assert.ok(action?.edit, "Expected code action edit for invalid module");
+        await workspace.applyEdit(action!.edit!);
+        const updatedDoc = await workspace.openTextDocument(document.uri);
+        const eol = updatedDoc.eol === EndOfLine.CRLF ? "\r\n" : "\n";
+        assert.strictEqual(updatedDoc.getText(), `PRODUCER${eol}topic:abcd${eol}{{lorem.words(5)}}`);
+    });
+
+    test("FakerJS fix: replace invalid method", async () => {
+        const languageService = getSimpleLanguageService();
+        const document = await workspace.openTextDocument({
+            language: "kafka",
+            content: "PRODUCER\ntopic:abcd\n{{lorem.wurds(5)}}"
+        });
+        const ast = languageService.parseKafkaFileDocument(document);
+        const diagnostics = await languageService.doDiagnostics(document, ast, true);
+        const context: CodeActionContext = { diagnostics, only: undefined, triggerKind: CodeActionTriggerKind.Invoke };
+        const actions = languageService.getCodeActions(document, ast, context);
+        const action = actions.find(item => item.title === "Replace with 'words'");
+        assert.ok(action?.edit, "Expected code action edit for invalid method");
+        await workspace.applyEdit(action!.edit!);
+        const updatedDoc = await workspace.openTextDocument(document.uri);
+        const eol = updatedDoc.eol === EndOfLine.CRLF ? "\r\n" : "\n";
+        assert.strictEqual(updatedDoc.getText(), `PRODUCER${eol}topic:abcd${eol}{{lorem.words(5)}}`);
+    });
 });
