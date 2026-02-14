@@ -28,6 +28,7 @@ Create producers using simple `.kafka` files with rich features:
 - 🔁 **Batch Production** - Send multiple messages at once for load testing
 - 🎯 **Multiple Producers** - Define multiple producers in a single file
 - ✅ **JSON Schema Validation** - Validate `value-format: json` payloads with inline schema or `file(...)` reference
+- 🧬 **Avro & Protobuf** - Produce/consume Avro (`value-schema` inline or file) and Protobuf (`value-schema` file only)
 
 **Example:**
 ```kafka
@@ -47,27 +48,38 @@ headers: source=web-app, version=1.0
 }
 ```
 
-**JSON with schema validation:**
+**Value format examples (JSON / Avro / Protobuf):**
 ```kafka
 PRODUCER
-topic: user-events
+topic: json-events
 value-format: json
 value-schema: {"type":"object","required":["id"],"properties":{"id":{"type":"number"}}}
 {"id":1}
-```
-
-**Avro with schema validation:**
-```kafka
+###
 PRODUCER
-topic: user-events
+topic: avro-events
 value-format: avro
 value-schema: {"type":"record","name":"UserEvent","fields":[{"name":"id","type":"int"}]}
 {"id":1}
+###
+PRODUCER
+topic: protobuf-events
+value-format: protobuf(demo.UserCreated)
+value-schema: file(./schemas/user-events.proto)
+{"id":1,"email":"jane@example.com","active":true}
 ```
 
-Or from file:
-```kafka
-value-schema: file(./schemas/user-event.schema.json)
+`./schemas/user-events.proto` used by `protobuf(demo.UserCreated)`:
+```proto
+syntax = "proto3";
+
+package demo;
+
+message UserCreated {
+  int32 id = 1;
+  string email = 2;
+  bool active = 3;
+}
 ```
 
 ![Producing Messages](docs/assets/kafka-file-producers.png)
@@ -98,6 +110,15 @@ topic: user-events
 from: earliest
 value-format: avro
 value-schema: file(./schemas/user-event.avsc)
+```
+
+**Consume Protobuf values with schema file:**
+```kafka
+CONSUMER analytics-team
+topic: protobuf-events
+from: earliest
+value-format: protobuf(demo.UserCreated)
+value-schema: file(./schemas/user-events.proto)
 ```
 
 ![Consumer Table View](docs/assets/start-consumer-from-kafkafile.png)

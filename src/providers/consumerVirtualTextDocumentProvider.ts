@@ -123,7 +123,7 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
         if (!this.isActive(uri)) {
             return;
         }
-        let line = `Key: ${message.key}\nPartition: ${message.partition}\nOffset: ${message.offset}\n`;
+        let line = `Key: ${this.formatRecordField(message.key)}\nPartition: ${message.partition}\nOffset: ${message.offset}\n`;
 
         const headersPrint = getWorkspaceSettings().consumerHeadersPrint;
         if (headersPrint && message.headers) {
@@ -134,8 +134,29 @@ export class ConsumerVirtualTextDocumentProvider implements vscode.TextDocumentC
                 line += `  - ${key}: ${headers[key]}\n`;
             });
         }
-        line = line + `Value:\n${message.value}\n\n`;
+        line = line + `Value:\n${this.formatRecordField(message.value)}\n\n`;
         this.updateBuffer(uri, line);
+    }
+
+    private formatRecordField(value: unknown): string {
+        if (value === null || value === undefined) {
+            return String(value);
+        }
+        if (Buffer.isBuffer(value)) {
+            return value.toString();
+        }
+        if (value instanceof Error) {
+            return value.message;
+        }
+        if (typeof value === "object") {
+            return JSON.stringify(value, (_key, nestedValue) => {
+                return typeof nestedValue === "bigint" ? nestedValue.toString() : nestedValue;
+            }, 2);
+        }
+        if (typeof value === "bigint") {
+            return value.toString();
+        }
+        return String(value);
     }
 
     private onDidCloseConsumer(uri: vscode.Uri): void {

@@ -117,6 +117,10 @@ const consumerProperties = [
                 description: "Deserialize Avro bytes using the schema declared in `value-schema`."
             },
             {
+                name: "protobuf",
+                description: "Deserialize Protobuf bytes using `value-format: protobuf(fully.qualified.Message)` and the schema declared in `value-schema`."
+            },
+            {
                 name: "double",
                 description: "Similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.DoubleDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/DoubleDeserializer.java)."
             },
@@ -140,7 +144,7 @@ const consumerProperties = [
     },
     {
         name: "value-schema",
-        description: "Schema for consumer values when `value-format: avro` is used. Supports inline schema JSON or `file(path/to/schema.json)` *[optional]*."
+        description: "Schema for consumer values. For `value-format: avro`, supports inline schema JSON or `file(path/to/schema.avsc)`. For `value-format: protobuf`, only `file(path/to/schema.proto)` is supported. *[optional]*."
     },
     {
         name: "partitions",
@@ -214,6 +218,10 @@ const producerProperties = [
                 description: "Validate the body as JSON and serialize it with the Avro schema declared in `value-schema`."
             },
             {
+                name: "protobuf",
+                description: "Validate the body as JSON and serialize it with `value-format: protobuf(fully.qualified.Message)` and the schema declared in `value-schema`."
+            },
+            {
                 name: "double",
                 description: "Similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.DoubleSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/DoubleSerializer.java)."
             },
@@ -237,7 +245,7 @@ const producerProperties = [
     },
     {
         name: "value-schema",
-        description: "Schema for producer values when `value-format` is `json` or `avro`. Supports inline schema JSON or `file(path/to/schema.json)` *[optional]*."
+        description: "Schema for producer values. For `value-format: json` and `value-format: avro`, supports inline schema content or `file(...)`. For `value-format: protobuf`, only `file(path/to/schema.proto)` is supported. *[optional]*."
     },
     {
         name: "every",

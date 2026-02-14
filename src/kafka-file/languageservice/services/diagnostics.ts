@@ -1,6 +1,7 @@
 import { Diagnostic, DiagnosticSeverity, Position, Range, TextDocument } from "vscode";
 import Ajv2020 from "ajv/dist/2020";
 import * as avro from "avsc";
+import * as protobuf from "protobufjs";
 import { promises as fs } from "fs";
 import * as path from "path";
 import { Block, BlockType, Chunk, ConsumerBlock, DynamicChunk, KafkaFileDocument, CalleeFunction, MustacheExpression, ProducerBlock, Property } from "../parser/kafkaFileParser";
@@ -42,23 +43,34 @@ export class KafkaFileDiagnostics {
 
     private async validateConsumerValueSchema(document: TextDocument, block: ConsumerBlock, diagnostics: Diagnostic[]) {
         const valueFormat = this.getConsumerValueFormat(block);
+        const valueMessageType = this.getConsumerValueFormatParameter(block);
         const valueSchemaProperty = this.getConsumerValueSchema(block);
-        if (valueSchemaProperty && valueFormat !== 'avro') {
+        if (valueSchemaProperty && valueFormat !== 'avro' && valueFormat !== 'protobuf') {
             const range = valueSchemaProperty.propertyTrimmedValueRange || valueSchemaProperty.propertyKeyRange;
-            diagnostics.push(new Diagnostic(range, "'value-schema' requires 'value-format: avro'.", DiagnosticSeverity.Error));
+            diagnostics.push(new Diagnostic(range, "'value-schema' requires 'value-format: avro' or 'value-format: protobuf'.", DiagnosticSeverity.Error));
             return;
         }
-        if (valueFormat === 'avro' && !valueSchemaProperty) {
+        if ((valueFormat === 'avro' || valueFormat === 'protobuf') && !valueSchemaProperty) {
             const valueFormatProperty = block.getProperty('value-format');
             const range = valueFormatProperty?.propertyTrimmedValueRange || valueFormatProperty?.propertyKeyRange;
             if (range) {
-                diagnostics.push(new Diagnostic(range, "'value-schema' is required when 'value-format: avro' is used.", DiagnosticSeverity.Error));
+                diagnostics.push(new Diagnostic(range, `'value-schema' is required when 'value-format: ${valueFormat}' is used.`, DiagnosticSeverity.Error));
             }
             return;
         }
         if (!valueSchemaProperty) {
             return;
         }
+
+        if (valueFormat === 'protobuf' && !valueMessageType) {
+            const valueFormatProperty = block.getProperty('value-format');
+            const range = valueFormatProperty?.propertyTrimmedValueRange || valueFormatProperty?.propertyKeyRange;
+            if (range) {
+                diagnostics.push(new Diagnostic(range, "'value-format: protobuf(...)' must define the fully qualified message type.", DiagnosticSeverity.Error));
+            }
+            return;
+        }
+
         const schemaContent = valueSchemaProperty.propertyValue?.trim();
         if (!schemaContent) {
             return;
@@ -69,18 +81,36 @@ export class KafkaFileDiagnostics {
             diagnostics.push(new Diagnostic(schemaRange, schemaContentOrError.error, DiagnosticSeverity.Error));
             return;
         }
-        let schema: unknown;
-        try {
-            schema = JSON.parse(schemaContentOrError.content);
-        } catch {
-            diagnostics.push(new Diagnostic(schemaRange, 'Invalid Avro schema in value-schema.', DiagnosticSeverity.Error));
+
+        if (valueFormat === 'avro') {
+            let schema: unknown;
+            try {
+                schema = JSON.parse(schemaContentOrError.content);
+            } catch {
+                diagnostics.push(new Diagnostic(schemaRange, 'Invalid Avro schema in value-schema.', DiagnosticSeverity.Error));
+                return;
+            }
+            try {
+                avro.Type.forSchema(schema as avro.Schema);
+            } catch (e) {
+                const message = e instanceof Error ? e.message : String(e);
+                diagnostics.push(new Diagnostic(schemaRange, `Invalid Avro schema in value-schema: ${message}`, DiagnosticSeverity.Error));
+            }
             return;
         }
-        try {
-            avro.Type.forSchema(schema as avro.Schema);
-        } catch (e) {
-            const message = e instanceof Error ? e.message : String(e);
-            diagnostics.push(new Diagnostic(schemaRange, `Invalid Avro schema in value-schema: ${message}`, DiagnosticSeverity.Error));
+
+        if (valueFormat === 'protobuf') {
+            if (!schemaContentOrError.path) {
+                diagnostics.push(new Diagnostic(schemaRange, "Protobuf value-schema must be a file reference like file(./schemas/event.proto).", DiagnosticSeverity.Error));
+                return;
+            }
+            try {
+                const root = await protobuf.load(schemaContentOrError.path);
+                root.lookupType((valueMessageType || '').trim());
+            } catch (e) {
+                const message = e instanceof Error ? e.message : String(e);
+                diagnostics.push(new Diagnostic(schemaRange, `Invalid Protobuf schema in value-schema: ${message}`, DiagnosticSeverity.Error));
+            }
         }
     }
 
@@ -100,13 +130,13 @@ export class KafkaFileDiagnostics {
             diagnostics.push(new Diagnostic(range, errorMessage, DiagnosticSeverity.Error));
         }
         // 2. Producer schema can only be used with json/avro value formats.
-        if (valueSchemaProperty && valueFormat !== 'json' && valueFormat !== 'avro') {
+        if (valueSchemaProperty && valueFormat !== 'json' && valueFormat !== 'avro' && valueFormat !== 'protobuf') {
             const range = valueSchemaProperty.propertyTrimmedValueRange || valueSchemaProperty.propertyKeyRange;
-            diagnostics.push(new Diagnostic(range, "'value-schema' requires 'value-format: json' or 'value-format: avro'.", DiagnosticSeverity.Error));
+            diagnostics.push(new Diagnostic(range, "'value-schema' requires 'value-format: json', 'value-format: avro', or 'value-format: protobuf'.", DiagnosticSeverity.Error));
         }
         // 3. Producer value with json/avro format must be valid JSON.
         let parsedJsonValue: unknown;
-        if ((valueFormat === 'json' || valueFormat === 'avro') && value) {
+        if ((valueFormat === 'json' || valueFormat === 'avro' || valueFormat === 'protobuf') && value) {
             parsedJsonValue = this.parseJsonProducerValue(value, diagnostics);
         }
         // 4. Validate producer value against the declared schema.
@@ -115,6 +145,18 @@ export class KafkaFileDiagnostics {
         }
         if (valueFormat === 'avro' && value && valueSchemaProperty && parsedJsonValue !== undefined) {
             await this.validateProducerAvroSchema(document, valueSchemaProperty, parsedJsonValue, value, diagnostics);
+        }
+        if (valueFormat === 'protobuf' && value && valueSchemaProperty && parsedJsonValue !== undefined) {
+            const messageType = this.getProducerValueFormatParameter(block);
+            const valueFormatProperty = block.getProperty('value-format');
+            const range = valueFormatProperty?.propertyTrimmedValueRange || valueFormatProperty?.propertyKeyRange;
+            if (!messageType) {
+                if (range) {
+                    diagnostics.push(new Diagnostic(range, "'value-format: protobuf(...)' must define the fully qualified message type.", DiagnosticSeverity.Error));
+                }
+            } else {
+                await this.validateProducerProtobufSchema(document, valueSchemaProperty, messageType, parsedJsonValue, value, diagnostics);
+            }
         }
         // 5. Producer value can declare FakerJS expressions, validate them.
         if (producerFakerJSEnabled && value) {
@@ -127,6 +169,16 @@ export class KafkaFileDiagnostics {
         return (<CalleeFunction | undefined>property?.value)?.functionName;
     }
 
+    private getProducerValueFormatParameter(block: ProducerBlock, index: number = 0): string | undefined {
+        const property = block.getProperty('value-format');
+        const parameter = (<CalleeFunction | undefined>property?.value)?.parameters[index];
+        const value = parameter?.value?.trim();
+        if (!value) {
+            return;
+        }
+        return value;
+    }
+
     private getProducerValueSchema(block: ProducerBlock): Property | undefined {
         return block.getProperty('value-schema');
     }
@@ -134,6 +186,16 @@ export class KafkaFileDiagnostics {
     private getConsumerValueFormat(block: ConsumerBlock): string | undefined {
         const property = block.getProperty('value-format');
         return (<CalleeFunction | undefined>property?.value)?.functionName;
+    }
+
+    private getConsumerValueFormatParameter(block: ConsumerBlock, index: number = 0): string | undefined {
+        const property = block.getProperty('value-format');
+        const parameter = (<CalleeFunction | undefined>property?.value)?.parameters[index];
+        const value = parameter?.value?.trim();
+        if (!value) {
+            return;
+        }
+        return value;
     }
 
     private getConsumerValueSchema(block: ConsumerBlock): Property | undefined {
@@ -245,7 +307,39 @@ export class KafkaFileDiagnostics {
         }
     }
 
-    private async resolveSchemaContent(document: TextDocument, schemaContent: string): Promise<{ content: string; error?: undefined } | { content: string; error: string }> {
+    private async validateProducerProtobufSchema(document: TextDocument, schemaProperty: Property, messageType: string, jsonValue: unknown, value: DynamicChunk, diagnostics: Diagnostic[]) {
+        const schemaContent = schemaProperty.propertyValue?.trim();
+        if (!schemaContent) {
+            return;
+        }
+        const schemaRange = schemaProperty.propertyTrimmedValueRange || schemaProperty.propertyKeyRange;
+        const schemaContentOrError = await this.resolveSchemaContent(document, schemaContent);
+        if (schemaContentOrError.error) {
+            diagnostics.push(new Diagnostic(schemaRange, schemaContentOrError.error, DiagnosticSeverity.Error));
+            return;
+        }
+        if (!schemaContentOrError.path) {
+            diagnostics.push(new Diagnostic(schemaRange, "Protobuf value-schema must be a file reference like file(./schemas/event.proto).", DiagnosticSeverity.Error));
+            return;
+        }
+
+        let protobufType: protobuf.Type;
+        try {
+            const root = await protobuf.load(schemaContentOrError.path);
+            protobufType = root.lookupType(messageType.trim());
+        } catch (e) {
+            const parsedMessage = e instanceof Error ? e.message : String(e);
+            diagnostics.push(new Diagnostic(schemaRange, `Invalid Protobuf schema in value-schema: ${parsedMessage}`, DiagnosticSeverity.Error));
+            return;
+        }
+
+        const validationError = protobufType.verify(jsonValue as Record<string, unknown>);
+        if (validationError) {
+            diagnostics.push(new Diagnostic(value.range(), `Protobuf value does not match the schema: ${validationError}.`, DiagnosticSeverity.Error));
+        }
+    }
+
+    private async resolveSchemaContent(document: TextDocument, schemaContent: string): Promise<{ content: string; path?: string; error?: undefined } | { content: string; path?: string; error: string }> {
         const fileReference = this.parseSchemaFileReference(schemaContent);
         if (!fileReference) {
             return { content: schemaContent };
@@ -254,7 +348,7 @@ export class KafkaFileDiagnostics {
         const schemaPath = this.resolveSchemaFilePath(document, fileReference);
         try {
             const content = await fs.readFile(schemaPath, { encoding: 'utf8' });
-            return { content };
+            return { content, path: schemaPath };
         } catch {
             return { content: schemaContent, error: `Unable to read schema file '${fileReference}'.` };
         }

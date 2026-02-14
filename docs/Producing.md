@@ -31,7 +31,7 @@ The `PRODUCER` block defines:
  * `key-format` : [serializer](#Serializer) to use for the key *[optional]*.
  * `headers`: the headers of message comma separated list in format `key=value` *[optional]*
  * `value-format` : [serializer](#Serializer) to use for the value *[optional]*.
- * `value-schema` : JSON schema used to validate the producer value when `value-format: json` is set. Can be inline JSON or a file reference like `file(./schemas/event.schema.json)` *[optional]*.
+ * `value-schema` : schema used with `value-format: json`, `value-format: avro`, or `value-format: protobuf`. JSON/Avro support inline schema content or `file(...)`; protobuf supports only `file(./schemas/event.proto)` *[optional]*.
  
  * the rest of the content is the value until `###`.
 
@@ -41,6 +41,8 @@ The serializers can have the following value:
 
    * `string`: similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.StringSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringSerializer.java). By default it supports `UTF-8` encoding, but you can specify the encoding as parameter like this `string(base64)`. The valid encoding values are defined in [Node.js' buffers and character encodings](https://nodejs.org/api/buffer.html#buffer_buffers_and_character_encodings).
    * `json`: validates the producer value as JSON before sending and serializes it as UTF-8 JSON text.
+   * `avro`: validates the producer value as JSON and serializes it with the Avro schema declared in `value-schema`.
+   * `protobuf`: validates the producer value as JSON and serializes it with `value-format: protobuf(fully.qualified.Message)` and the schema declared in `value-schema`.
    * `double`: similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.DoubleSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/DoubleSerializer.java).
    * `float`: similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.FloatSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/FloatSerializer.java).
    * `integer`: similar serializer to the Kafka Java client [org.apache.kafka.common.serialization.IntegerSerializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/IntegerSerializer.java).
@@ -81,7 +83,8 @@ Validation will help you write valid producers in .kafka files.
 
  * here is an example of value validation:
 
- * when using `value-format: json`, you can add `value-schema:` with either a single-line JSON Schema or `file(path/to/schema.json)` to validate the message payload.
+ * when using `value-format: json` or `value-format: avro`, you can add `value-schema:` with inline schema content or `file(path/to/schema)` to validate and serialize the message payload.
+ * when using `value-format: protobuf(...)`, `value-schema:` must be a `.proto` file reference like `file(path/to/schema.proto)`.
 
 ![Empty value](assets/kafka-file-producer-empty-value-validation.png)
 

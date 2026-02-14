@@ -279,7 +279,7 @@ suite("Kafka File CONSUMER Diagnostics Test Suite", () => {
                 diagnostic(
                     position(2, 14),
                     position(2, 84),
-                    "'value-schema' requires 'value-format: avro'.",
+                    "'value-schema' requires 'value-format: avro' or 'value-format: protobuf'.",
                     DiagnosticSeverity.Error
                 )
             ]
@@ -305,6 +305,21 @@ suite("Kafka File CONSUMER Diagnostics Test Suite", () => {
             'value-format: avro\n' +
             'value-schema: {"type":"record","name":"Event","fields":[{"name":"id","type":"int"}]}',
             []
+        );
+
+        await assertDiagnostics(
+            'CONSUMER\n' +
+            'topic:abcd\n' +
+            'value-format: protobuf(demo.UserCreated)\n' +
+            'value-schema: syntax = "proto3"; message UserCreated { int32 id = 1; }',
+            [
+                diagnostic(
+                    position(3, 14),
+                    position(3, 70),
+                    "Protobuf value-schema must be a file reference like file(./schemas/event.proto).",
+                    DiagnosticSeverity.Error
+                )
+            ]
         );
 
     });
@@ -468,7 +483,7 @@ suite("Kafka File PRODUCER Diagnostics Test Suite", () => {
                 diagnostic(
                     position(3, 14),
                     position(3, 31),
-                    "'value-schema' requires 'value-format: json' or 'value-format: avro'.",
+                    "'value-schema' requires 'value-format: json', 'value-format: avro', or 'value-format: protobuf'.",
                     DiagnosticSeverity.Error
                 )
             ]
@@ -497,6 +512,22 @@ suite("Kafka File PRODUCER Diagnostics Test Suite", () => {
             'value-schema: {"type":"record","name":"Event","fields":[{"name":"id","type":"int"}]}\n' +
             '{"id": 1}',
             []
+        );
+
+        await assertDiagnostics(
+            'PRODUCER\n' +
+            'topic:abcd\n' +
+            'value-format: protobuf(demo.UserCreated)\n' +
+            'value-schema: syntax = "proto3"; message UserCreated { int32 id = 1; }\n' +
+            '{"id": 1}',
+            [
+                diagnostic(
+                    position(3, 14),
+                    position(3, 70),
+                    "Protobuf value-schema must be a file reference like file(./schemas/event.proto).",
+                    DiagnosticSeverity.Error
+                )
+            ]
         );
 
         await assertDiagnostics(

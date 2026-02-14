@@ -1,4 +1,7 @@
 import * as assert from "assert";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import { deserialize, serialize } from "../../../client/serialization";
 
 suite("Serializer Test Suite", () => {
@@ -54,6 +57,37 @@ suite("Serializer Test Suite", () => {
 
         assert.throws(
             () => serialize('{"name":"john"}', "avro", avroSchemaSetting),
+        );
+    });
+
+    test("Protobuf serializer", () => {
+        const protobufSchemaFile = createProtoSchemaFile();
+        const protobufSchemaSetting = [
+            { value: "Event" },
+            {
+                name: "value-schema",
+                value: `file(${protobufSchemaFile})`
+            }
+        ];
+
+        const serialized = serialize('{"id":1,"name":"john"}', "protobuf", protobufSchemaSetting) as Buffer;
+        const deserialized = deserialize(serialized, "protobuf", protobufSchemaSetting) as { id: number; name: string };
+        assert.deepStrictEqual(deserialized, { id: 1, name: "john" });
+
+        assert.throws(
+            () => serialize('{"id":"invalid"}', "protobuf", protobufSchemaSetting),
+        );
+
+        const protobufInlineSchemaSetting = [
+            { value: "Event" },
+            {
+                name: "value-schema",
+                value: 'syntax = "proto3"; message Event { int32 id = 1; }'
+            }
+        ];
+        assert.throws(
+            () => serialize('{"id":1}', "protobuf", protobufInlineSchemaSetting),
+            /must be a file reference/
         );
     });
 
@@ -185,6 +219,21 @@ suite("Deserializer Test Suite", () => {
         assert.deepStrictEqual(result.id, 1);
     });
 
+    test("Protobuf deserializer", () => {
+        const protobufSchemaFile = createProtoSchemaFile();
+        const protobufSchemaSetting = [
+            { value: "Event" },
+            {
+                name: "value-schema",
+                value: `file(${protobufSchemaFile})`
+            }
+        ];
+
+        const serialized = serialize('{"id":10,"name":"test"}', "protobuf", protobufSchemaSetting) as Buffer;
+        const result = deserialize(serialized, "protobuf", protobufSchemaSetting) as { id: number; name: string };
+        assert.deepStrictEqual(result, { id: 10, name: "test" });
+    });
+
     test("Double deserializer", () => {
 
         assert.deepStrictEqual(
@@ -291,3 +340,10 @@ suite("Deserializer Test Suite", () => {
     });
 
 });
+
+function createProtoSchemaFile(): string {
+    const schemaDir = fs.mkdtempSync(path.join(os.tmpdir(), "vscode-kafka-proto-"));
+    const schemaFile = path.join(schemaDir, "event.proto");
+    fs.writeFileSync(schemaFile, 'syntax = "proto3"; message Event { int32 id = 1; string name = 2; }', { encoding: "utf8" });
+    return schemaFile;
+}

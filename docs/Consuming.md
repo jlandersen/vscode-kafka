@@ -47,6 +47,7 @@ The `CONSUMER` block defines:
     * 0,2-3
  * `key-format` : [deserializer](#Deserializer) to use for the key *[optional]*.
  * `value-format` : [deserializer](#Deserializer) to use for the value *[optional]*.
+ * `value-schema` : schema used when `value-format` is `avro` or `protobuf`. Avro supports inline schema JSON or file references; protobuf supports only file references like `file(./schemas/event.proto)` *[optional]*.
 
 #### Deserializer
 
@@ -54,6 +55,8 @@ The deserializers can have the following value:
 
    * `none`: no deserializer (ignores content).
    * `string`: similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.StringDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/StringDeserializer.java). By default it supports `UTF-8` encoding, but you can specify the encoding as parameter like this `string(base64)`. The valid encoding values are defined in [Node.js' buffers and character encodings](https://nodejs.org/api/buffer.html#buffer_buffers_and_character_encodings).
+   * `avro`: deserialize bytes with the Avro schema declared in `value-schema`.
+   * `protobuf`: deserialize bytes with `value-format: protobuf(fully.qualified.Message)` and the schema declared in `value-schema`.
    * `double`: similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.DoubleDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/DoubleDeserializer.java).
    * `float`: similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.FloatDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/FloatDeserializer.java).
    * `integer`: similar deserializer to the Kafka Java client [org.apache.kafka.common.serialization.IntegerDeserializer](https://github.com/apache/kafka/blob/master/clients/src/main/java/org/apache/kafka/common/serialization/IntegerDeserializer.java).

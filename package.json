@@ -638,7 +638,8 @@
 		"jks-js": "^1.1.5",
 		"js-yaml": "^4.1.0",
 		"kafkajs": "^2.2.4",
-		"kafkajs-snappy": "^1.1.0"
+		"kafkajs-snappy": "^1.1.0",
+		"protobufjs": "^7.5.4"
 	},
 	"devDependencies": {
 		"@testcontainers/kafka": "^11.11.0",

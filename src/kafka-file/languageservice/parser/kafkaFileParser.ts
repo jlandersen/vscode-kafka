@@ -283,7 +283,7 @@ export class ProducerBlock extends Block {
         if (kafkaFileUri) {
             command.kafkaFileUri = kafkaFileUri;
         }
-        if (valueFormat === "avro" && valueSchema) {
+        if ((valueFormat === "avro" || valueFormat === "protobuf") && valueSchema) {
             command.messageValueFormatSettings = [
                 ...(command.messageValueFormatSettings || []),
                 { name: "value-schema", value: valueSchema }
@@ -358,7 +358,7 @@ export class ConsumerBlock extends Block {
         if (kafkaFileUri) {
             command.kafkaFileUri = kafkaFileUri;
         }
-        if (valueFormat === "avro" && valueSchema) {
+        if ((valueFormat === "avro" || valueFormat === "protobuf") && valueSchema) {
             command.messageValueFormatSettings = [
                 ...(command.messageValueFormatSettings || []),
                 { name: "value-schema", value: valueSchema }
