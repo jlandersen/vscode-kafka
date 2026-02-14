@@ -104,10 +104,12 @@ export class KeycloakContainer {
             });
         }
 
+        const keycloakAdminEnv = "KEYCLOAK_ADMIN";
+        const keycloakAdminPasswordEnv = "KEYCLOAK_ADMIN_PASSWORD";
         this.container = await new GenericContainer("quay.io/keycloak/keycloak:23.0")
             .withEnvironment({
-                KEYCLOAK_ADMIN: "admin",
-                KEYCLOAK_ADMIN_PASSWORD: "admin",
+                [keycloakAdminEnv]: "admin",
+                [keycloakAdminPasswordEnv]: "admin",
             })
             .withExposedPorts(8080)
             .withCopyContentToContainer([

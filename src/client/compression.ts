@@ -24,8 +24,8 @@ export function registerCompressionCodecs(): void {
 
     try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const SnappyCodec = require('kafkajs-snappy');
-        CompressionCodecs[CompressionTypes.Snappy] = SnappyCodec;
+        const snappyCodec = require('kafkajs-snappy');
+        CompressionCodecs[CompressionTypes.Snappy] = snappyCodec;
     } catch (error) {
         console.warn('Failed to register Snappy compression codec:', error);
     }

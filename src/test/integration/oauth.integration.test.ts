@@ -19,11 +19,13 @@ async function fetchOAuthToken(
 ): Promise<{ accessToken: string; expiresIn: number }> {
     const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
     
+    const contentTypeHeader = "Content-Type";
+    const authorizationHeader = "Authorization";
     const response = await fetch(tokenEndpoint, {
         method: "POST",
         headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": `Basic ${credentials}`,
+            [contentTypeHeader]: "application/x-www-form-urlencoded",
+            [authorizationHeader]: `Basic ${credentials}`,
         },
         body: "grant_type=client_credentials",
     });
@@ -33,19 +35,18 @@ async function fetchOAuthToken(
         throw new Error(`OAuth token request failed: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
-    const tokenResponse = (await response.json()) as {
-        access_token: string;
-        expires_in?: number;
-        token_type?: string;
-    };
+    const tokenResponse = (await response.json()) as Record<string, unknown>;
 
-    if (!tokenResponse.access_token) {
+    const accessToken = typeof tokenResponse["access_token"] === "string" ? tokenResponse["access_token"] : undefined;
+    if (!accessToken) {
         throw new Error("OAuth response did not contain access_token");
     }
 
+    const expiresIn = typeof tokenResponse["expires_in"] === "number" ? tokenResponse["expires_in"] : 3600;
+
     return {
-        accessToken: tokenResponse.access_token,
-        expiresIn: tokenResponse.expires_in || 3600,
+        accessToken,
+        expiresIn,
     };
 }
 

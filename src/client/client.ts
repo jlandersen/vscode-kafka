@@ -727,11 +727,13 @@ function createOAuthBearerProvider(
         try {
             // Build the token request
             const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+            const contentTypeHeader = 'Content-Type';
+            const authorizationHeader = 'Authorization';
             const response = await fetchWithRetry(tokenEndpoint, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Authorization': `Basic ${credentials}`
+                    [contentTypeHeader]: 'application/x-www-form-urlencoded',
+                    [authorizationHeader]: `Basic ${credentials}`
                 },
                 body: 'grant_type=client_credentials'
             }, { timeoutMs: 10000, retries: 2, backoffMs: 500 });
@@ -741,15 +743,16 @@ function createOAuthBearerProvider(
                 throw new Error(`OAuth token request failed: ${response.status} ${response.statusText} - ${errorText}`);
             }
 
-            const tokenResponse = await response.json() as { access_token: string; expires_in?: number };
-            const accessToken = tokenResponse.access_token;
+            const tokenResponse = await response.json() as Record<string, unknown>;
+            const accessToken = typeof tokenResponse['access_token'] === 'string' ? tokenResponse['access_token'] : undefined;
             
             if (!accessToken) {
                 throw new Error('OAuth response did not contain access_token');
             }
 
             // Calculate expiration time (default to 1 hour if not specified)
-            const expiresIn = tokenResponse.expires_in || 3600;
+            const expiresInValue = tokenResponse['expires_in'];
+            const expiresIn = typeof expiresInValue === 'number' ? expiresInValue : 3600;
             cachedToken = {
                 value: accessToken,
                 expiresAt: now + (expiresIn * 1000)

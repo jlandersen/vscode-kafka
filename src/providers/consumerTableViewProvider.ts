@@ -183,11 +183,13 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             return;
         }
 
+        const csvFilesFilter = 'CSV Files';
+        const allFilesFilter = 'All Files';
         const uri = await vscode.window.showSaveDialog({
             defaultUri: vscode.Uri.file(`kafka-messages-${Date.now()}.csv`),
             filters: {
-                'CSV Files': ['csv'],
-                'All Files': ['*']
+                [csvFilesFilter]: ['csv'],
+                [allFilesFilter]: ['*']
             }
         });
 

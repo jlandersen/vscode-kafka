@@ -107,13 +107,13 @@ suite("Cluster Migration from Memento to Settings Integration Tests", function (
             } as Cluster
         };
 
-        const { Context } = await import('../../context');
-        const { SecretsStorage } = await import('../../settings/secretsStorage');
+        const contextModule = await import('../../context');
+        const secretsStorageModule = await import('../../settings/secretsStorage');
         
-        Context.register(mockContext);
-        SecretsStorage.initialize(undefined, mockContext.globalState);
+        contextModule.Context.register(mockContext);
+        secretsStorageModule.SecretsStorage.initialize(undefined, mockContext.globalState);
 
-        const secretsStorage = SecretsStorage.getInstance();
+        const secretsStorage = secretsStorageModule.SecretsStorage.getInstance();
         await secretsStorage.storePassword(testClusterId1, testPassword1);
         await secretsStorage.storePassword(testClusterId2, testPassword2);
 
@@ -168,11 +168,11 @@ suite("Cluster Migration from Memento to Settings Integration Tests", function (
             } as Cluster
         };
 
-        const { Context } = await import('../../context');
-        const { SecretsStorage } = await import('../../settings/secretsStorage');
+        const contextModule = await import('../../context');
+        const secretsStorageModule = await import('../../settings/secretsStorage');
         
-        Context.register(mockContext);
-        SecretsStorage.initialize(undefined, mockContext.globalState);
+        contextModule.Context.register(mockContext);
+        secretsStorageModule.SecretsStorage.initialize(undefined, mockContext.globalState);
 
         await mockContext.globalState.update('clusters', oldClustersWithPasswords);
         await mockContext.globalState.update('secretsMigrationCompleted', false);
@@ -186,7 +186,7 @@ suite("Cluster Migration from Memento to Settings Integration Tests", function (
         
         await clusterSettings.getWithCredentials('any-id');
 
-        const secretsStorage = SecretsStorage.getInstance();
+        const secretsStorage = secretsStorageModule.SecretsStorage.getInstance();
         const retrievedPassword = await secretsStorage.getPassword(testClusterId1);
         assert.strictEqual(retrievedPassword, testPassword1, "Password should be in SecretStorage");
 
@@ -216,11 +216,11 @@ suite("Cluster Migration from Memento to Settings Integration Tests", function (
             } as Cluster
         };
 
-        const { Context } = await import('../../context');
-        const { SecretsStorage } = await import('../../settings/secretsStorage');
+        const contextModule = await import('../../context');
+        const secretsStorageModule = await import('../../settings/secretsStorage');
         
-        Context.register(mockContext);
-        SecretsStorage.initialize(undefined, mockContext.globalState);
+        contextModule.Context.register(mockContext);
+        secretsStorageModule.SecretsStorage.initialize(undefined, mockContext.globalState);
 
         await mockContext.globalState.update('settingsMigrationCompleted', true);
         await mockContext.globalState.update('clusters', oldClusters);
@@ -247,11 +247,11 @@ suite("Cluster Migration from Memento to Settings Integration Tests", function (
     });
 
     test("should handle empty Memento gracefully", async function () {
-        const { Context } = await import('../../context');
-        const { SecretsStorage } = await import('../../settings/secretsStorage');
+        const contextModule = await import('../../context');
+        const secretsStorageModule = await import('../../settings/secretsStorage');
         
-        Context.register(mockContext);
-        SecretsStorage.initialize(undefined, mockContext.globalState);
+        contextModule.Context.register(mockContext);
+        secretsStorageModule.SecretsStorage.initialize(undefined, mockContext.globalState);
 
         await mockContext.globalState.update('clusters', {});
 

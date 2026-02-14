@@ -32,12 +32,12 @@ export async function initializeTestEnvironment(): Promise<void> {
     try {
         const extension = vscode.extensions.getExtension("jeppeandersen.vscode-kafka");
         if (extension?.isActive) {
-            const { Context } = await import('../../context');
-            const { SecretsStorage } = await import('../../settings/secretsStorage');
+            const contextModule = await import('../../context');
+            const secretsStorageModule = await import('../../settings/secretsStorage');
             
-            if (Context.current) {
+            if (contextModule.Context.current) {
                 try {
-                    SecretsStorage.getInstance();
+                    secretsStorageModule.SecretsStorage.getInstance();
                     return;
                 } catch (e) {
                 }
@@ -66,16 +66,16 @@ export async function initializeTestEnvironment(): Promise<void> {
         languageModelAccessInformation: {} as any,
     } as unknown as vscode.ExtensionContext;
 
-    const { Context } = await import('../../context');
-    const { SecretsStorage } = await import('../../settings/secretsStorage');
+    const contextModule = await import('../../context');
+    const secretsStorageModule = await import('../../settings/secretsStorage');
     
-    if (!Context.current) {
-        Context.register(mockContext);
+    if (!contextModule.Context.current) {
+        contextModule.Context.register(mockContext);
     }
     
     try {
-        SecretsStorage.getInstance();
+        secretsStorageModule.SecretsStorage.getInstance();
     } catch (e) {
-        SecretsStorage.initialize(secrets, globalState);
+        secretsStorageModule.SecretsStorage.initialize(secrets, globalState);
     }
 }
