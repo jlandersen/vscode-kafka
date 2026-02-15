@@ -126,7 +126,7 @@ export class KafkaExplorer implements KafkaModelProvider, vscode.Disposable, vsc
         if (!clusterItem) {
             return;
         }
-        const topicItem = await (<ClusterItem>clusterItem).findTopictemByName(topicName);
+        const topicItem = await (<ClusterItem>clusterItem).findTopicItemByName(topicName);
         if (!topicItem) {
             return;
         }

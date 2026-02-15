@@ -6,7 +6,7 @@ import { Uri } from "vscode";
 
 export type MessageFormat = "none" | "string" | "json" | "avro" | "protobuf" | "double" | "float" | "integer" | "long" | "short";
 
-export type SerializationdResult = any | Error;
+export type SerializationResult = any | Error;
 
 export class SerializationException extends Error { }
 
@@ -149,7 +149,7 @@ interface Deserializer {
 
 const deserializerRegistry: Map<MessageFormat, Deserializer> = new Map();
 
-export function deserialize(data: Buffer | null, format?: MessageFormat, settings?: SerializationSetting[], baseFileUri?: Uri): SerializationdResult | null {
+export function deserialize(data: Buffer | null, format?: MessageFormat, settings?: SerializationSetting[], baseFileUri?: Uri): SerializationResult | null {
     if (data === null || !format) {
         return data;
     }

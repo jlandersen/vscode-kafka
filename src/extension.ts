@@ -104,7 +104,7 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
 
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.refresh",
-        handleErrors(() => Promise.resolve(explorer.refresh()))));
+        handleErrors(async () => explorer.refresh())));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.createtopic",
         handleErrors((topicGroupItemOrClusterId?: TopicGroupItem | string, topicName?: string) => {

@@ -4,7 +4,7 @@ import * as vscode from "vscode";
 import { ClientAccessor } from ".";
 import { getWorkspaceSettings, InitialConsumerOffset, ClusterSettings } from "../settings";
 import { addQueryParameter, Client, ConnectionOptions } from "./client";
-import { deserialize, MessageFormat, SerializationdResult, SerializationSetting } from "./serialization";
+import { deserialize, MessageFormat, SerializationResult, SerializationSetting } from "./serialization";
 import { KafkaConsumer, MessageHeaders, TopicPartitionOffsets } from "./types";
 
 interface ConsumerOptions extends ConnectionOptions {
@@ -26,16 +26,16 @@ export interface RecordReceivedEvent {
 
 export interface ConsumedRecord {
     topic: string;
-    value: string | Buffer | null | SerializationdResult;
+    value: string | Buffer | null | SerializationResult;
     offset?: string;
     partition?: number;
-    key?: string | Buffer | SerializationdResult;
+    key?: string | Buffer | SerializationResult;
     headers?: MessageHeaders;
 }
 
 export interface ConsumerHeader {
     name: string;
-    value: string | Buffer | null | SerializationdResult
+    value: string | Buffer | null | SerializationResult
 }
 
 export interface ConsumerChangedStatusEvent {
@@ -233,7 +233,6 @@ export class Consumer implements vscode.Disposable {
  */
 export class ConsumerCollection implements vscode.Disposable {
     private consumers: { [id: string]: Consumer } = {};
-    private disposables: vscode.Disposable[] = [];
 
     private onDidChangeCollectionEmitter = new vscode.EventEmitter<ConsumerCollectionChangedEvent>();
     public onDidChangeCollection = this.onDidChangeCollectionEmitter.event;
@@ -373,7 +372,6 @@ export class ConsumerCollection implements vscode.Disposable {
 
     dispose(): void {
         this.disposeConsumers();
-        this.disposables.forEach((d) => d.dispose());
         this.onDidChangeCollectionEmitter.dispose();
     }
 

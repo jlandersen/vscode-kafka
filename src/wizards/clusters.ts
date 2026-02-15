@@ -82,7 +82,7 @@ const CLUSTER_PROVIDER_PAGE = 'cluster-provider-page';
 const CLUSTER_FORM_PAGE = 'cluster-form-page';
 
 function createClusterWizard(providers: ClusterProvider[], clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext): WebviewWizard {
-    const valiationContext = {
+    const validationContext = {
         clusterSettings: clusterSettings,
         wizard: null
     } as ValidationContext;
@@ -121,7 +121,7 @@ function createClusterWizard(providers: ClusterProvider[], clusterSettings: Clus
                 id: CLUSTER_FORM_PAGE,
                 hideWizardPageHeader: true,
                 fields: createFields(),
-                validator: createValidator(valiationContext),
+                validator: createValidator(validationContext),
             }
         ],
         workflowManager: {
@@ -186,7 +186,7 @@ function getSelectedClusterProvider(data: any, providers: ClusterProvider[]): Cl
 }
 
 function createEditClusterForm(cluster: Cluster | undefined, clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext): WebviewWizard {
-    const valiationContext = {
+    const validationContext = {
         clusterSettings: clusterSettings,
         wizard: null,
         currentClusterName: cluster?.name
@@ -201,7 +201,7 @@ function createEditClusterForm(cluster: Cluster | undefined, clusterSettings: Cl
                 id: `cluster-form-page'}`,
                 hideWizardPageHeader: true,
                 fields: createFields(cluster),
-                validator: createValidator(valiationContext)
+                validator: createValidator(validationContext)
             }
         ],
         buttons: [{
@@ -234,7 +234,7 @@ function createEditClusterForm(cluster: Cluster | undefined, clusterSettings: Cl
     };
     const wizard = new WebviewWizard(`${cluster?.id}`, "cluster", context, clusterWizardDef,
         new Map<string, string>());
-    valiationContext.wizard = wizard;
+    validationContext.wizard = wizard;
     return wizard;
 }
 

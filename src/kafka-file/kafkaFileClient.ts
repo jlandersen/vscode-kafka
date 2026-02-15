@@ -22,7 +22,7 @@ class ClusterInfo {
 
     private autoCreateTopicEnabled?: BrokerConfigs.AutoCreateTopicResult;
 
-    constructor(public readonly cluster?: ClusterItem, public readonly error?: any) {
+    constructor(public readonly cluster?: ClusterItem) {
     }
     async getTopics(): Promise<TopicDetail[]> {
         if (!this.filteredTopics) {
@@ -105,8 +105,8 @@ class DataModelTopicProvider implements TopicProvider {
                     return info;
                 }
             }
-            catch (e) {
-                info = new ClusterInfo(undefined, e);
+            catch {
+                info = new ClusterInfo(undefined);
                 this.cache.set(clusterId, info);
                 return info;
             }
@@ -125,8 +125,7 @@ export function startLanguageClient(
     context: vscode.ExtensionContext
 ): vscode.Disposable {
 
-    // Create cache for opened text document and AST
-    const openedDocuments = new Map<string, vscode.TextDocument>();
+    // Create cache for parsed AST
     const kafkaFileDocuments = getLanguageModelCache<KafkaFileDocument>(10, 60, document => languageService.parseKafkaFileDocument(document));
 
     // Create the Kafka file language service.
@@ -197,7 +196,6 @@ export function startLanguageClient(
     // Open / Close document
     context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(e => {
         if (e.languageId === 'kafka') {
-            openedDocuments.set(e.uri.toString(), e);
             diagnostics.triggerValidate(e);
         }
     }));
@@ -210,7 +208,6 @@ export function startLanguageClient(
 
     context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(e => {
         if (e.languageId === 'kafka') {
-            openedDocuments.delete(e.uri.toString());
             kafkaFileDocuments.onDocumentRemoved(e);
             diagnostics.delete(e);
         }

@@ -488,7 +488,7 @@ class KafkaJsClient implements Client {
             }),
         };
 
-        return Promise.resolve(this.metadata.brokers);
+        return this.metadata.brokers;
     }
 
     async getBrokerConfigs(brokerId: string): Promise<ConfigEntry[]> {
@@ -521,7 +521,7 @@ class KafkaJsClient implements Client {
 
     async getConsumerGroupIds(): Promise<string[]> {
         const listGroupsResponse = await (await this.getKafkaAdminClient()).listGroups();
-        return Promise.resolve(listGroupsResponse.groups.map((g) => (g.groupId)));
+        return listGroupsResponse.groups.map((g) => (g.groupId));
     }
 
     async getConsumerGroupDetails(groupId: string): Promise<ConsumerGroup> {
@@ -578,7 +578,7 @@ class KafkaJsClient implements Client {
                 replicationFactor: createTopicRequest.replicationFactor,
             }],
         });
-        return Promise.resolve([]);
+        return [];
     }
 
     async deleteTopic(deleteTopicRequest: DeleteTopicRequest): Promise<void> {

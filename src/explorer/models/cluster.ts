@@ -115,7 +115,7 @@ export class ClusterItem extends NodeBase implements Disposable {
         this.clientAccessor.remove(this.cluster.id);
     }
 
-    async findTopictemByName(topicName: string): Promise<NodeBase | TopicItem | undefined> {
+    async findTopicItemByName(topicName: string): Promise<NodeBase | TopicItem | undefined> {
         const topics = await this.getTopics();
         return topics.find(child => (<TopicItem>child).topic.id === topicName);
     }

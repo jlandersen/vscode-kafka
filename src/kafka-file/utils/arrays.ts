@@ -8,7 +8,7 @@
  * are located before all elements where p(x) is true.
  * @returns the least x for which p(x) is true or array.length if no element fullfills the given function.
  */
- export function findFirst<T>(array: T[], p: (x: T) => boolean): number {
+export function findFirst<T>(array: T[], p: (x: T) => boolean): number {
 	let low = 0, high = array.length;
 	if (high === 0) {
 		return 0; // no children
@@ -22,22 +22,4 @@
 		}
 	}
 	return low;
-}
-
-export function binarySearch<T>(array: T[], key: T, comparator: (op1: T, op2: T) => number): number {
-	let low = 0,
-		high = array.length - 1;
-
-	while (low <= high) {
-		const mid = ((low + high) / 2) | 0;
-		const comp = comparator(array[mid], key);
-		if (comp < 0) {
-			low = mid + 1;
-		} else if (comp > 0) {
-			high = mid - 1;
-		} else {
-			return mid;
-		}
-	}
-	return -(low + 1);
 }
