@@ -158,7 +158,6 @@ export class KafkaExplorer implements KafkaModelProvider, vscode.Disposable, vsc
         }
     }
 
-    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
     public async deleteSelectedItem(item: any, nodes: NodeBase[] | undefined): Promise<any> {
         if (!nodes) {
             if (item instanceof NodeBase) {

@@ -23,7 +23,6 @@ export function registerCompressionCodecs(): void {
     }
 
     try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const snappyCodec = require('kafkajs-snappy');
         CompressionCodecs[CompressionTypes.Snappy] = snappyCodec;
     } catch (error) {

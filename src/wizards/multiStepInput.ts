@@ -257,7 +257,6 @@ export class MultiStepInput {
     }
 }
 
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export function showErrorMessage(description: string, error: any): void {
     const message = `${description}: ${getErrorMessage(error)}`;
     window.showErrorMessage(message);
