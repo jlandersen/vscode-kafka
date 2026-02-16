@@ -16,6 +16,9 @@ on:
           - vsce
           - ovsx
 
+permissions:
+  contents: write
+
 jobs:
   # First, run CI to ensure everything passes
   ci:
@@ -87,6 +90,33 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Build Release Notes
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          awk -v version="$VERSION" '
+            $0 ~ "^## \\[" version "\\] - " { capture = 1 }
+            capture {
+              if ($0 ~ "^## \\[" && $0 !~ "^## \\[" version "\\] - ") {
+                exit
+              }
+              print
+            }
+          ' CHANGELOG.md > RELEASE_NOTES.md
+
+          if ! grep -q "^## \\[$VERSION\\] - " RELEASE_NOTES.md; then
+            echo "No CHANGELOG.md section found for version $VERSION"
+            exit 1
+          fi
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          body_path: RELEASE_NOTES.md
 
       - name: Publish to VSCode Marketplace
         if: ${{ env.PUBLISH_TARGET == 'vsce' || env.PUBLISH_TARGET == 'both' }}
