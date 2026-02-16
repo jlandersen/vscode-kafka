@@ -6,7 +6,7 @@ import { getWorkspaceSettings } from "../../settings";
 import { ErrorItem, getErrorMessage, InformationItem } from "./common";
 import { NodeBase } from "./nodeBase";
 import { ClusterItem } from "./cluster";
-import * as minimatch from "minimatch";
+import { minimatch } from "minimatch";
 
 export class ConsumerGroupsItem extends NodeBase {
     public label = "Consumer Groups";

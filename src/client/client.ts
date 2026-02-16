@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as jks from "jks-js";
-import * as minimatch from "minimatch";
+import { minimatch } from "minimatch";
 import { Admin, ConfigResourceTypes, Consumer as KafkaJsConsumer, ConsumerConfig as KafkaJsConsumerConfig, Kafka, KafkaConfig, Producer as KafkaJsProducer, SASLOptions, ProducerRecord as KafkaJsProducerRecord } from "kafkajs";
 
 import { Disposable } from "vscode";
