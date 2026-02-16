@@ -6,7 +6,7 @@
 	"license": "MIT",
 	"version": "0.23.0",
 	"engines": {
-		"vscode": "^1.75.0"
+		"vscode": "^1.101.0"
 	},
 	"repository": {
 		"type": "git",
@@ -628,7 +628,7 @@
 		"pretest:integration": "npm run test-compile"
 	},
 	"dependencies": {
-		"@faker-js/faker": "^9.3.0",
+		"@faker-js/faker": "^10.3.0",
 		"@redhat-developer/vscode-wizard": "^0.3.1",
 		"ajv": "^8.17.1",
 		"avsc": "^5.7.9",
