@@ -655,7 +655,7 @@
 		"@vscode/vsce": "^2.32.0",
 		"copy-webpack-plugin": "^12.0.2",
 		"eslint": "^8.57.1",
-		"mocha": "^10.8.2",
+		"mocha": "^11.7.5",
 		"testcontainers": "^11.11.0",
 		"ts-loader": "^9.5.1",
 		"typescript": "^5.7.2",
