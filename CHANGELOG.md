@@ -2,6 +2,8 @@
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [Unreleased]
+
+## [0.24.0] - 2026-02-16
 ### Added
 - **Protobuf Value Format for Producer/Consumer Blocks**: Added `value-format: protobuf(fully.qualified.Message)` with `value-schema` as `.proto` `file(...)` support for `.kafka` producer and consumer blocks, including protobuf serialization/deserialization and schema-aware diagnostics. See [#236](https://github.com/jlandersen/vscode-kafka/issues/236).
 
