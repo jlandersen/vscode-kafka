@@ -3,6 +3,9 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **LZ4 Compression Support**: Added LZ4 compression codec so that topics using LZ4 compression can be produced to and consumed from. Uses a built-in pure JavaScript implementation with no external dependencies. See [#254](https://github.com/jlandersen/vscode-kafka/issues/254).
+
 ## [0.24.0] - 2026-02-16
 ### Added
 - **Protobuf Value Format for Producer/Consumer Blocks**: Added `value-format: protobuf(fully.qualified.Message)` with `value-schema` as `.proto` `file(...)` support for `.kafka` producer and consumer blocks, including protobuf serialization/deserialization and schema-aware diagnostics. See [#236](https://github.com/jlandersen/vscode-kafka/issues/236).
