@@ -4,7 +4,7 @@
 	"description": "Interact with Apache Kafka® directly in VS Code",
 	"publisher": "jeppeandersen",
 	"license": "MIT",
-	"version": "0.24.0",
+	"version": "0.25.0",
 	"engines": {
 		"vscode": "^1.101.0"
 	},

@@ -1,7 +1,7 @@
 # Change Log
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
-## [Unreleased]
+## [0.25.0] - 2026-02-26
 
 ### Added
 - **LZ4 Compression Support**: Added LZ4 compression codec so that topics using LZ4 compression can be produced to and consumed from. Uses a built-in pure JavaScript implementation with no external dependencies. See [#254](https://github.com/jlandersen/vscode-kafka/issues/254).
