@@ -225,6 +225,9 @@ export function decompressBlock(src: Buffer, uncompressedSize: number): Buffer {
         if (litLen === 15) {
             let s: number;
             do {
+                if (srcPos >= srcLen) {
+                    throw new Error("LZ4 decompression error: truncated literal length");
+                }
                 s = src[srcPos++];
                 litLen += s;
             } while (s === 255);
@@ -232,6 +235,12 @@ export function decompressBlock(src: Buffer, uncompressedSize: number): Buffer {
 
         // Copy literals
         if (litLen > 0) {
+            if (srcPos + litLen > srcLen) {
+                throw new Error("LZ4 decompression error: truncated literals");
+            }
+            if (dstPos + litLen > uncompressedSize) {
+                throw new Error("LZ4 decompression error: output overflow");
+            }
             src.copy(dst, dstPos, srcPos, srcPos + litLen);
             srcPos += litLen;
             dstPos += litLen;
@@ -243,10 +252,16 @@ export function decompressBlock(src: Buffer, uncompressedSize: number): Buffer {
         }
 
         // Decode offset
+        if (srcPos + 1 >= srcLen) {
+            throw new Error("LZ4 decompression error: truncated offset");
+        }
         const offset = src[srcPos] | (src[srcPos + 1] << 8);
         srcPos += 2;
         if (offset === 0) {
             throw new Error("LZ4 decompression error: invalid offset 0");
+        }
+        if (offset > dstPos) {
+            throw new Error(`LZ4 decompression error: invalid match offset ${offset}`);
         }
 
         // Decode match length
@@ -254,9 +269,15 @@ export function decompressBlock(src: Buffer, uncompressedSize: number): Buffer {
         if ((token & 0x0F) === 15) {
             let s: number;
             do {
+                if (srcPos >= srcLen) {
+                    throw new Error("LZ4 decompression error: truncated match length");
+                }
                 s = src[srcPos++];
                 matchLen += s;
             } while (s === 255);
+        }
+        if (dstPos + matchLen > uncompressedSize) {
+            throw new Error("LZ4 decompression error: output overflow");
         }
 
         // Copy match (may overlap)
@@ -372,14 +393,22 @@ export function compressFrame(input: Buffer): Buffer {
  */
 export function decompressFrame(input: Buffer): Buffer {
     let pos = 0;
+    const inputLen = input.length;
+    const ensureBytes = (needed: number, context: string): void => {
+        if (pos + needed > inputLen) {
+            throw new Error(`Truncated LZ4 frame: ${context}`);
+        }
+    };
 
     // Magic number
+    ensureBytes(4, "missing magic");
     const magic = input.readUInt32LE(pos); pos += 4;
     if (magic !== LZ4_FRAME_MAGIC) {
         throw new Error(`Invalid LZ4 frame magic: 0x${magic.toString(16)}`);
     }
 
     // Frame descriptor
+    ensureBytes(2, "missing frame descriptor");
     const flg = input[pos++];
     const bd = input[pos++];
 
@@ -394,19 +423,24 @@ export function decompressFrame(input: Buffer): Buffer {
 
     let contentSize = -1;
     if (contentSizeFlag) {
+        ensureBytes(8, "missing content size");
         const lo = input.readUInt32LE(pos); pos += 4;
         const hi = input.readUInt32LE(pos); pos += 4;
         contentSize = lo + hi * 0x100000000;
     }
 
     // Dictionary ID: skip if present
-    if (flg & 1) { pos += 4; }
+    if (flg & 1) {
+        ensureBytes(4, "missing dictionary id");
+        pos += 4;
+    }
 
     // Validate header checksum: xxHash32 of descriptor bytes (FLG..end), second byte
     const descriptorStart = 4; // right after magic
     const descriptorEnd = pos;
     const descriptorBytes = input.subarray(descriptorStart, descriptorEnd);
     const expectedHC = (xxHash32(descriptorBytes, 0) >> 8) & 0xFF;
+    ensureBytes(1, "missing header checksum");
     const actualHC = input[pos];
     if (actualHC !== expectedHC) {
         throw new Error(`LZ4 header checksum mismatch: expected 0x${expectedHC.toString(16)}, got 0x${actualHC.toString(16)}`);
@@ -423,7 +457,8 @@ export function decompressFrame(input: Buffer): Buffer {
     const outputChunks: Buffer[] = [];
     let totalDecompressed = 0;
 
-    while (pos < input.length) {
+    while (true) {
+        ensureBytes(4, "missing EndMark or block header");
         const blockSizeRaw = input.readUInt32LE(pos); pos += 4;
 
         // EndMark
@@ -433,11 +468,16 @@ export function decompressFrame(input: Buffer): Buffer {
 
         const isUncompressed = (blockSizeRaw & 0x80000000) !== 0;
         const blockDataSize = blockSizeRaw & 0x7FFFFFFF;
+        if (blockDataSize > blockMaxSize) {
+            throw new Error(`Invalid LZ4 block size: ${blockDataSize}`);
+        }
+        ensureBytes(blockDataSize, "truncated block data");
 
         const blockData = input.subarray(pos, pos + blockDataSize);
         pos += blockDataSize;
 
         if (blockChecksum) {
+            ensureBytes(4, "truncated block checksum");
             pos += 4; // skip block checksum
         }
 
@@ -450,21 +490,37 @@ export function decompressFrame(input: Buffer): Buffer {
             const maxUncompressed = contentSize >= 0 && contentSize <= blockMaxSize
                 ? contentSize - totalDecompressed
                 : blockMaxSize;
+            if (maxUncompressed < 0) {
+                throw new Error("Invalid LZ4 frame content size");
+            }
             const decompressed = decompressBlockSafe(blockData, maxUncompressed);
             outputChunks.push(decompressed);
             totalDecompressed += decompressed.length;
         }
     }
 
+    if (contentSize >= 0 && totalDecompressed !== contentSize) {
+        throw new Error(`LZ4 content size mismatch: expected ${contentSize} bytes, got ${totalDecompressed}`);
+    }
+
     // Content checksum verification
-    if (contentChecksumFlag && pos + 4 <= input.length) {
+    if (contentChecksumFlag) {
+        ensureBytes(4, "missing content checksum");
         const expectedChecksum = input.readUInt32LE(pos);
+        pos += 4;
         const result = Buffer.concat(outputChunks);
         const actualChecksum = xxHash32(result, 0) >>> 0;
         if (actualChecksum !== expectedChecksum) {
             throw new Error(`LZ4 content checksum mismatch: expected 0x${expectedChecksum.toString(16)}, got 0x${actualChecksum.toString(16)}`);
         }
+        if (pos !== inputLen) {
+            throw new Error("Invalid LZ4 frame: trailing bytes after content checksum");
+        }
         return result;
+    }
+
+    if (pos !== inputLen) {
+        throw new Error("Invalid LZ4 frame: trailing bytes after EndMark");
     }
 
     return Buffer.concat(outputChunks);
@@ -488,12 +544,21 @@ function decompressBlockSafe(src: Buffer, maxSize: number): Buffer {
         if (litLen === 15) {
             let s: number;
             do {
+                if (srcPos >= srcLen) {
+                    throw new Error("LZ4 decompression error: truncated literal length");
+                }
                 s = src[srcPos++];
                 litLen += s;
             } while (s === 255);
         }
 
         if (litLen > 0) {
+            if (srcPos + litLen > srcLen) {
+                throw new Error("LZ4 decompression error: truncated literals");
+            }
+            if (dstPos + litLen > maxSize) {
+                throw new Error("LZ4 decompression error: output overflow");
+            }
             src.copy(dst, dstPos, srcPos, srcPos + litLen);
             srcPos += litLen;
             dstPos += litLen;
@@ -504,10 +569,16 @@ function decompressBlockSafe(src: Buffer, maxSize: number): Buffer {
         }
 
         // Offset
+        if (srcPos + 1 >= srcLen) {
+            throw new Error("LZ4 decompression error: truncated offset");
+        }
         const offset = src[srcPos] | (src[srcPos + 1] << 8);
         srcPos += 2;
         if (offset === 0) {
             throw new Error("LZ4 decompression error: invalid offset 0");
+        }
+        if (offset > dstPos) {
+            throw new Error(`LZ4 decompression error: invalid match offset ${offset}`);
         }
 
         // Match length
@@ -515,9 +586,15 @@ function decompressBlockSafe(src: Buffer, maxSize: number): Buffer {
         if ((token & 0x0F) === 15) {
             let s: number;
             do {
+                if (srcPos >= srcLen) {
+                    throw new Error("LZ4 decompression error: truncated match length");
+                }
                 s = src[srcPos++];
                 matchLen += s;
             } while (s === 255);
+        }
+        if (dstPos + matchLen > maxSize) {
+            throw new Error("LZ4 decompression error: output overflow");
         }
 
         let matchPos = dstPos - offset;

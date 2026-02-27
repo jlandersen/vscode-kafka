@@ -177,6 +177,12 @@ suite("LZ4 Test Suite", () => {
             const decompressed = decompressBlock(compressed, input.length);
             assert.ok(input.equals(decompressed));
         });
+
+        test("invalid match offset throws", () => {
+            // token=0 (match only), offset=5 while dstPos=0
+            const malformed = Buffer.from([0x00, 0x05, 0x00]);
+            assert.throws(() => decompressBlock(malformed, 4), /invalid match offset/);
+        });
     });
 
     suite("LZ4 Frame Format", () => {
@@ -219,6 +225,27 @@ suite("LZ4 Test Suite", () => {
             const bad = Buffer.alloc(20);
             bad.writeUInt32LE(0xDEADBEEF, 0);
             assert.throws(() => decompressFrame(bad), /Invalid LZ4 frame magic/);
+        });
+
+        test("missing EndMark throws", () => {
+            const frame = compressFrame(Buffer.from("hello"));
+            const truncated = frame.subarray(0, frame.length - 8);
+            assert.throws(() => decompressFrame(truncated), /missing EndMark or block header/);
+        });
+
+        test("truncated content checksum throws when flag is set", () => {
+            const frame = compressFrame(Buffer.from("hello"));
+            const truncated = frame.subarray(0, frame.length - 1);
+            assert.throws(() => decompressFrame(truncated), /missing content checksum/);
+        });
+
+        test("oversized block length throws", () => {
+            const frame = Buffer.from(compressFrame(Buffer.from("hello world")));
+            const blockSizePos = 15; // magic(4) + FLG(1) + BD(1) + contentSize(8) + HC(1)
+            const current = frame.readUInt32LE(blockSizePos);
+            const oversized = (((current & 0x7FFFFFFF) + 10) | (current & 0x80000000)) >>> 0;
+            frame.writeUInt32LE(oversized, blockSizePos);
+            assert.throws(() => decompressFrame(frame), /truncated block data|Invalid LZ4 block size/);
         });
 
         test("content checksum is validated", () => {
