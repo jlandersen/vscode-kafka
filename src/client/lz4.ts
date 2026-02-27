@@ -417,6 +417,7 @@ export function decompressFrame(input: Buffer): Buffer {
         throw new Error(`Unsupported LZ4 frame version: ${version}`);
     }
 
+    const blockIndependence = (flg >> 5) & 1;
     const blockChecksum = (flg >> 4) & 1;
     const contentSizeFlag = (flg >> 3) & 1;
     const contentChecksumFlag = (flg >> 2) & 1;
@@ -453,6 +454,10 @@ export function decompressFrame(input: Buffer): Buffer {
         throw new Error(`Invalid LZ4 block max size code: ${blockMaxSizeCode}`);
     }
 
+    if (!blockIndependence) {
+        throw new Error("LZ4 block-dependent (linked) frames are not supported");
+    }
+
     // Decode blocks
     const outputChunks: Buffer[] = [];
     let totalDecompressed = 0;
@@ -478,7 +483,12 @@ export function decompressFrame(input: Buffer): Buffer {
 
         if (blockChecksum) {
             ensureBytes(4, "truncated block checksum");
-            pos += 4; // skip block checksum
+            const expectedBlockChecksum = input.readUInt32LE(pos);
+            const actualBlockChecksum = xxHash32(blockData, 0) >>> 0;
+            if (actualBlockChecksum !== expectedBlockChecksum) {
+                throw new Error(`LZ4 block checksum mismatch: expected 0x${expectedBlockChecksum.toString(16)}, got 0x${actualBlockChecksum.toString(16)}`);
+            }
+            pos += 4;
         }
 
         if (isUncompressed) {

@@ -585,6 +585,22 @@ suite("LZ4 Test Suite", () => {
             assert.throws(() => decompressFrame(frame), /header checksum mismatch/);
         });
 
+        test("corrupted block checksum throws", () => {
+            // Use a reference vector that has block checksums enabled
+            const v = BLOCK_CHECKSUM_VECTORS[0];
+            const frame = Buffer.from(v.frame);
+
+            // Find the block checksum (4 bytes after the block data, before EndMark).
+            // Frame layout: magic(4) + FLG(1) + BD(1) + HC(1) = 7 bytes header,
+            // then block header (4 bytes) + block data + block checksum (4 bytes).
+            // Corrupt the block checksum by flipping bits in the last 4 bytes
+            // before the EndMark+content checksum (last 8 bytes).
+            const blockChecksumEnd = frame.length - 8;
+            frame[blockChecksumEnd - 1] ^= 0xFF;
+
+            assert.throws(() => decompressFrame(frame), /block checksum mismatch/);
+        });
+
         // LZ4 frame spec section 3.1: FLG bit 5 controls block independence.
         // When cleared, blocks may reference data from previous blocks' output
         // (block dependency / linked mode). frametest.c exercises this via
@@ -592,18 +608,19 @@ suite("LZ4 Test Suite", () => {
         // multi-block frames will produce incorrect output because
         // decompressBlockSafe doesn't maintain a cross-block dictionary.
         // Kafka brokers typically use independent blocks, so this is acceptable.
-        test("block-dependent frames (-BD) are a known limitation", () => {
-            // Block-dependent (linked) frames use cross-block references.
-            // Our decoder doesn't maintain a cross-block dictionary, so multi-block
-            // BD frames will fail. Single-block BD frames work since there's nothing
-            // to link.
-            //
-            // This test documents the limitation rather than asserting success.
+        test("block-dependent frames (-BD) are rejected", () => {
             const input = Buffer.from("Hello, Kafka!");
-            const frame = compressFrame(input);
-            const decompressed = decompressFrame(frame);
-            assert.ok(input.equals(decompressed),
-                "Single-block frames work regardless of dependency flag");
+            const frame = Buffer.from(compressFrame(input));
+
+            // Clear block independence flag (bit 5 of FLG at position 4)
+            frame[4] = frame[4] & ~0x20;
+
+            // Fix header checksum
+            const descriptorEnd = 14;
+            const descriptorBytes = frame.subarray(4, descriptorEnd);
+            frame[descriptorEnd] = (xxHash32(descriptorBytes, 0) >> 8) & 0xFF;
+
+            assert.throws(() => decompressFrame(frame), /block-dependent.*not supported/);
         });
     });
 });
