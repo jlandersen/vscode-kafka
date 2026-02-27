@@ -3,6 +3,8 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## Unreleased
 
+## [0.25.1] - 2026-02-27
+
 ### Fixed
 - Validate LZ4 block checksums instead of silently skipping them.
 - Reject LZ4 block-dependent (linked) frames instead of silently producing corrupt output.
