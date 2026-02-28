@@ -3,6 +3,8 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## Unreleased
 
+## [0.26.0] - 2026-02-28
+
 ### Added
 - Add new consumer Message Viewer UI with search, filters, histogram, and export support.
 
