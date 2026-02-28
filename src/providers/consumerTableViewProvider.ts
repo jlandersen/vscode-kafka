@@ -1221,7 +1221,12 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                     break;
                 }
                 case "ViewerState": {
-                    state = { ...state, ...message.data };
+                    state = {
+                        ...state,
+                        ...message.data,
+                        timeRangeStartMs: message.data.timeRangeStartMs,
+                        timeRangeEndMs: message.data.timeRangeEndMs
+                    };
                     if (searchEl.value !== state.searchQuery) {
                         searchEl.value = state.searchQuery || "";
                     }

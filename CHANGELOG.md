@@ -17,6 +17,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 - Add start/stop lifecycle controls to the Message Viewer so consumers can be closed and restarted from the viewer UI.
 - Reseed offsets when consume mode changes (`latest`, `from beginning`, `from timestamp`) so mode/partition updates take effect immediately.
 - Reapply updated `.kafka` `CONSUMER` block settings when starting an already-running consumer group from code lens.
+- Reset histogram selection when clearing the Message Viewer time-range filter.
 
 ## [0.25.1] - 2026-02-27
 
