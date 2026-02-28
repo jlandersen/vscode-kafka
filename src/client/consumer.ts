@@ -58,6 +58,9 @@ export interface ConsumerCollectionChangedEvent {
 }
 
 export class Consumer implements vscode.Disposable {
+    private static readonly seekRetryAttempts = 20;
+    private static readonly seekRetryDelayMs = 50;
+
     private kafkaClient?: Client;
     private consumer?: KafkaConsumer;
     private onDidReceiveMessageEmitter = new vscode.EventEmitter<RecordReceivedEvent>();
@@ -159,9 +162,35 @@ export class Consumer implements vscode.Disposable {
                 if (!offset) {
                     offset = await this.getOffsetToSeek(topicOffsets, fromOffset, partition);
                 }
-                this.consumer.seek({ topic, partition, offset });
+                await this.seekWithRetry(topic, partition, offset);
             }
         }
+    }
+
+    private async seekWithRetry(topic: string, partition: number, offset: string): Promise<void> {
+        for (let attempt = 1; attempt <= Consumer.seekRetryAttempts; attempt++) {
+            try {
+                this.consumer?.seek({ topic, partition, offset });
+                return;
+            } catch (error) {
+                if (!this.isConsumerGroupNotInitializedError(error) || attempt === Consumer.seekRetryAttempts) {
+                    throw error;
+                }
+            }
+
+            await this.delay(Consumer.seekRetryDelayMs);
+        }
+    }
+
+    private isConsumerGroupNotInitializedError(error: unknown): boolean {
+        if (!(error instanceof Error)) {
+            return false;
+        }
+        return error.message.includes("Consumer group was not initialized");
+    }
+
+    private delay(ms: number): Promise<void> {
+        return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
     private async getPartitions(topic: string, partitions?: number[]): Promise<number[]> {

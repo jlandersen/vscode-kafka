@@ -18,6 +18,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 - Reseed offsets when consume mode changes (`latest`, `from beginning`, `from timestamp`) so mode/partition updates take effect immediately.
 - Reapply updated `.kafka` `CONSUMER` block settings when starting an already-running consumer group from code lens.
 - Reset histogram selection when clearing the Message Viewer time-range filter.
+- Retry initial consumer seek operations until the KafkaJS consumer group is initialized.
 
 ## [0.25.1] - 2026-02-27
 
