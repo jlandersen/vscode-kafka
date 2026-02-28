@@ -23,6 +23,8 @@ import {
     ProduceRecordWithInputCommandHandler,
     SaveClusterCommandHandler,
     RefreshSchemaRegistryCommandHandler,
+    RetrySchemaRegistryCommandHandler,
+    OpenSchemaRegistrySettingsCommandHandler,
     OpenSchemaRegistryVersionCommandHandler,
     CompareSchemaRegistryVersionsCommandHandler,
     SelectClusterCommandHandler,
@@ -36,7 +38,7 @@ import { markdownPreviewProvider } from "./docs/markdownPreviewProvider";
 import { BrokerItem, KafkaExplorer, TopicItem } from "./explorer";
 import { ClusterItem } from "./explorer/models/cluster";
 import { NodeBase } from "./explorer/models/nodeBase";
-import { SchemaSubjectNode, SchemaVersionNode } from "./explorer/models/schemaRegistry";
+import { SchemaRegistryErrorItem, SchemaSubjectNode, SchemaVersionNode } from "./explorer/models/schemaRegistry";
 import { TopicGroupItem } from "./explorer/models/topics";
 import { KafkaExtensionParticipant } from "./kafka-extensions/api";
 import { getDefaultKafkaExtensionParticipant, refreshClusterProviderDefinitions } from "./kafka-extensions/registry";
@@ -116,6 +118,8 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     const dumpClusterMetadataCommandHandler = new DumpClusterMetadataCommandHandler(clientAccessor, outputChannelProvider);
     const dumpBrokerMetadataCommandHandler = new DumpBrokerMetadataCommandHandler(clientAccessor, outputChannelProvider);
     const refreshSchemaRegistryCommandHandler = new RefreshSchemaRegistryCommandHandler(explorer);
+    const retrySchemaRegistryCommandHandler = new RetrySchemaRegistryCommandHandler(explorer);
+    const openSchemaRegistrySettingsCommandHandler = new OpenSchemaRegistrySettingsCommandHandler();
     const openSchemaRegistryVersionCommandHandler = new OpenSchemaRegistryVersionCommandHandler(schemaRegistryDocumentProvider);
     const compareSchemaRegistryVersionsCommandHandler = new CompareSchemaRegistryVersionsCommandHandler(
         schemaRegistryDocumentProvider,
@@ -163,6 +167,12 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     context.subscriptions.push(vscode.commands.registerCommand(
         RefreshSchemaRegistryCommandHandler.commandId,
         handleErrors((item?: NodeBase) => refreshSchemaRegistryCommandHandler.execute(item))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        RetrySchemaRegistryCommandHandler.commandId,
+        handleErrors((item?: SchemaRegistryErrorItem) => retrySchemaRegistryCommandHandler.execute(item))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        OpenSchemaRegistrySettingsCommandHandler.commandId,
+        handleErrors((item?: SchemaRegistryErrorItem) => openSchemaRegistrySettingsCommandHandler.execute(item))));
     context.subscriptions.push(vscode.commands.registerCommand(
         OpenSchemaRegistryVersionCommandHandler.commandId,
         handleErrors((item?: SchemaVersionNode) => openSchemaRegistryVersionCommandHandler.execute(item))));

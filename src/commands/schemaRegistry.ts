@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 
 import { KafkaExplorer } from "../explorer";
 import { NodeBase } from "../explorer/models/nodeBase";
-import { SchemaSubjectNode, SchemaVersionNode } from "../explorer/models/schemaRegistry";
+import { SchemaRegistryErrorItem, SchemaSubjectNode, SchemaVersionNode } from "../explorer/models/schemaRegistry";
 import { getSchemaRegistryErrorMessage, SchemaRegistryProvider } from "../schema-registry";
 import { getSchemaDocumentLanguage, SchemaRegistryDocumentProvider } from "../schema-registry/documentProvider";
 
@@ -14,6 +14,26 @@ export class RefreshSchemaRegistryCommandHandler {
 
     public async execute(item?: NodeBase): Promise<void> {
         this.explorer.refreshItem(item);
+    }
+}
+
+export class RetrySchemaRegistryCommandHandler {
+    public static readonly commandId = "vscode-kafka.schemaRegistry.retry";
+
+    constructor(private readonly explorer: KafkaExplorer) {
+    }
+
+    public async execute(item?: SchemaRegistryErrorItem): Promise<void> {
+        this.explorer.refreshItem(item?.refreshTarget ?? item?.getParent());
+    }
+}
+
+export class OpenSchemaRegistrySettingsCommandHandler {
+    public static readonly commandId = "vscode-kafka.schemaRegistry.openSettings";
+
+    public async execute(item?: SchemaRegistryErrorItem): Promise<void> {
+        const query = item?.settingsQuery || "kafka.schemaRegistries";
+        await vscode.commands.executeCommand("workbench.action.openSettings", query);
     }
 }
 
@@ -128,6 +148,8 @@ export class CompareSchemaRegistryVersionsCommandHandler {
 
 export type SchemaRegistryCommandHandler =
     | RefreshSchemaRegistryCommandHandler
+    | RetrySchemaRegistryCommandHandler
+    | OpenSchemaRegistrySettingsCommandHandler
     | OpenSchemaRegistryVersionCommandHandler
     | CompareSchemaRegistryVersionsCommandHandler;
 

@@ -4,7 +4,9 @@ import * as vscode from "vscode";
 import {
     CompareSchemaRegistryVersionsCommandHandler,
     createSchemaRegistryVersionNodeForTests,
-    OpenSchemaRegistryVersionCommandHandler
+    OpenSchemaRegistrySettingsCommandHandler,
+    OpenSchemaRegistryVersionCommandHandler,
+    RetrySchemaRegistryCommandHandler
 } from "../../../commands/schemaRegistry";
 import { SchemaRegistryDocumentProvider, SchemaRegistryProvider, SchemaVersionDetail } from "../../../schema-registry";
 
@@ -174,6 +176,43 @@ suite("Schema Registry Commands Test Suite", () => {
             assert.strictEqual(errorMessage, "open failed");
         } finally {
             (vscode.window as any).showErrorMessage = originalShowErrorMessage;
+        }
+    });
+
+    test("retry refreshes error target item", async () => {
+        const refreshed: unknown[] = [];
+        const handler = new RetrySchemaRegistryCommandHandler({
+            refreshItem: (item?: unknown) => refreshed.push(item)
+        } as any);
+        const refreshTarget = { label: "registry-node" };
+
+        await handler.execute({
+            refreshTarget,
+            getParent: () => undefined
+        } as any);
+
+        assert.strictEqual(refreshed.length, 1);
+        assert.strictEqual(refreshed[0], refreshTarget);
+    });
+
+    test("open settings uses item query or default query", async () => {
+        const originalExecuteCommand = vscode.commands.executeCommand;
+        const calls: unknown[][] = [];
+
+        try {
+            (vscode.commands as any).executeCommand = async (...args: unknown[]) => {
+                calls.push(args);
+                return undefined;
+            };
+
+            const handler = new OpenSchemaRegistrySettingsCommandHandler();
+            await handler.execute({ settingsQuery: "kafka.schemaRegistries" } as any);
+            await handler.execute(undefined);
+
+            assert.deepStrictEqual(calls[0], ["workbench.action.openSettings", "kafka.schemaRegistries"]);
+            assert.deepStrictEqual(calls[1], ["workbench.action.openSettings", "kafka.schemaRegistries"]);
+        } finally {
+            (vscode.commands as any).executeCommand = originalExecuteCommand;
         }
     });
 });

@@ -478,6 +478,20 @@
 				}
 			},
 			{
+				"command": "vscode-kafka.schemaRegistry.retry",
+				"title": "Retry Schema Registry",
+				"category": "Kafka",
+				"icon": {
+					"light": "images/light/refresh.svg",
+					"dark": "images/dark/refresh.svg"
+				}
+			},
+			{
+				"command": "vscode-kafka.schemaRegistry.openSettings",
+				"title": "Open Schema Registry Settings",
+				"category": "Kafka"
+			},
+			{
 				"command": "vscode-kafka.schemaRegistry.openVersion",
 				"title": "Open Schema Version",
 				"category": "Kafka"
@@ -596,6 +610,16 @@
 					"command": "vscode-kafka.schemaRegistry.refresh",
 					"when": "view == kafkaExplorer && viewItem =~ /^schemaregistries$|^schemaregistry$|^schemasubject$/ && !listMultiSelection",
 					"group": "inline"
+				},
+				{
+					"command": "vscode-kafka.schemaRegistry.retry",
+					"when": "view == kafkaExplorer && viewItem == schemaregistryerror && !listMultiSelection",
+					"group": "inline"
+				},
+				{
+					"command": "vscode-kafka.schemaRegistry.openSettings",
+					"when": "view == kafkaExplorer && viewItem == schemaregistryerror && !listMultiSelection",
+					"group": "1_kafka"
 				},
 				{
 					"command": "vscode-kafka.schemaRegistry.openVersion",

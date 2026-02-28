@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 import { ClusterItem } from "./cluster";
-import { ErrorItem, getErrorMessage, InformationItem } from "./common";
+import { ErrorItem, InformationItem } from "./common";
 import { NodeBase } from "./nodeBase";
 import { TopicItem } from "./topics";
 import {
@@ -16,6 +16,30 @@ import {
 } from "../../schema-registry";
 
 const TOPIC_NAME_STRATEGY = "TopicNameStrategy";
+const SCHEMA_REGISTRY_SETTINGS_QUERY = "kafka.schemaRegistries";
+
+export class SchemaRegistryErrorItem extends ErrorItem {
+    public contextValue = "schemaregistryerror";
+
+    constructor(
+        message: string,
+        parent: NodeBase,
+        public readonly refreshTarget: NodeBase,
+        public readonly settingsQuery: string = SCHEMA_REGISTRY_SETTINGS_QUERY
+    ) {
+        super(message, parent);
+    }
+
+    public getTreeItem(): vscode.TreeItem {
+        const item = super.getTreeItem();
+        item.command = {
+            command: "vscode-kafka.schemaRegistry.retry",
+            title: "Retry Schema Registry",
+            arguments: [this]
+        };
+        return item;
+    }
+}
 
 export class SchemaRegistriesItem extends NodeBase {
     public label = "Schema Registries";
@@ -64,7 +88,7 @@ export class SchemaRegistryNode extends NodeBase {
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .map(subject => new SchemaSubjectNode(this.registryRef, subject, this.provider, this));
         } catch (error) {
-            return [new ErrorItem(`Failed to load subjects: ${getSchemaRegistryErrorMessage(error)}`, this)];
+            return [createSchemaRegistryErrorItem("Failed to load subjects", error, this)];
         }
     }
 
@@ -98,7 +122,7 @@ export class SchemaSubjectNode extends NodeBase {
                 .sort((a, b) => a.version - b.version)
                 .map(version => new SchemaVersionNode(this.registryRef, version, this.provider, this));
         } catch (error) {
-            return [new ErrorItem(`Failed to load versions: ${getSchemaRegistryErrorMessage(error)}`, this)];
+            return [createSchemaRegistryErrorItem("Failed to load versions", error, this)];
         }
     }
 }
@@ -155,7 +179,7 @@ export class TopicSchemaSubjectsItem extends NodeBase {
             }
             return subjects;
         } catch (error) {
-            return [new ErrorItem(`Failed to discover subjects: ${getErrorMessage(error)}`, this)];
+            return [createSchemaRegistryErrorItem("Failed to discover subjects", error, this)];
         }
     }
 
@@ -197,3 +221,6 @@ export class TopicSchemaSubjectsItem extends NodeBase {
         super.clearChildrenCache();
     }
 }
+
+const createSchemaRegistryErrorItem = (prefix: string, error: unknown, refreshTarget: NodeBase): SchemaRegistryErrorItem =>
+    new SchemaRegistryErrorItem(`${prefix}: ${getSchemaRegistryErrorMessage(error)}`, refreshTarget, refreshTarget);

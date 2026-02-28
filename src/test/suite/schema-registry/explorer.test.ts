@@ -1,8 +1,8 @@
 import * as assert from "assert";
 
 import { Context } from "../../../context";
-import { InformationItem, ErrorItem } from "../../../explorer/models/common";
-import { SchemaRegistriesItem, SchemaRegistryNode, TopicSchemaSubjectsItem } from "../../../explorer/models/schemaRegistry";
+import { InformationItem } from "../../../explorer/models/common";
+import { SchemaRegistriesItem, SchemaRegistryErrorItem, SchemaRegistryNode, TopicSchemaSubjectsItem } from "../../../explorer/models/schemaRegistry";
 import { SchemaRegistryError, SchemaRegistryProviderFactory, SchemaRegistryRef, SchemaRegistryProvider } from "../../../schema-registry";
 
 suite("Schema Registry Explorer Test Suite", () => {
@@ -84,8 +84,12 @@ suite("Schema Registry Explorer Test Suite", () => {
         );
         const errorChildren = await failingNode.getChildren();
         assert.strictEqual(errorChildren.length, 1);
-        assert.ok(errorChildren[0] instanceof ErrorItem);
+        assert.ok(errorChildren[0] instanceof SchemaRegistryErrorItem);
         assert.strictEqual(errorChildren[0].label, "Failed to load subjects: Schema Registry authentication failed. Check username/password.");
+
+        const treeItem = errorChildren[0].getTreeItem();
+        assert.strictEqual(treeItem.contextValue, "schemaregistryerror");
+        assert.strictEqual(treeItem.command?.command, "vscode-kafka.schemaRegistry.retry");
     });
 
     test("topic schema subjects item discovers deterministic topic subjects only", async () => {
