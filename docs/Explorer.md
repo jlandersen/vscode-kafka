@@ -52,6 +52,16 @@ Example:
 ]
 ```
 
+### Topic Subject Discovery by Naming Strategy
+
+Topic subject discovery under `Topics -> <topic> -> Schema Subjects` depends on the configured schema naming strategy:
+
+- `TopicNameStrategy`: deterministic lookup of `<topic>-key` and `<topic>-value`.
+- `TopicRecordNameStrategy`: deterministic lookup of subjects prefixed with `<topic>-`.
+- `RecordNameStrategy`: best-effort heuristic matching only.
+  - A single heuristic match is shown.
+  - Multiple matches are treated as ambiguous and shown as an informational message instead of listing potentially incorrect subjects.
+
 ## Actions
 
 ### Copy Label

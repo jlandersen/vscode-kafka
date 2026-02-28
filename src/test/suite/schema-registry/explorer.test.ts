@@ -114,27 +114,113 @@ suite("Schema Registry Explorer Test Suite", () => {
         assert.strictEqual(await discoverableItem.hasDiscoverableSubjects(), true);
         const discoverableChildren = await discoverableItem.getChildren();
         assert.deepStrictEqual(discoverableChildren.map(child => child.label), ["orders-key", "orders-value"]);
+    });
 
-        const nonDeterministicFactory: SchemaRegistryProviderFactory = {
-            getRegistryRef: async () => ({
-                ...createRegistryRef(),
-                connection: {
-                    ...createRegistryRef().connection,
-                    namingStrategy: "RecordNameStrategy"
-                }
-            }),
-            getProvider: () => createProvider(["orders-value", "orders-key"], [1], [])
-        };
-        const nonDeterministicItem = new TopicSchemaSubjectsItem(topicItem, nonDeterministicFactory);
-        assert.strictEqual(await nonDeterministicItem.hasDiscoverableSubjects(), false);
-        const nonDeterministicChildren = await nonDeterministicItem.getChildren();
-        assert.strictEqual(nonDeterministicChildren.length, 1);
-        assert.ok(nonDeterministicChildren[0] instanceof InformationItem);
-        assert.strictEqual(nonDeterministicChildren[0].label, "No discoverable subjects");
+    test("topic schema subjects item discovers topic-prefixed subjects for TopicRecordNameStrategy", async () => {
+        const topicItem = createTopicItem("orders");
+        const item = new TopicSchemaSubjectsItem(
+            topicItem,
+            createFactory(
+                createRegistryRef("TopicRecordNameStrategy"),
+                createProvider(
+                    [
+                        "orders-com.acme.OrderCreated",
+                        "orders-com.acme.OrderUpdated",
+                        "payments-com.acme.PaymentCreated"
+                    ],
+                    [1],
+                    []
+                )
+            )
+        );
+
+        assert.strictEqual(await item.hasDiscoverableSubjects(), true);
+        const children = await item.getChildren();
+        assert.deepStrictEqual(children.map(child => child.label), ["orders-com.acme.OrderCreated", "orders-com.acme.OrderUpdated"]);
+    });
+
+    test("topic schema subjects item discovers single heuristic match for RecordNameStrategy", async () => {
+        const topicItem = createTopicItem("orders");
+        const item = new TopicSchemaSubjectsItem(
+            topicItem,
+            createFactory(
+                createRegistryRef("RecordNameStrategy"),
+                createProvider(
+                    [
+                        "com.acme.orders.OrderCreated",
+                        "com.acme.payments.PaymentCreated"
+                    ],
+                    [1],
+                    []
+                )
+            )
+        );
+
+        assert.strictEqual(await item.hasDiscoverableSubjects(), true);
+        const children = await item.getChildren();
+        assert.deepStrictEqual(children.map(child => child.label), ["com.acme.orders.OrderCreated"]);
+    });
+
+    test("topic schema subjects item shows ambiguity message for RecordNameStrategy", async () => {
+        const topicItem = createTopicItem("orders");
+        const item = new TopicSchemaSubjectsItem(
+            topicItem,
+            createFactory(
+                createRegistryRef("RecordNameStrategy"),
+                createProvider(
+                    [
+                        "com.acme.orders.OrderCreated",
+                        "orders-value"
+                    ],
+                    [1],
+                    []
+                )
+            )
+        );
+
+        assert.strictEqual(await item.hasDiscoverableSubjects(), true);
+        const children = await item.getChildren();
+        assert.strictEqual(children.length, 1);
+        assert.ok(children[0] instanceof InformationItem);
+        assert.strictEqual(children[0].label, "Ambiguous subject discovery for RecordNameStrategy");
+    });
+
+    test("topic schema subjects item returns no discoverable subjects for RecordNameStrategy without heuristic matches", async () => {
+        const topicItem = createTopicItem("orders");
+        const item = new TopicSchemaSubjectsItem(
+            topicItem,
+            createFactory(
+                createRegistryRef("RecordNameStrategy"),
+                createProvider(["com.acme.payments.PaymentCreated"], [1], [])
+            )
+        );
+
+        assert.strictEqual(await item.hasDiscoverableSubjects(), false);
+        const children = await item.getChildren();
+        assert.strictEqual(children.length, 1);
+        assert.ok(children[0] instanceof InformationItem);
+        assert.strictEqual(children[0].label, "No discoverable subjects");
     });
 });
 
-function createRegistryRef(): SchemaRegistryRef {
+function createTopicItem(topicId: string): any {
+    const cluster = {
+        id: "cluster-1",
+        name: "Cluster 1",
+        bootstrap: "localhost:9092"
+    };
+
+    return {
+        topic: { id: topicId },
+        getParent: () => ({
+            getParent: () => ({ cluster })
+        })
+    };
+}
+
+function createRegistryRef(
+    namingStrategy: "TopicNameStrategy" | "RecordNameStrategy" | "TopicRecordNameStrategy" = "TopicNameStrategy"
+): SchemaRegistryRef {
     return {
         id: "registry-1",
         name: "Local Registry",
@@ -142,8 +228,15 @@ function createRegistryRef(): SchemaRegistryRef {
         clusterName: "Cluster 1",
         connection: {
             url: "http://localhost:8081",
-            namingStrategy: "TopicNameStrategy"
+            namingStrategy
         }
+    };
+}
+
+function createFactory(registryRef: SchemaRegistryRef, provider: SchemaRegistryProvider): SchemaRegistryProviderFactory {
+    return {
+        getRegistryRef: async () => registryRef,
+        getProvider: () => provider
     };
 }
 

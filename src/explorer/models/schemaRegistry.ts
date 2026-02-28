@@ -16,7 +16,20 @@ import {
 } from "../../schema-registry";
 
 const TOPIC_NAME_STRATEGY = "TopicNameStrategy";
+const RECORD_NAME_STRATEGY = "RecordNameStrategy";
+const TOPIC_RECORD_NAME_STRATEGY = "TopicRecordNameStrategy";
 const SCHEMA_REGISTRY_SETTINGS_QUERY = "kafka.schemaRegistries";
+const RECORD_NAME_STRATEGY_AMBIGUOUS_MESSAGE = "Ambiguous subject discovery for RecordNameStrategy";
+
+interface TopicSubjectDiscovery {
+    subjects: SubjectSummary[];
+    infoMessage?: string;
+}
+
+interface TopicSubjectDiscoveryNodes {
+    subjects: SchemaSubjectNode[];
+    infoMessage?: string;
+}
 
 export class SchemaRegistryErrorItem extends ErrorItem {
     public contextValue = "schemaregistryerror";
@@ -160,67 +173,95 @@ export class TopicSchemaSubjectsItem extends NodeBase {
     public label = "Schema Subjects";
     public contextValue = "topicschemas";
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
-    private discoveredSubjects: SchemaSubjectNode[] | undefined;
+    private discovery: TopicSubjectDiscoveryNodes | undefined;
 
     constructor(private readonly topicItem: TopicItem, private readonly factory: SchemaRegistryProviderFactory = new DefaultSchemaRegistryProviderFactory()) {
         super(topicItem);
     }
 
     public async hasDiscoverableSubjects(): Promise<boolean> {
-        const subjects = await this.getDiscoveredSubjects();
-        return subjects.length > 0;
+        const discovery = await this.getDiscovery();
+        return discovery.subjects.length > 0 || Boolean(discovery.infoMessage);
     }
 
     public async computeChildren(): Promise<NodeBase[]> {
         try {
-            const subjects = await this.getDiscoveredSubjects();
-            if (subjects.length === 0) {
+            const discovery = await this.getDiscovery();
+            if (discovery.subjects.length === 0) {
+                if (discovery.infoMessage) {
+                    return [new InformationItem(discovery.infoMessage, this)];
+                }
                 return [new InformationItem("No discoverable subjects", this)];
             }
-            return subjects;
+            return discovery.subjects;
         } catch (error) {
             return [createSchemaRegistryErrorItem("Failed to discover subjects", error, this)];
         }
     }
 
-    private async getDiscoveredSubjects(): Promise<SchemaSubjectNode[]> {
-        if (this.discoveredSubjects) {
-            return this.discoveredSubjects;
+    private async getDiscovery(): Promise<TopicSubjectDiscoveryNodes> {
+        if (this.discovery) {
+            return this.discovery;
         }
 
         const cluster = this.topicItem.getParent().getParent().cluster;
         const registryRef = await this.factory.getRegistryRef(cluster);
         const provider = this.factory.getProvider(registryRef);
         if (!registryRef || !provider) {
-            this.discoveredSubjects = [];
-            return this.discoveredSubjects;
+            this.discovery = { subjects: [] };
+            return this.discovery;
         }
 
         const namingStrategy = registryRef.connection.namingStrategy || TOPIC_NAME_STRATEGY;
-        if (namingStrategy !== TOPIC_NAME_STRATEGY) {
-            this.discoveredSubjects = [];
-            return this.discoveredSubjects;
-        }
-
         const allSubjects = await provider.listSubjects(registryRef);
-        const candidates = new Set<string>([
-            `${this.topicItem.topic.id}-key`,
-            `${this.topicItem.topic.id}-value`
-        ]);
-
-        this.discoveredSubjects = allSubjects
-            .filter(subject => candidates.has(subject.name))
+        const discoveredSubjects = discoverSubjects(allSubjects, this.topicItem.topic.id, namingStrategy);
+        const subjectNodes = discoveredSubjects.subjects
             .sort((a, b) => a.name.localeCompare(b.name))
             .map(subject => new SchemaSubjectNode(registryRef, subject, provider, this));
 
-        return this.discoveredSubjects;
+        this.discovery = {
+            subjects: subjectNodes,
+            infoMessage: discoveredSubjects.infoMessage
+        };
+        return this.discovery;
     }
 
     public clearChildrenCache(): void {
-        this.discoveredSubjects = undefined;
+        this.discovery = undefined;
         super.clearChildrenCache();
     }
 }
+
+const discoverSubjects = (allSubjects: SubjectSummary[], topicName: string, namingStrategy: string): TopicSubjectDiscovery => {
+    switch (namingStrategy) {
+    case TOPIC_NAME_STRATEGY: {
+        const candidates = new Set<string>([
+            `${topicName}-key`,
+            `${topicName}-value`
+        ]);
+        return { subjects: allSubjects.filter(subject => candidates.has(subject.name)) };
+    }
+    case TOPIC_RECORD_NAME_STRATEGY: {
+        const prefix = `${topicName}-`;
+        return { subjects: allSubjects.filter(subject => subject.name.startsWith(prefix) && subject.name.length > prefix.length) };
+    }
+    case RECORD_NAME_STRATEGY: {
+        const topicPattern = new RegExp(`(^|[._-])${escapeRegExp(topicName)}([._-]|$)`, "i");
+        const heuristicMatches = allSubjects.filter(subject => topicPattern.test(subject.name));
+        if (heuristicMatches.length > 1) {
+            return {
+                subjects: [],
+                infoMessage: RECORD_NAME_STRATEGY_AMBIGUOUS_MESSAGE
+            };
+        }
+        return { subjects: heuristicMatches };
+    }
+    default:
+        return { subjects: [] };
+    }
+};
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const createSchemaRegistryErrorItem = (prefix: string, error: unknown, refreshTarget: NodeBase): SchemaRegistryErrorItem =>
     new SchemaRegistryErrorItem(`${prefix}: ${getSchemaRegistryErrorMessage(error)}`, refreshTarget, refreshTarget);
