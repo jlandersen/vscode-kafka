@@ -3,10 +3,13 @@ import * as vscode from "vscode";
 
 import {
     CompareSchemaRegistryVersionsCommandHandler,
+    DeleteSchemaRegistryCommandHandler,
+    LinkSchemaRegistryClusterCommandHandler,
     createSchemaRegistryVersionNodeForTests,
     OpenSchemaRegistrySettingsCommandHandler,
     OpenSchemaRegistryVersionCommandHandler,
-    RetrySchemaRegistryCommandHandler
+    RetrySchemaRegistryCommandHandler,
+    UnlinkSchemaRegistryClusterCommandHandler
 } from "../../../commands/schemaRegistry";
 import { SchemaRegistryDocumentProvider, SchemaRegistryProvider, SchemaVersionDetail } from "../../../schema-registry";
 
@@ -213,6 +216,156 @@ suite("Schema Registry Commands Test Suite", () => {
             assert.deepStrictEqual(calls[1], ["workbench.action.openSettings", "kafka.schemaRegistries"]);
         } finally {
             (vscode.commands as any).executeCommand = originalExecuteCommand;
+        }
+    });
+
+    test("delete schema registry unlinks linked clusters before deleting registry", async () => {
+        const upsertedClusters: any[] = [];
+        const removedRegistryIds: string[] = [];
+        const infoMessages: string[] = [];
+        const warnings: string[] = [];
+
+        const originalShowWarningMessage = vscode.window.showWarningMessage;
+        const originalShowInformationMessage = vscode.window.showInformationMessage;
+        const originalQuickPick = vscode.window.showQuickPick;
+
+        try {
+            (vscode.window as any).showWarningMessage = async (message: string) => {
+                warnings.push(message);
+                return "Delete";
+            };
+            (vscode.window as any).showInformationMessage = async (message: string) => {
+                infoMessages.push(message);
+                return undefined;
+            };
+            (vscode.window as any).showQuickPick = async (items: any[]) => items[0];
+
+            const handler = new DeleteSchemaRegistryCommandHandler(
+                {
+                    getAll: () => [{ id: "registry-1", name: "Local Registry", connection: { url: "http://localhost:8081" } }],
+                    get: (id: string) => id === "registry-1" ? { id: "registry-1", name: "Local Registry", connection: { url: "http://localhost:8081" } } : undefined,
+                    getWithCredentials: async () => undefined,
+                    upsert: async () => undefined,
+                    remove: async (id: string) => {
+                        removedRegistryIds.push(id);
+                    }
+                },
+                {
+                    getAll: () => [
+                        { id: "cluster-1", name: "Cluster 1", bootstrap: "localhost:9092", schemaRegistryId: "registry-1" },
+                        { id: "cluster-2", name: "Cluster 2", bootstrap: "localhost:9093" }
+                    ],
+                    get: () => undefined,
+                    getWithCredentials: async (id: string) => ({ id, name: "Cluster 1", bootstrap: "localhost:9092", schemaRegistryId: "registry-1" } as any),
+                    upsert: async (cluster: any) => { upsertedClusters.push(cluster); },
+                    remove: async () => undefined,
+                    selected: undefined,
+                    onDidChangeSelected: (() => ({ dispose: () => undefined })) as any
+                } as any,
+                { refresh: () => undefined } as any
+            );
+
+            await handler.execute();
+
+            assert.strictEqual(warnings.length, 1);
+            assert.strictEqual(removedRegistryIds[0], "registry-1");
+            assert.strictEqual(upsertedClusters.length, 1);
+            assert.strictEqual(upsertedClusters[0].schemaRegistryId, undefined);
+            assert.ok(infoMessages[0].includes("deleted"));
+        } finally {
+            (vscode.window as any).showWarningMessage = originalShowWarningMessage;
+            (vscode.window as any).showInformationMessage = originalShowInformationMessage;
+            (vscode.window as any).showQuickPick = originalQuickPick;
+        }
+    });
+
+    test("link schema registry updates selected cluster", async () => {
+        const upsertedClusters: any[] = [];
+        const infoMessages: string[] = [];
+        const originalQuickPick = vscode.window.showQuickPick;
+        const originalShowInformationMessage = vscode.window.showInformationMessage;
+        let quickPickCall = 0;
+
+        try {
+            (vscode.window as any).showQuickPick = async (items: any[]) => {
+                quickPickCall += 1;
+                return items[0];
+            };
+            (vscode.window as any).showInformationMessage = async (message: string) => {
+                infoMessages.push(message);
+                return undefined;
+            };
+
+            const handler = new LinkSchemaRegistryClusterCommandHandler(
+                {
+                    getAll: () => [{ id: "registry-1", name: "Local Registry", connection: { url: "http://localhost:8081" } }],
+                    get: () => ({ id: "registry-1", name: "Local Registry", connection: { url: "http://localhost:8081" } }),
+                    getWithCredentials: async () => undefined,
+                    upsert: async () => undefined,
+                    remove: async () => undefined
+                },
+                {
+                    getAll: () => [{ id: "cluster-1", name: "Cluster 1", bootstrap: "localhost:9092" }],
+                    get: () => undefined,
+                    getWithCredentials: async () => ({ id: "cluster-1", name: "Cluster 1", bootstrap: "localhost:9092" } as any),
+                    upsert: async (cluster: any) => { upsertedClusters.push(cluster); },
+                    remove: async () => undefined,
+                    selected: undefined,
+                    onDidChangeSelected: (() => ({ dispose: () => undefined })) as any
+                } as any,
+                { refresh: () => undefined } as any
+            );
+
+            await handler.execute();
+
+            assert.strictEqual(upsertedClusters.length, 1);
+            assert.strictEqual(upsertedClusters[0].schemaRegistryId, "registry-1");
+            assert.ok(infoMessages[0].includes("Linked cluster"));
+            assert.strictEqual(quickPickCall, 2);
+        } finally {
+            (vscode.window as any).showQuickPick = originalQuickPick;
+            (vscode.window as any).showInformationMessage = originalShowInformationMessage;
+        }
+    });
+
+    test("unlink schema registry clears selected cluster linkage", async () => {
+        const upsertedClusters: any[] = [];
+        const originalQuickPick = vscode.window.showQuickPick;
+        let quickPickCall = 0;
+
+        try {
+            (vscode.window as any).showQuickPick = async (items: any[]) => {
+                quickPickCall += 1;
+                return items[0];
+            };
+
+            const handler = new UnlinkSchemaRegistryClusterCommandHandler(
+                {
+                    getAll: () => [{ id: "registry-1", name: "Local Registry", connection: { url: "http://localhost:8081" } }],
+                    get: () => ({ id: "registry-1", name: "Local Registry", connection: { url: "http://localhost:8081" } }),
+                    getWithCredentials: async () => undefined,
+                    upsert: async () => undefined,
+                    remove: async () => undefined
+                },
+                {
+                    getAll: () => [{ id: "cluster-1", name: "Cluster 1", bootstrap: "localhost:9092", schemaRegistryId: "registry-1" }],
+                    get: () => undefined,
+                    getWithCredentials: async () => ({ id: "cluster-1", name: "Cluster 1", bootstrap: "localhost:9092", schemaRegistryId: "registry-1" } as any),
+                    upsert: async (cluster: any) => { upsertedClusters.push(cluster); },
+                    remove: async () => undefined,
+                    selected: undefined,
+                    onDidChangeSelected: (() => ({ dispose: () => undefined })) as any
+                } as any,
+                { refresh: () => undefined } as any
+            );
+
+            await handler.execute();
+
+            assert.strictEqual(upsertedClusters.length, 1);
+            assert.strictEqual(upsertedClusters[0].schemaRegistryId, undefined);
+            assert.strictEqual(quickPickCall, 2);
+        } finally {
+            (vscode.window as any).showQuickPick = originalQuickPick;
         }
     });
 });

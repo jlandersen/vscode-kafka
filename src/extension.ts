@@ -15,6 +15,11 @@ import {
     DumpClusterMetadataCommandHandler,
     DumpTopicMetadataCommandHandler,
     EditClusterCommandHandler,
+    EditSchemaRegistryCommandHandler,
+    DeleteSchemaRegistryCommandHandler,
+    LinkSchemaRegistryClusterCommandHandler,
+    UnlinkSchemaRegistryClusterCommandHandler,
+    AddSchemaRegistryCommandHandler,
     handleErrors,
     LaunchConsumerCommand,
     ListConsumersCommandHandler,
@@ -38,7 +43,7 @@ import { markdownPreviewProvider } from "./docs/markdownPreviewProvider";
 import { BrokerItem, KafkaExplorer, TopicItem } from "./explorer";
 import { ClusterItem } from "./explorer/models/cluster";
 import { NodeBase } from "./explorer/models/nodeBase";
-import { SchemaRegistryErrorItem, SchemaSubjectNode, SchemaVersionNode } from "./explorer/models/schemaRegistry";
+import { SchemaRegistryConnectionNode, SchemaRegistryErrorItem, SchemaRegistryNode, SchemaSubjectNode, SchemaVersionNode } from "./explorer/models/schemaRegistry";
 import { TopicGroupItem } from "./explorer/models/topics";
 import { KafkaExtensionParticipant } from "./kafka-extensions/api";
 import { getDefaultKafkaExtensionParticipant, refreshClusterProviderDefinitions } from "./kafka-extensions/registry";
@@ -76,7 +81,7 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     // Views (sidebar, status bar items etc.)
     const outputChannelProvider = new OutputChannelProvider();
     context.subscriptions.push(outputChannelProvider);
-    const explorer = new KafkaExplorer(workspaceSettings, clusterSettings, clientAccessor);
+    const explorer = new KafkaExplorer(workspaceSettings, clusterSettings, schemaRegistrySettings, clientAccessor);
     context.subscriptions.push(explorer);
     context.subscriptions.push(new ConsumerStatusBarItem(consumerCollection));
     context.subscriptions.push(new SelectedClusterStatusBarItem(clusterSettings));
@@ -118,6 +123,11 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     const dumpClusterMetadataCommandHandler = new DumpClusterMetadataCommandHandler(clientAccessor, outputChannelProvider);
     const dumpBrokerMetadataCommandHandler = new DumpBrokerMetadataCommandHandler(clientAccessor, outputChannelProvider);
     const refreshSchemaRegistryCommandHandler = new RefreshSchemaRegistryCommandHandler(explorer);
+    const addSchemaRegistryCommandHandler = new AddSchemaRegistryCommandHandler(schemaRegistrySettings, explorer, context);
+    const editSchemaRegistryCommandHandler = new EditSchemaRegistryCommandHandler(schemaRegistrySettings, explorer, context);
+    const deleteSchemaRegistryCommandHandler = new DeleteSchemaRegistryCommandHandler(schemaRegistrySettings, clusterSettings, explorer);
+    const linkSchemaRegistryClusterCommandHandler = new LinkSchemaRegistryClusterCommandHandler(schemaRegistrySettings, clusterSettings, explorer);
+    const unlinkSchemaRegistryClusterCommandHandler = new UnlinkSchemaRegistryClusterCommandHandler(schemaRegistrySettings, clusterSettings, explorer);
     const retrySchemaRegistryCommandHandler = new RetrySchemaRegistryCommandHandler(explorer);
     const openSchemaRegistrySettingsCommandHandler = new OpenSchemaRegistrySettingsCommandHandler();
     const openSchemaRegistryVersionCommandHandler = new OpenSchemaRegistryVersionCommandHandler(schemaRegistryDocumentProvider);
@@ -164,6 +174,21 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.dumpbrokermetadata",
         handleErrors((broker?: BrokerItem) => dumpBrokerMetadataCommandHandler.execute(broker))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        AddSchemaRegistryCommandHandler.commandId,
+        handleErrors(() => addSchemaRegistryCommandHandler.execute())));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        EditSchemaRegistryCommandHandler.commandId,
+        handleErrors((item?: SchemaRegistryConnectionNode | SchemaRegistryNode) => editSchemaRegistryCommandHandler.execute(item))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        DeleteSchemaRegistryCommandHandler.commandId,
+        handleErrors((item?: SchemaRegistryConnectionNode | SchemaRegistryNode) => deleteSchemaRegistryCommandHandler.execute(item))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        LinkSchemaRegistryClusterCommandHandler.commandId,
+        handleErrors((item?: SchemaRegistryConnectionNode | SchemaRegistryNode) => linkSchemaRegistryClusterCommandHandler.execute(item))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        UnlinkSchemaRegistryClusterCommandHandler.commandId,
+        handleErrors((item?: SchemaRegistryConnectionNode | SchemaRegistryNode) => unlinkSchemaRegistryClusterCommandHandler.execute(item))));
     context.subscriptions.push(vscode.commands.registerCommand(
         RefreshSchemaRegistryCommandHandler.commandId,
         handleErrors((item?: NodeBase) => refreshSchemaRegistryCommandHandler.execute(item))));

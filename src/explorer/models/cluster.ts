@@ -20,7 +20,7 @@ export class ClusterItem extends NodeBase implements Disposable {
     private clientState = ClientState.disconnected;
     private connectionError: string | undefined;
 
-    constructor(private clientAccessor: ClientAccessor, public readonly cluster: Cluster, parent: KafkaModel) {
+    constructor(private clientAccessor: ClientAccessor, public readonly cluster: Cluster, parent: NodeBase) {
         super(parent);
         this.label = cluster.name;
         this.description = cluster.bootstrap;
@@ -71,10 +71,6 @@ export class ClusterItem extends NodeBase implements Disposable {
             new ConsumerGroupsItem(this)];
     }
 
-    getParent(): KafkaModel {
-        return <KafkaModel>super.getParent();
-    }
-
     getTreeItem(): vscode.TreeItem {
         const treeItem = super.getTreeItem();
         treeItem.iconPath = this.getConnectionIcon();
@@ -110,7 +106,7 @@ export class ClusterItem extends NodeBase implements Disposable {
     }
 
     public get selected(): boolean {
-        return (this.getParent().clusterSettings.selected?.name === this.cluster.name);
+        return this.getModel()?.clusterSettings.selected?.name === this.cluster.name;
     }
 
     public dispose(): void {
@@ -134,5 +130,16 @@ export class ClusterItem extends NodeBase implements Disposable {
 
     private async getTopicGroupItem(): Promise<NodeBase> {
         return (await this.getChildren())[TOPIC_INDEX];
+    }
+
+    private getModel(): KafkaModel | undefined {
+        let current: NodeBase | undefined = this;
+        while (current) {
+            if (current instanceof KafkaModel) {
+                return current;
+            }
+            current = current.getParent();
+        }
+        return undefined;
     }
 }

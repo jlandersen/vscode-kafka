@@ -2,7 +2,7 @@ import * as assert from "assert";
 
 import { Context } from "../../../context";
 import { InformationItem } from "../../../explorer/models/common";
-import { SchemaRegistriesItem, SchemaRegistryErrorItem, SchemaRegistryNode, TopicSchemaSubjectsItem } from "../../../explorer/models/schemaRegistry";
+import { SchemaRegistriesItem, SchemaRegistryConnectionsItem, SchemaRegistryErrorItem, SchemaRegistryNode, TopicSchemaSubjectsItem } from "../../../explorer/models/schemaRegistry";
 import { SchemaRegistryError, SchemaRegistryProviderFactory, SchemaRegistryRef, SchemaRegistryProvider } from "../../../schema-registry";
 
 suite("Schema Registry Explorer Test Suite", () => {
@@ -58,6 +58,36 @@ suite("Schema Registry Explorer Test Suite", () => {
         assert.strictEqual(children.length, 1);
         assert.ok(children[0] instanceof SchemaRegistryNode);
         assert.strictEqual(children[0].label, "Local Registry");
+    });
+
+    test("schema registry connections item renders configured connections and linked cluster count", async () => {
+        const item = new SchemaRegistryConnectionsItem(
+            {
+                getAll: () => [
+                    {
+                        id: "registry-1",
+                        name: "Local Registry",
+                        connection: { url: "http://localhost:8081" }
+                    }
+                ]
+            } as any,
+            {
+                getAll: () => [
+                    { id: "cluster-1", name: "Cluster 1", bootstrap: "localhost:9092", schemaRegistryId: "registry-1" },
+                    { id: "cluster-2", name: "Cluster 2", bootstrap: "localhost:9093" }
+                ]
+            } as any,
+            {} as any
+        );
+
+        const children = await item.getChildren();
+        assert.strictEqual(children.length, 1);
+        assert.strictEqual(children[0].label, "Local Registry");
+
+        const linkedChildren = await children[0].getChildren();
+        assert.strictEqual(linkedChildren.length, 1);
+        assert.ok(linkedChildren[0] instanceof InformationItem);
+        assert.strictEqual(linkedChildren[0].label, "Linked to 1 cluster(s)");
     });
 
     test("schema registry node sorts subjects and maps provider errors", async () => {

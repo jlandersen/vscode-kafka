@@ -487,6 +487,35 @@
 				}
 			},
 			{
+				"command": "vscode-kafka.schemaRegistry.add",
+				"title": "Add Schema Registry",
+				"category": "Kafka",
+				"icon": {
+					"light": "images/light/add.svg",
+					"dark": "images/dark/add.svg"
+				}
+			},
+			{
+				"command": "vscode-kafka.schemaRegistry.edit",
+				"title": "Edit Schema Registry",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.schemaRegistry.delete",
+				"title": "Delete Schema Registry",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.schemaRegistry.linkCluster",
+				"title": "Link Cluster to Schema Registry",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.schemaRegistry.unlinkCluster",
+				"title": "Unlink Cluster from Schema Registry",
+				"category": "Kafka"
+			},
+			{
 				"command": "vscode-kafka.schemaRegistry.openSettings",
 				"title": "Open Schema Registry Settings",
 				"category": "Kafka"
@@ -585,6 +614,11 @@
 					"group": "navigation"
 				},
 				{
+					"command": "vscode-kafka.schemaRegistry.add",
+					"when": "view == kafkaExplorer",
+					"group": "navigation"
+				},
+				{
 					"command": "vscode-kafka.discover.clusterproviders",
 					"when": "view == kafkaExplorer",
 					"group": "navigation"
@@ -608,8 +642,33 @@
 				},
 				{
 					"command": "vscode-kafka.schemaRegistry.refresh",
-					"when": "view == kafkaExplorer && viewItem =~ /^schemaregistries$|^schemaregistry$|^schemasubject$/ && !listMultiSelection",
+					"when": "view == kafkaExplorer && viewItem =~ /^schemaregistries$|^schemaregistry$|^schemasubject$|^schemaregistriesroot$|^schemaregistryconnection$/ && !listMultiSelection",
 					"group": "inline"
+				},
+				{
+					"command": "vscode-kafka.schemaRegistry.add",
+					"when": "view == kafkaExplorer && viewItem == schemaregistriesroot && !listMultiSelection",
+					"group": "inline"
+				},
+				{
+					"command": "vscode-kafka.schemaRegistry.edit",
+					"when": "view == kafkaExplorer && viewItem == schemaregistryconnection && !listMultiSelection",
+					"group": "1_kafka"
+				},
+				{
+					"command": "vscode-kafka.schemaRegistry.linkCluster",
+					"when": "view == kafkaExplorer && viewItem == schemaregistryconnection && !listMultiSelection",
+					"group": "1_kafka"
+				},
+				{
+					"command": "vscode-kafka.schemaRegistry.unlinkCluster",
+					"when": "view == kafkaExplorer && viewItem == schemaregistryconnection && !listMultiSelection",
+					"group": "1_kafka"
+				},
+				{
+					"command": "vscode-kafka.schemaRegistry.delete",
+					"when": "view == kafkaExplorer && viewItem == schemaregistryconnection && !listMultiSelection",
+					"group": "3_modification"
 				},
 				{
 					"command": "vscode-kafka.schemaRegistry.retry",

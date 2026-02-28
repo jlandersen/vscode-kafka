@@ -4,9 +4,11 @@ import { ClusterItem } from "./cluster";
 import { ErrorItem, InformationItem } from "./common";
 import { NodeBase } from "./nodeBase";
 import { TopicItem } from "./topics";
+import { ClusterSettings, SchemaRegistrySettings } from "../../settings";
 import {
     DefaultSchemaRegistryProviderFactory,
     getSchemaRegistryErrorMessage,
+    SchemaRegistry,
     SchemaRegistryProvider,
     SchemaRegistryProviderFactory,
     SchemaRegistryRef,
@@ -77,6 +79,60 @@ export class SchemaRegistriesItem extends NodeBase {
 
     public getParent(): ClusterItem {
         return super.getParent() as ClusterItem;
+    }
+}
+
+export class SchemaRegistryConnectionsItem extends NodeBase {
+    public label = "Schema Registries";
+    public contextValue = "schemaregistriesroot";
+    public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+
+    constructor(
+        private readonly schemaRegistrySettings: SchemaRegistrySettings,
+        private readonly clusterSettings: ClusterSettings,
+        parent: NodeBase
+    ) {
+        super(parent);
+    }
+
+    public async computeChildren(): Promise<NodeBase[]> {
+        const schemaRegistries = this.schemaRegistrySettings.getAll();
+        if (schemaRegistries.length === 0) {
+            return [new InformationItem("No schema registries configured", this)];
+        }
+
+        return schemaRegistries.map(schemaRegistry => new SchemaRegistryConnectionNode(
+            schemaRegistry,
+            this.clusterSettings,
+            this
+        ));
+    }
+}
+
+export class SchemaRegistryConnectionNode extends NodeBase {
+    public contextValue = "schemaregistryconnection";
+    public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+
+    constructor(
+        public readonly schemaRegistry: SchemaRegistry,
+        private readonly clusterSettings: ClusterSettings,
+        parent: NodeBase
+    ) {
+        super(parent);
+        this.label = schemaRegistry.name;
+        this.description = schemaRegistry.connection.url;
+    }
+
+    public async computeChildren(): Promise<NodeBase[]> {
+        const linkedClusterCount = this.clusterSettings.getAll()
+            .filter(cluster => cluster.schemaRegistryId === this.schemaRegistry.id)
+            .length;
+
+        if (linkedClusterCount === 0) {
+            return [new InformationItem("Not linked to any clusters", this)];
+        }
+
+        return [new InformationItem(`Linked to ${linkedClusterCount} cluster(s)`, this)];
     }
 }
 
