@@ -11,6 +11,7 @@ This directory contains Docker Compose configurations for testing the vscode-kaf
 | `sasl-plain` | 9093 | SASL/PLAIN | Kafka with username/password authentication |
 | `oauth` | 9092 | OAUTHBEARER | Kafka with OAuth 2.0 (includes Keycloak) |
 | `ssl` | 9093 | SSL/TLS (mTLS) | Kafka with mutual TLS and passphrase-protected keys |
+| `schema-registry` | 9094 + 8081 | None + Schema Registry | Kafka with local Confluent Schema Registry |
 
 > **Note:** The `plaintext`, `kraft`, and `oauth` clusters all use port 9092, so only run one at a time.
 
@@ -40,6 +41,9 @@ cd test-clusters/sasl-plain && docker-compose up -d
 
 # Start OAuth cluster (includes Keycloak)
 cd test-clusters/oauth && docker-compose up -d
+
+# Start Kafka + Schema Registry cluster
+cd test-clusters/schema-registry && docker-compose up -d
 ```
 
 ## Connection Details
@@ -96,6 +100,15 @@ cd test-clusters/ssl && ./generate-certs.sh
 
 See [ssl/README.md](ssl/README.md) for more details on SSL certificate setup.
 
+### Kafka + Schema Registry Cluster
+
+- **Bootstrap Server:** `localhost:9094`
+- **Authentication:** None
+- **Schema Registry URL:** `http://localhost:8081`
+- **SSL:** No
+
+See [schema-registry/README.md](schema-registry/README.md) for more details.
+
 ## Testing Different Authentication Methods
 
 1. **Start the cluster** you want to test
@@ -126,7 +139,7 @@ cd test-clusters/<cluster-name> && docker-compose logs -f
 ```
 
 ### Port conflicts
-If you get port binding errors, make sure no other services are using ports 9092, 9093, 2181, or 8080.
+If you get port binding errors, make sure no other services are using ports 9092, 9093, 9094, 2181, 2182, 8080, or 8081.
 
 ```bash
 # Check what's using a port

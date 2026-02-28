@@ -166,49 +166,47 @@ class SettingsClusterSettings implements ClusterSettings {
             return undefined;
         }
 
-        // Load secrets from secure storage based on the authentication mechanism
+        const secretsStorage = SecretsStorage.getInstance();
+        let nextCluster: Cluster = { ...cluster };
+
         if (cluster.saslOption) {
-            const secretsStorage = SecretsStorage.getInstance();
             const mechanism = cluster.saslOption.mechanism;
 
             if (mechanism === 'plain' || mechanism === 'scram-sha-256' || mechanism === 'scram-sha-512') {
-                // Load password for username/password auth
                 const password = await secretsStorage.getPassword(id);
-                return {
-                    ...cluster,
+                nextCluster = {
+                    ...nextCluster,
                     saslOption: {
                         ...cluster.saslOption,
-                        password: password
+                        password
                     }
                 };
             } else if (mechanism === 'oauthbearer') {
-                // Load client secret for OAUTHBEARER
                 const oauthClientSecret = await secretsStorage.getSecret(id, 'oauthClientSecret');
-                return {
-                    ...cluster,
+                nextCluster = {
+                    ...nextCluster,
                     saslOption: {
                         ...cluster.saslOption,
-                        oauthClientSecret: oauthClientSecret
+                        oauthClientSecret
                     }
                 };
             } else if (mechanism === 'aws') {
-                // Load AWS secrets
                 const [awsSecretAccessKey, awsSessionToken] = await Promise.all([
                     secretsStorage.getSecret(id, 'awsSecretAccessKey'),
                     secretsStorage.getSecret(id, 'awsSessionToken')
                 ]);
-                return {
-                    ...cluster,
+                nextCluster = {
+                    ...nextCluster,
                     saslOption: {
                         ...cluster.saslOption,
-                        awsSecretAccessKey: awsSecretAccessKey,
-                        awsSessionToken: awsSessionToken
+                        awsSecretAccessKey,
+                        awsSessionToken
                     }
                 };
             }
         }
 
-        return cluster;
+        return nextCluster;
     }
 
     async upsert(cluster: Cluster): Promise<void> {
@@ -222,7 +220,6 @@ class SettingsClusterSettings implements ClusterSettings {
         const oauthClientSecret = cluster.saslOption?.oauthClientSecret;
         const awsSecretAccessKey = cluster.saslOption?.awsSecretAccessKey;
         const awsSessionToken = cluster.saslOption?.awsSessionToken;
-        
         // Create cluster without secrets for settings storage
         const clusterWithoutSecrets: Cluster = {
             ...cluster,
@@ -245,12 +242,10 @@ class SettingsClusterSettings implements ClusterSettings {
 
         await config.update('clusters', clusters, vscode.ConfigurationTarget.Global);
 
-        // Store secrets based on the mechanism
+        await secretsStorage.deleteAllSecrets(cluster.id);
+
         if (cluster.saslOption) {
             const mechanism = cluster.saslOption.mechanism;
-            
-            // Clear all secrets first, then store the relevant ones
-            await secretsStorage.deleteAllSecrets(cluster.id);
 
             if (mechanism === 'plain' || mechanism === 'scram-sha-256' || mechanism === 'scram-sha-512') {
                 if (password) {
@@ -268,9 +263,6 @@ class SettingsClusterSettings implements ClusterSettings {
                     await secretsStorage.storeSecret(cluster.id, 'awsSessionToken', awsSessionToken);
                 }
             }
-        } else {
-            // No SASL option, clear all secrets
-            await secretsStorage.deleteAllSecrets(cluster.id);
         }
 
         if (this.selected?.id === cluster.id) {

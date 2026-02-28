@@ -10,8 +10,9 @@ import { KafkaModel } from "./kafka";
 import { Disposable } from "vscode";
 import { GlyphChars } from "../../constants";
 import { getErrorMessage } from "./common";
+import { SchemaRegistriesItem } from "./schemaRegistry";
 
-const TOPIC_INDEX = 1;
+const TOPIC_INDEX = 2;
 
 export class ClusterItem extends NodeBase implements Disposable {
     public contextValue = "cluster";
@@ -65,6 +66,7 @@ export class ClusterItem extends NodeBase implements Disposable {
         this.connectionError = undefined;
         return [
             new BrokerGroupItem(this),
+            new SchemaRegistriesItem(this),
             new TopicGroupItem(this),
             new ConsumerGroupsItem(this)];
     }

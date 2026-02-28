@@ -6,7 +6,7 @@
  */
 
 import { KafkaContainer, StartedKafkaContainer } from "@testcontainers/kafka";
-import { GenericContainer, StartedTestContainer, Wait } from "testcontainers";
+import { GenericContainer, Network, StartedNetwork, StartedTestContainer, Wait } from "testcontainers";
 import * as path from "path";
 import * as fs from "fs";
 
@@ -25,6 +25,7 @@ export interface SslConnectionInfo {
  */
 export interface KafkaConnectionInfo {
     bootstrap: string;
+    schemaRegistryUrl?: string;
     saslOption?: {
         mechanism: "plain" | "scram-sha-256" | "scram-sha-512";
         username: string;
@@ -164,6 +165,13 @@ export interface OAuthTestFixture {
 }
 
 /**
+ * Test fixture for Kafka + Schema Registry.
+ */
+export interface SchemaRegistryTestFixture extends TestFixture {
+    schemaRegistryUrl: string;
+}
+
+/**
  * Creates a test fixture for plaintext Kafka.
  */
 export async function createPlaintextFixture(): Promise<TestFixture> {
@@ -171,6 +179,112 @@ export async function createPlaintextFixture(): Promise<TestFixture> {
     const connectionInfo = await container.start();
     return {
         connectionInfo,
+        stop: () => container.stop(),
+    };
+}
+
+/**
+ * Manages a Kafka + Schema Registry container set for integration tests.
+ */
+export class SchemaRegistryKafkaContainer {
+    private network: StartedNetwork | null = null;
+    private zookeeperContainer: StartedTestContainer | null = null;
+    private kafkaContainer: StartedTestContainer | null = null;
+    private schemaRegistryContainer: StartedTestContainer | null = null;
+
+    async start(): Promise<KafkaConnectionInfo> {
+        console.log("Starting Kafka + Schema Registry containers...");
+
+        this.network = await new Network().start();
+
+        this.zookeeperContainer = await new GenericContainer("confluentinc/cp-zookeeper:7.6.0")
+            .withNetwork(this.network)
+            .withNetworkAliases("zookeeper")
+            .withEnvironment(Object.fromEntries([
+                ["ZOOKEEPER_CLIENT_PORT", "2181"],
+                ["ZOOKEEPER_TICK_TIME", "2000"],
+            ]))
+            .withExposedPorts(2181)
+            .withWaitStrategy(Wait.forListeningPorts())
+            .start();
+
+        this.kafkaContainer = await new GenericContainer("confluentinc/cp-kafka:7.6.0")
+            .withNetwork(this.network)
+            .withNetworkAliases("kafka")
+            .withEnvironment(Object.fromEntries([
+                ["KAFKA_BROKER_ID", "1"],
+                ["KAFKA_ZOOKEEPER_CONNECT", "zookeeper:2181"],
+                ["KAFKA_LISTENER_SECURITY_PROTOCOL_MAP", "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"],
+                ["KAFKA_LISTENERS", "PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092"],
+                ["KAFKA_ADVERTISED_LISTENERS", "PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092"],
+                ["KAFKA_INTER_BROKER_LISTENER_NAME", "PLAINTEXT"],
+                ["KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR", "1"],
+                ["KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR", "1"],
+                ["KAFKA_TRANSACTION_STATE_LOG_MIN_ISR", "1"],
+                ["KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS", "0"],
+                ["KAFKA_AUTO_CREATE_TOPICS_ENABLE", "true"],
+            ]))
+            .withExposedPorts(9092)
+            .withWaitStrategy(Wait.forLogMessage(/started \(kafka.server.KafkaServer\)/, 1).withStartupTimeout(180000))
+            .start();
+
+        this.schemaRegistryContainer = await new GenericContainer("confluentinc/cp-schema-registry:7.6.0")
+            .withNetwork(this.network)
+            .withNetworkAliases("schema-registry")
+            .withEnvironment(Object.fromEntries([
+                ["SCHEMA_REGISTRY_HOST_NAME", "schema-registry"],
+                ["SCHEMA_REGISTRY_LISTENERS", "http://0.0.0.0:8081"],
+                ["SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", "PLAINTEXT://kafka:29092"],
+            ]))
+            .withExposedPorts(8081)
+            .withWaitStrategy(Wait.forHttp("/subjects", 8081).withStartupTimeout(120000))
+            .start();
+
+        const bootstrap = `${this.kafkaContainer.getHost()}:${this.kafkaContainer.getMappedPort(9092)}`;
+        const schemaRegistryUrl = `http://${this.schemaRegistryContainer.getHost()}:${this.schemaRegistryContainer.getMappedPort(8081)}`;
+        console.log(`Kafka + Schema Registry started at ${bootstrap}, ${schemaRegistryUrl}`);
+
+        return {
+            bootstrap,
+            schemaRegistryUrl,
+        };
+    }
+
+    async stop(): Promise<void> {
+        console.log("Stopping Kafka + Schema Registry containers...");
+
+        const containers = [this.schemaRegistryContainer, this.kafkaContainer, this.zookeeperContainer];
+        for (const container of containers) {
+            if (container) {
+                await container.stop();
+            }
+        }
+
+        if (this.network) {
+            await this.network.stop();
+        }
+
+        this.schemaRegistryContainer = null;
+        this.kafkaContainer = null;
+        this.zookeeperContainer = null;
+        this.network = null;
+    }
+}
+
+/**
+ * Creates a test fixture for Kafka + Schema Registry.
+ */
+export async function createSchemaRegistryFixture(): Promise<SchemaRegistryTestFixture> {
+    const container = new SchemaRegistryKafkaContainer();
+    const connectionInfo = await container.start();
+    const schemaRegistryUrl = connectionInfo.schemaRegistryUrl;
+    if (!schemaRegistryUrl) {
+        throw new Error("Schema Registry URL was not returned by fixture.");
+    }
+
+    return {
+        connectionInfo,
+        schemaRegistryUrl,
         stop: () => container.stop(),
     };
 }

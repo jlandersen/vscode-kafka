@@ -22,6 +22,9 @@ import {
     ProduceRecordCommandHandler,
     ProduceRecordWithInputCommandHandler,
     SaveClusterCommandHandler,
+    RefreshSchemaRegistryCommandHandler,
+    OpenSchemaRegistryVersionCommandHandler,
+    CompareSchemaRegistryVersionsCommandHandler,
     SelectClusterCommandHandler,
     StartConsumerCommandHandler,
     StopConsumerCommandHandler,
@@ -33,12 +36,14 @@ import { markdownPreviewProvider } from "./docs/markdownPreviewProvider";
 import { BrokerItem, KafkaExplorer, TopicItem } from "./explorer";
 import { ClusterItem } from "./explorer/models/cluster";
 import { NodeBase } from "./explorer/models/nodeBase";
+import { SchemaSubjectNode, SchemaVersionNode } from "./explorer/models/schemaRegistry";
 import { TopicGroupItem } from "./explorer/models/topics";
 import { KafkaExtensionParticipant } from "./kafka-extensions/api";
 import { getDefaultKafkaExtensionParticipant, refreshClusterProviderDefinitions } from "./kafka-extensions/registry";
 import { startLanguageClient } from "./kafka-file/kafkaFileClient";
 import { ConsumerTableViewProvider, OutputChannelProvider } from "./providers";
-import { getClusterSettings, getWorkspaceSettings } from "./settings";
+import { SchemaRegistryDocumentProvider } from "./schema-registry";
+import { getClusterSettings, getSchemaRegistrySettings, getWorkspaceSettings } from "./settings";
 import { ConsumerStatusBarItem } from "./views/consumerStatusBarItem";
 import { SelectedClusterStatusBarItem } from "./views/selectedClusterStatusBarItem";
 
@@ -58,6 +63,7 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
         explorer.refresh();
     }));
     const clusterSettings = getClusterSettings();
+    const schemaRegistrySettings = getSchemaRegistrySettings();
     const clientAccessor = getClientAccessor();
     const consumerCollection = new ConsumerCollection(clusterSettings, clientAccessor);
     const producerCollection = new ProducerCollection(clientAccessor);
@@ -79,6 +85,11 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
         workspaceSettings
     );
     context.subscriptions.push(consumerTableViewProvider);
+    const schemaRegistryDocumentProvider = new SchemaRegistryDocumentProvider();
+    context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider(
+        SchemaRegistryDocumentProvider.scheme,
+        schemaRegistryDocumentProvider
+    ));
 
     // Commands
     const createTopicCommandHandler = new CreateTopicCommandHandler(clientAccessor, clusterSettings, explorer);
@@ -96,14 +107,20 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     const stopConsumerCommandHandler = new StopConsumerCommandHandler(clientAccessor, consumerCollection, explorer);
     const listConsumersCommandHandler = new ListConsumersCommandHandler(consumerCollection, consumerTableViewProvider);
     const deleteConsumerGroupCommandHandler = new DeleteConsumerGroupCommandHandler(clientAccessor, consumerCollection, explorer);
-    const addClusterCommandHandler = new AddClusterCommandHandler(clusterSettings, clientAccessor, explorer, context);
+    const addClusterCommandHandler = new AddClusterCommandHandler(clusterSettings, schemaRegistrySettings, clientAccessor, explorer, context);
     const saveClusterCommandHandler = new SaveClusterCommandHandler(clusterSettings, explorer);
     const deleteClusterCommandHandler = new DeleteClusterCommandHandler(clusterSettings, clientAccessor, explorer, consumerCollection);
     const selectClusterCommandHandler = new SelectClusterCommandHandler(clusterSettings, addClusterCommandHandler);
-    const editClusterCommandHandler = new EditClusterCommandHandler(clusterSettings, clientAccessor, explorer, context);
+    const editClusterCommandHandler = new EditClusterCommandHandler(clusterSettings, schemaRegistrySettings, clientAccessor, explorer, context);
     const dumpTopicMetadataCommandHandler = new DumpTopicMetadataCommandHandler(clientAccessor, outputChannelProvider);
     const dumpClusterMetadataCommandHandler = new DumpClusterMetadataCommandHandler(clientAccessor, outputChannelProvider);
     const dumpBrokerMetadataCommandHandler = new DumpBrokerMetadataCommandHandler(clientAccessor, outputChannelProvider);
+    const refreshSchemaRegistryCommandHandler = new RefreshSchemaRegistryCommandHandler(explorer);
+    const openSchemaRegistryVersionCommandHandler = new OpenSchemaRegistryVersionCommandHandler(schemaRegistryDocumentProvider);
+    const compareSchemaRegistryVersionsCommandHandler = new CompareSchemaRegistryVersionsCommandHandler(
+        schemaRegistryDocumentProvider,
+        openSchemaRegistryVersionCommandHandler
+    );
 
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.refresh",
@@ -143,6 +160,15 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.dumpbrokermetadata",
         handleErrors((broker?: BrokerItem) => dumpBrokerMetadataCommandHandler.execute(broker))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        RefreshSchemaRegistryCommandHandler.commandId,
+        handleErrors((item?: NodeBase) => refreshSchemaRegistryCommandHandler.execute(item))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        OpenSchemaRegistryVersionCommandHandler.commandId,
+        handleErrors((item?: SchemaVersionNode) => openSchemaRegistryVersionCommandHandler.execute(item))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        CompareSchemaRegistryVersionsCommandHandler.commandId,
+        handleErrors((item?: SchemaSubjectNode | SchemaVersionNode) => compareSchemaRegistryVersionsCommandHandler.execute(item))));
     context.subscriptions.push(vscode.commands.registerCommand(
         "vscode-kafka.explorer.copylabel",
         handleErrors((_item?: any, selection?: NodeBase[]) => explorer.copyLabelsToClipboard(selection))));

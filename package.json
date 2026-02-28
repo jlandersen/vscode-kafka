@@ -195,6 +195,10 @@
 								"type": "string",
 								"description": "Kafka bootstrap servers (comma-separated host:port)"
 							},
+							"schemaRegistryId": {
+								"type": "string",
+								"description": "Optional ID of the linked schema registry from kafka.schemaRegistries"
+							},
 							"clusterProviderId": {
 								"type": "string",
 								"description": "Optional cluster provider ID for third-party extensions"
@@ -281,6 +285,94 @@
 										}
 									}
 								]
+							}
+						}
+					}
+				},
+				"kafka.schemaRegistries": {
+					"type": "array",
+					"scope": "machine",
+					"default": [],
+					"markdownDescription": "Schema Registry connection configurations. Sensitive credentials (passwords) are stored securely in the system keychain.",
+					"items": {
+						"type": "object",
+						"required": [
+							"id",
+							"name",
+							"connection"
+						],
+						"properties": {
+							"id": {
+								"type": "string",
+								"description": "Unique identifier for the schema registry"
+							},
+							"name": {
+								"type": "string",
+								"description": "Display name for the schema registry"
+							},
+							"connection": {
+								"type": "object",
+								"required": [
+									"url"
+								],
+								"properties": {
+									"url": {
+										"type": "string",
+										"description": "Schema Registry base URL"
+									},
+									"namingStrategy": {
+										"type": "string",
+										"enum": [
+											"TopicNameStrategy",
+											"RecordNameStrategy",
+											"TopicRecordNameStrategy"
+										],
+										"default": "TopicNameStrategy",
+										"description": "Subject naming strategy used for topic subject discovery"
+									},
+									"auth": {
+										"type": "object",
+										"required": [
+											"username"
+										],
+										"properties": {
+											"username": {
+												"type": "string",
+												"description": "Basic auth username"
+											},
+											"password": {
+												"type": "string",
+												"description": "Basic auth password (stored securely after save through UI)"
+											}
+										}
+									},
+									"tls": {
+										"type": "object",
+										"properties": {
+											"ca": {
+												"type": "string",
+												"description": "Path to CA certificate file"
+											},
+											"cert": {
+												"type": "string",
+												"description": "Path to client certificate file"
+											},
+											"key": {
+												"type": "string",
+												"description": "Path to client key file"
+											},
+											"passphrase": {
+												"type": "string",
+												"description": "Passphrase for encrypted private key"
+											},
+											"rejectUnauthorized": {
+												"type": "boolean",
+												"default": true,
+												"description": "Verify SSL certificate hostname"
+											}
+										}
+									}
+								}
 							}
 						}
 					}
@@ -375,6 +467,25 @@
 					"light": "images/light/refresh.svg",
 					"dark": "images/dark/refresh.svg"
 				}
+			},
+			{
+				"command": "vscode-kafka.schemaRegistry.refresh",
+				"title": "Refresh Schema Registry",
+				"category": "Kafka",
+				"icon": {
+					"light": "images/light/refresh.svg",
+					"dark": "images/dark/refresh.svg"
+				}
+			},
+			{
+				"command": "vscode-kafka.schemaRegistry.openVersion",
+				"title": "Open Schema Version",
+				"category": "Kafka"
+			},
+			{
+				"command": "vscode-kafka.schemaRegistry.compareVersions",
+				"title": "Compare Schema Versions",
+				"category": "Kafka"
 			},
 			{
 				"command": "vscode-kafka.explorer.createtopic",
@@ -479,6 +590,21 @@
 				{
 					"command": "vscode-kafka.explorer.dumptopicmetadata",
 					"when": "view == kafkaExplorer && viewItem == topic && !listMultiSelection",
+					"group": "1_kafka"
+				},
+				{
+					"command": "vscode-kafka.schemaRegistry.refresh",
+					"when": "view == kafkaExplorer && viewItem =~ /^schemaregistries$|^schemaregistry$|^schemasubject$/ && !listMultiSelection",
+					"group": "inline"
+				},
+				{
+					"command": "vscode-kafka.schemaRegistry.openVersion",
+					"when": "view == kafkaExplorer && viewItem == schemaversion && !listMultiSelection",
+					"group": "1_kafka"
+				},
+				{
+					"command": "vscode-kafka.schemaRegistry.compareVersions",
+					"when": "view == kafkaExplorer && viewItem =~ /^schemasubject$|^schemaversion$/ && !listMultiSelection",
 					"group": "1_kafka"
 				},
 				{

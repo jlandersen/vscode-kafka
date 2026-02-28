@@ -2,24 +2,37 @@
 import * as vscode from "vscode";
 import { WebviewWizard, WizardDefinition, SEVERITY, UPDATE_TITLE, WizardPageFieldDefinition, WizardPageSectionDefinition, BUTTONS, PerformFinishResponse, IWizardPage, ValidatorResponseItem, FieldDefinitionState } from "@redhat-developer/vscode-wizard";
 import { ClientAccessor, Cluster, SaslMechanism, SaslOption, SslOption } from "../client";
-import { ClusterSettings } from "../settings";
+import { ClusterSettings, SchemaRegistrySettings } from "../settings";
 import { validateAuthentificationUserName, validateBroker, validateClusterName, validateFile } from "./validators";
 import { KafkaExplorer } from "../explorer";
 import { ClusterProvider, defaultClusterProviderId, getClusterProviders } from "../kafka-extensions/registry";
 import { showErrorMessage } from "./multiStepInput";
 import { SaveClusterCommandHandler } from "../commands";
 
-export function openClusterWizard(clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext) {
+export function openClusterWizard(
+    clusterSettings: ClusterSettings,
+    schemaRegistrySettings: SchemaRegistrySettings,
+    clientAccessor: ClientAccessor,
+    explorer: KafkaExplorer,
+    context: vscode.ExtensionContext
+) {
     const providers = getClusterProviders();
     if (providers.length === 1) {
-        return openClusterForm(undefined, clusterSettings, clientAccessor, explorer, context);
+        return openClusterForm(undefined, clusterSettings, schemaRegistrySettings, clientAccessor, explorer, context);
     }
-    const wiz: WebviewWizard = createClusterWizard(providers, clusterSettings, clientAccessor, explorer, context);
+    const wiz: WebviewWizard = createClusterWizard(providers, clusterSettings, schemaRegistrySettings, clientAccessor, explorer, context);
     wiz.open();
 }
 
-export function openClusterForm(cluster: Cluster | undefined, clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext) {
-    const wiz: WebviewWizard = createEditClusterForm(cluster, clusterSettings, clientAccessor, explorer, context);
+export function openClusterForm(
+    cluster: Cluster | undefined,
+    clusterSettings: ClusterSettings,
+    schemaRegistrySettings: SchemaRegistrySettings,
+    clientAccessor: ClientAccessor,
+    explorer: KafkaExplorer,
+    context: vscode.ExtensionContext
+) {
+    const wiz: WebviewWizard = createEditClusterForm(cluster, clusterSettings, schemaRegistrySettings, clientAccessor, explorer, context);
     wiz.open();
 }
 
@@ -76,12 +89,21 @@ const CLUSTER_SSL_PASSPHRASE_FIELD = "ssl.passphrase";
 const CLUSTER_SSL_TRUSTSTORE_FIELD = "ssl.truststore";
 const CLUSTER_SSL_TRUSTSTORE_PASSWORD_FIELD = "ssl.truststorePassword";
 const CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD = "ssl.rejectUnauthorized";
+// Schema Registry fields
+const CLUSTER_SCHEMA_REGISTRY_ID_FIELD = "schemaRegistryId";
 
 // --- Wizard page ID
 const CLUSTER_PROVIDER_PAGE = 'cluster-provider-page';
 const CLUSTER_FORM_PAGE = 'cluster-form-page';
 
-function createClusterWizard(providers: ClusterProvider[], clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext): WebviewWizard {
+function createClusterWizard(
+    providers: ClusterProvider[],
+    clusterSettings: ClusterSettings,
+    schemaRegistrySettings: SchemaRegistrySettings,
+    clientAccessor: ClientAccessor,
+    explorer: KafkaExplorer,
+    context: vscode.ExtensionContext
+): WebviewWizard {
     const validationContext = {
         clusterSettings: clusterSettings,
         wizard: null
@@ -120,7 +142,7 @@ function createClusterWizard(providers: ClusterProvider[], clusterSettings: Clus
             {
                 id: CLUSTER_FORM_PAGE,
                 hideWizardPageHeader: true,
-                fields: createFields(),
+                fields: createFields(schemaRegistrySettings),
                 validator: createValidator(validationContext),
             }
         ],
@@ -152,7 +174,7 @@ function createClusterWizard(providers: ClusterProvider[], clusterSettings: Clus
                     const cluster = createCluster(data);
                     await saveCluster(data, cluster);
                     // Open the cluster in form page
-                    openClusterForm(cluster, clusterSettings, clientAccessor, explorer, context);
+                    openClusterForm(cluster, clusterSettings, schemaRegistrySettings, clientAccessor, explorer, context);
                 } else {
                     const provider = getSelectedClusterProvider(data, providers);
                     if (provider) {
@@ -185,7 +207,14 @@ function getSelectedClusterProvider(data: any, providers: ClusterProvider[]): Cl
     return providers.find(provider => provider.id === data[CLUSTER_PROVIDER_ID_FIELD]);
 }
 
-function createEditClusterForm(cluster: Cluster | undefined, clusterSettings: ClusterSettings, clientAccessor: ClientAccessor, explorer: KafkaExplorer, context: vscode.ExtensionContext): WebviewWizard {
+function createEditClusterForm(
+    cluster: Cluster | undefined,
+    clusterSettings: ClusterSettings,
+    schemaRegistrySettings: SchemaRegistrySettings,
+    clientAccessor: ClientAccessor,
+    explorer: KafkaExplorer,
+    context: vscode.ExtensionContext
+): WebviewWizard {
     const validationContext = {
         clusterSettings: clusterSettings,
         wizard: null,
@@ -200,7 +229,7 @@ function createEditClusterForm(cluster: Cluster | undefined, clusterSettings: Cl
             {
                 id: `cluster-form-page'}`,
                 hideWizardPageHeader: true,
-                fields: createFields(cluster),
+                fields: createFields(schemaRegistrySettings, cluster),
                 validator: createValidator(validationContext)
             }
         ],
@@ -238,8 +267,12 @@ function createEditClusterForm(cluster: Cluster | undefined, clusterSettings: Cl
     return wizard;
 }
 
-function createFields(cluster?: Cluster): (WizardPageFieldDefinition | WizardPageSectionDefinition)[] {
+function createFields(schemaRegistrySettings: SchemaRegistrySettings, cluster?: Cluster): (WizardPageFieldDefinition | WizardPageSectionDefinition)[] {
     const tlsConnectionOptions: SslOption | undefined = <SslOption>cluster?.ssl;
+    const schemaRegistryOptions = [
+        { id: "", name: "None" },
+        ...schemaRegistrySettings.getAll().map(schemaRegistry => ({ id: schemaRegistry.id, name: schemaRegistry.name }))
+    ];
     return [
         {
             id: CLUSTER_NAME_FIELD,
@@ -436,6 +469,29 @@ function createFields(cluster?: Cluster): (WizardPageFieldDefinition | WizardPag
                     description: "When disabled, accepts self-signed certificates and hostname mismatches. Use only for development!",
                     initialValue: tlsConnectionOptions?.rejectUnauthorized !== false ? 'true' : undefined,
                     type: "checkbox"
+                }
+            ]
+        },
+        {
+            id: 'schema-registry-section',
+            label: 'Schema Registry',
+            childFields: [
+                {
+                    id: CLUSTER_SCHEMA_REGISTRY_ID_FIELD,
+                    label: "Registry:",
+                    initialValue: `${cluster?.schemaRegistryId || ''}`,
+                    type: "select",
+                    optionProvider: {
+                        getItems() {
+                            return schemaRegistryOptions;
+                        },
+                        getValueItem(item: { id: string; name: string }) {
+                            return item.id;
+                        },
+                        getLabelItem(item: { id: string; name: string }) {
+                            return item.name;
+                        }
+                    }
                 }
             ]
         }
@@ -692,6 +748,7 @@ async function saveCluster(data: any, cluster: Cluster) {
     cluster.bootstrap = data[CLUSTER_BOOTSTRAP_FIELD];
     cluster.saslOption = createSaslOption(data);
     cluster.ssl = createSsl(data);
+    cluster.schemaRegistryId = data[CLUSTER_SCHEMA_REGISTRY_ID_FIELD] || undefined;
     return saveClusters([cluster]);
 }
 

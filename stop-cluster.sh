@@ -2,7 +2,7 @@
 
 # Stop a test Kafka cluster
 # Usage: ./stop-cluster.sh <cluster-name>
-# Available clusters: plaintext, kraft, sasl-plain, oauth, ssl, all
+# Available clusters: plaintext, kraft, sasl-plain, oauth, ssl, schema-registry, all
 
 set -e
 
@@ -20,6 +20,7 @@ if [ -z "$CLUSTER_NAME" ]; then
     echo "  sasl-plain  - Kafka with SASL/PLAIN authentication"
     echo "  oauth       - Kafka with OAUTHBEARER + Keycloak"
     echo "  ssl         - Kafka with SSL/TLS (mTLS)"
+    echo "  schema-registry - Kafka + Schema Registry"
     echo "  all         - Stop all clusters"
     exit 1
 fi
@@ -41,7 +42,7 @@ stop_cluster() {
 if [ "$CLUSTER_NAME" = "all" ]; then
     echo "Stopping all clusters..."
     echo ""
-    for cluster in plaintext kraft sasl-plain oauth ssl; do
+    for cluster in plaintext kraft sasl-plain oauth ssl schema-registry; do
         stop_cluster "$cluster"
         echo ""
     done
@@ -51,7 +52,7 @@ else
     
     if [ ! -d "$CLUSTER_DIR" ]; then
         echo "Error: Cluster '$CLUSTER_NAME' not found."
-        echo "Available clusters: plaintext, kraft, sasl-plain, oauth, ssl, all"
+        echo "Available clusters: plaintext, kraft, sasl-plain, oauth, ssl, schema-registry, all"
         exit 1
     fi
     

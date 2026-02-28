@@ -2,7 +2,7 @@
 
 # Start a test Kafka cluster
 # Usage: ./start-cluster.sh <cluster-name>
-# Available clusters: plaintext, kraft, sasl-plain, oauth, ssl
+# Available clusters: plaintext, kraft, sasl-plain, oauth, ssl, schema-registry
 
 set -e
 
@@ -20,6 +20,7 @@ if [ -z "$CLUSTER_NAME" ]; then
     echo "  sasl-plain  - Kafka with SASL/PLAIN authentication (port 9093)"
     echo "  oauth       - Kafka with OAUTHBEARER + Keycloak (port 9092)"
     echo "  ssl         - Kafka with SSL/TLS (mTLS) (port 9093)"
+    echo "  schema-registry - Kafka + Schema Registry (ports 9094, 8081)"
     echo ""
     echo "Note: plaintext, kraft, and oauth all use port 9092, so only run one at a time."
     exit 1
@@ -29,7 +30,7 @@ CLUSTER_DIR="$CLUSTERS_DIR/$CLUSTER_NAME"
 
 if [ ! -d "$CLUSTER_DIR" ]; then
     echo "Error: Cluster '$CLUSTER_NAME' not found."
-    echo "Available clusters: plaintext, kraft, sasl-plain, oauth, ssl"
+    echo "Available clusters: plaintext, kraft, sasl-plain, oauth, ssl, schema-registry"
     exit 1
 fi
 
@@ -88,6 +89,12 @@ case "$CLUSTER_NAME" in
         echo "  Client Certificate: test-clusters/ssl/client-cert.pem"
         echo "  Client Key: test-clusters/ssl/client-key.pem"
         echo "  Passphrase: test-passphrase"
+        ;;
+    schema-registry)
+        echo "Connection details:"
+        echo "  Bootstrap Server: localhost:9094"
+        echo "  Authentication: None"
+        echo "  Schema Registry URL: http://localhost:8081"
         ;;
 esac
 

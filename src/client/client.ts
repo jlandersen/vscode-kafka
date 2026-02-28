@@ -99,7 +99,8 @@ export interface ConnectionOptions {
     clusterProviderId?: string;
     bootstrap: string;
     saslOption?: SaslOption;
-    ssl?: SslOption | boolean
+    ssl?: SslOption | boolean;
+    schemaRegistryId?: string;
 }
 
 export interface Cluster extends ConnectionOptions {

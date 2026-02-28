@@ -73,6 +73,15 @@ export class KafkaExplorer implements KafkaModelProvider, vscode.Disposable, vsc
         this.onDidChangeTreeDataEvent.fire(undefined);
     }
 
+    public refreshItem(item?: NodeBase): void {
+        if (!item) {
+            this.refresh();
+            return;
+        }
+        item.clearChildrenCache();
+        this.onDidChangeTreeDataEvent.fire(item);
+    }
+
     public show(): void {
         vscode.commands.executeCommand(`${TREEVIEW_ID}.focus`);
     }

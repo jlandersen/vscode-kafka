@@ -5,6 +5,7 @@ import { Icons } from "../../constants";
 import { ClusterItem } from "./cluster";
 import { ConfigsItem, ErrorItem, getErrorMessage, InformationItem } from "./common";
 import { NodeBase } from "./nodeBase";
+import { TopicSchemaSubjectsItem } from "./schemaRegistry";
 
 export class TopicGroupItem extends NodeBase {
     public label = "Topics";
@@ -55,9 +56,13 @@ export class TopicItem extends NodeBase {
         try {
             const client = await this.getParent().getParent().getClient();
             const configNode = new ConfigsItem(() => client.getTopicConfigs(this.topic.id), this);
+            const topicSchemaSubjectsNode = new TopicSchemaSubjectsItem(this);
             const partitionNodes = Object.keys(this.topic.partitions).map((partition) => {
                 return new TopicPartitionItem(this.topic.partitions[partition], this);
             });
+            if (await topicSchemaSubjectsNode.hasDiscoverableSubjects()) {
+                return Promise.resolve([configNode, topicSchemaSubjectsNode, ...partitionNodes]);
+            }
             return Promise.resolve([configNode, ...partitionNodes]);
         } catch (error) {
             return [new ErrorItem(`Failed to load topic: ${getErrorMessage(error)}`, this)];

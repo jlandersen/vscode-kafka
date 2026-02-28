@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 /**
  * Types of secrets that can be stored for a cluster.
  */
-export type SecretType = 'password' | 'oauthClientSecret' | 'awsSecretAccessKey' | 'awsSessionToken';
+export type SecretType = 'password' | 'oauthClientSecret' | 'awsSecretAccessKey' | 'awsSessionToken' | 'schemaRegistryPassword';
 
 /**
  * Manager for securely storing sensitive cluster credentials using VS Code's SecretStorage API.

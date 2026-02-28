@@ -4,7 +4,7 @@ import { Broker, ClientAccessor, Cluster, ConsumerCollection } from "../client";
 import { KafkaExplorer } from "../explorer";
 import { BrokerItem } from "../explorer/models/brokers";
 import { OutputChannelProvider } from "../providers";
-import { ClusterSettings } from "../settings";
+import { ClusterSettings, SchemaRegistrySettings } from "../settings";
 import { openClusterForm, openClusterWizard } from "../wizards/clusters";
 import { showErrorMessage } from "../wizards/multiStepInput";
 import { pickBroker, pickClient, pickCluster, getNames } from "./common";
@@ -61,11 +61,17 @@ export class AddClusterCommandHandler {
 
     public static commandId = "vscode-kafka.explorer.addcluster";
 
-    constructor(private clusterSettings: ClusterSettings, private clientAccessor: ClientAccessor, private explorer: KafkaExplorer, private context: vscode.ExtensionContext) {
+    constructor(
+        private clusterSettings: ClusterSettings,
+        private schemaRegistrySettings: SchemaRegistrySettings,
+        private clientAccessor: ClientAccessor,
+        private explorer: KafkaExplorer,
+        private context: vscode.ExtensionContext
+    ) {
     }
 
     async execute(): Promise<void> {
-        openClusterWizard(this.clusterSettings, this.clientAccessor, this.explorer, this.context);
+        openClusterWizard(this.clusterSettings, this.schemaRegistrySettings, this.clientAccessor, this.explorer, this.context);
     }
 }
 
@@ -149,7 +155,13 @@ export class EditClusterCommandHandler {
 
     public static commandId = 'vscode-kafka.explorer.editcluster';
 
-    constructor(private clusterSettings: ClusterSettings, private clientAccessor: ClientAccessor, private explorer: KafkaExplorer, private context: vscode.ExtensionContext) {
+    constructor(
+        private clusterSettings: ClusterSettings,
+        private schemaRegistrySettings: SchemaRegistrySettings,
+        private clientAccessor: ClientAccessor,
+        private explorer: KafkaExplorer,
+        private context: vscode.ExtensionContext
+    ) {
     }
 
     async execute(clusterId?: string): Promise<void> {
@@ -162,7 +174,7 @@ export class EditClusterCommandHandler {
         if (!cluster) {
             return;
         }
-        openClusterForm(cluster, this.clusterSettings, this.clientAccessor, this.explorer, this.context);
+        openClusterForm(cluster, this.clusterSettings, this.schemaRegistrySettings, this.clientAccessor, this.explorer, this.context);
     }
 }
 

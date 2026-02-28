@@ -18,3 +18,4 @@ export * from "./topics";
 export * from "./producers";
 export * from "./cluster";
 export * from "./inlineCommandActivationCommand";
+export * from "./schemaRegistry";
