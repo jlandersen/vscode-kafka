@@ -5,12 +5,13 @@ import { ClientAccessor } from ".";
 import { getWorkspaceSettings, InitialConsumerOffset, ClusterSettings } from "../settings";
 import { addQueryParameter, Client, ConnectionOptions } from "./client";
 import { deserialize, MessageFormat, SerializationResult, SerializationSetting } from "./serialization";
-import { KafkaConsumer, MessageHeaders, TopicPartitionOffsets } from "./types";
+import { KafkaConsumer, MessageHeaders, PartitionOffset, TopicPartitionOffsets } from "./types";
 
 interface ConsumerOptions extends ConnectionOptions {
     consumerGroupId: string;
     topicId: string;
     fromOffset: InitialConsumerOffset | string;
+    fromTimestamp?: string;
     partitions?: number[];
     messageKeyFormat?: MessageFormat;
     messageKeyFormatSettings?: SerializationSetting[];
@@ -73,7 +74,7 @@ export class Consumer implements vscode.Disposable {
     public error: any;
 
     constructor(public uri: vscode.Uri, clusterSettings: ClusterSettings, private clientAccessor: ClientAccessor) {
-        const { clusterId, consumerGroupId, topicId, fromOffset, partitions, messageKeyFormat, messageKeyFormatSettings, messageValueFormat, messageValueFormatSettings, kafkaFileUri } = extractConsumerInfoUri(uri);
+        const { clusterId, consumerGroupId, topicId, fromOffset, fromTimestamp, partitions, messageKeyFormat, messageKeyFormatSettings, messageValueFormat, messageValueFormatSettings, kafkaFileUri } = extractConsumerInfoUri(uri);
         this.clusterId = clusterId;
         const cluster = clusterSettings.get(clusterId);
 
@@ -90,6 +91,7 @@ export class Consumer implements vscode.Disposable {
                 consumerGroupId: consumerGroupId,
                 topicId,
                 fromOffset: fromOffset || settings.consumerOffset,
+                fromTimestamp,
                 partitions: parsePartitions(partitions),
                 messageKeyFormat,
                 messageKeyFormatSettings,
@@ -112,6 +114,7 @@ export class Consumer implements vscode.Disposable {
         const partitions = this.options.partitions;
         const partitionAssigner = this.getPartitionAssigner(partitions);
         const fromOffset = this.options.fromOffset;
+        const fromTimestamp = this.options.fromTimestamp;
         const topic = this.options.topicId;
 
         this.kafkaClient = await this.clientAccessor.get(this.clusterId);
@@ -137,14 +140,24 @@ export class Consumer implements vscode.Disposable {
             },
         });
 
-        const offsetAsNumber = (fromOffset && subscribeOptions.fromBeginning === undefined);
-        if (partitions || offsetAsNumber) {
+        const seekByTimestamp = typeof fromTimestamp === "string" && fromTimestamp.trim().length > 0;
+        const offsetAsNumber = fromOffset && subscribeOptions.fromBeginning === undefined && !seekByTimestamp;
+        if (partitions || offsetAsNumber || seekByTimestamp) {
             const definedOffset = offsetAsNumber ? fromOffset : undefined;
-            const topicOffsets = !definedOffset ? await this.kafkaClient?.fetchTopicOffsets(topic) : undefined;
+            const topicOffsets = await this.kafkaClient?.fetchTopicOffsets(topic);
+            const timestampOffsets = seekByTimestamp
+                ? await this.kafkaClient?.fetchTopicOffsetsByTimestamp(topic, fromTimestamp!)
+                : undefined;
             const definedPartitions = await this.getPartitions(topic, partitions);
             for (let i = 0; i < definedPartitions.length; i++) {
                 const partition = definedPartitions[i];
-                const offset = definedOffset || await this.getOffsetToSeek(topicOffsets, fromOffset, partition);
+                let offset = definedOffset;
+                if (!offset && seekByTimestamp) {
+                    offset = await this.getOffsetFromTimestamp(topicOffsets, timestampOffsets, partition);
+                }
+                if (!offset) {
+                    offset = await this.getOffsetToSeek(topicOffsets, fromOffset, partition);
+                }
                 this.consumer.seek({ topic, partition, offset });
             }
         }
@@ -168,6 +181,23 @@ export class Consumer implements vscode.Disposable {
             return result.high;
         }
         return result.low;
+    }
+
+    private async getOffsetFromTimestamp(
+        topicOffsets: TopicPartitionOffsets[] | undefined,
+        timestampOffsets: PartitionOffset[] | undefined,
+        partition: number
+    ): Promise<string> {
+        const timestampOffset = timestampOffsets?.find(p => p.partition === partition)?.offset;
+        if (timestampOffset && timestampOffset !== "-1") {
+            return timestampOffset;
+        }
+
+        const fallback = topicOffsets?.find(p => p.partition === partition);
+        if (!fallback) {
+            return "0";
+        }
+        return fallback.high;
     }
 
     private getPartitionAssigner(partitions?: number[]): PartitionAssigner {
@@ -392,6 +422,7 @@ export interface ConsumerInfoUri {
     consumerGroupId: string;
     topicId: InitialConsumerOffset | string;
     fromOffset?: string;
+    fromTimestamp?: string;
     partitions?: string;
     messageKeyFormat?: MessageFormat;
     messageKeyFormatSettings?: SerializationSetting[];
@@ -402,6 +433,7 @@ export interface ConsumerInfoUri {
 
 const TOPIC_QUERY_PARAMETER = 'topic';
 const FROM_QUERY_PARAMETER = 'from';
+const FROM_TIMESTAMP_QUERY_PARAMETER = 'from-timestamp';
 const PARTITIONS_QUERY_PARAMETER = 'partitions';
 const KEY_FORMAT_QUERY_PARAMETER = 'key';
 const KEY_FORMAT_SETTINGS_QUERY_PARAMETER = 'key-settings';
@@ -414,6 +446,7 @@ export function createConsumerUri(info: ConsumerInfoUri): vscode.Uri {
     let query = '';
     query = addQueryParameter(query, TOPIC_QUERY_PARAMETER, info.topicId);
     query = addQueryParameter(query, FROM_QUERY_PARAMETER, info.fromOffset);
+    query = addQueryParameter(query, FROM_TIMESTAMP_QUERY_PARAMETER, info.fromTimestamp);
     query = addQueryParameter(query, PARTITIONS_QUERY_PARAMETER, info.partitions);
     query = addQueryParameter(query, KEY_FORMAT_QUERY_PARAMETER, info.messageKeyFormat);
     query = addQueryParameter(query, KEY_FORMAT_SETTINGS_QUERY_PARAMETER, info.messageKeyFormatSettings?.map(p => p.value).join(','));
@@ -428,6 +461,7 @@ export function extractConsumerInfoUri(uri: vscode.Uri): ConsumerInfoUri {
     const urlParams = new URLSearchParams(uri.query);
     const topicId = urlParams.get(TOPIC_QUERY_PARAMETER) || '';
     const from = urlParams.get(FROM_QUERY_PARAMETER);
+    const fromTimestamp = urlParams.get(FROM_TIMESTAMP_QUERY_PARAMETER);
     const partitions = urlParams.get(PARTITIONS_QUERY_PARAMETER);
     const messageKeyFormat = urlParams.get(KEY_FORMAT_QUERY_PARAMETER);
     const messageKeyFormatSettings = urlParams.get(KEY_FORMAT_SETTINGS_QUERY_PARAMETER);
@@ -441,6 +475,9 @@ export function extractConsumerInfoUri(uri: vscode.Uri): ConsumerInfoUri {
     };
     if (from && from.trim().length > 0) {
         result.fromOffset = from;
+    }
+    if (fromTimestamp && fromTimestamp.trim().length > 0) {
+        result.fromTimestamp = fromTimestamp;
     }
     if (partitions && partitions.trim().length > 0) {
         result.partitions = partitions;

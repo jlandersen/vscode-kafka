@@ -32,6 +32,19 @@ suite("Create consumer URI Test Suite", () => {
         );
     });
 
+    test("Consumer URI with timestamp mode", () => {
+        assert.deepStrictEqual(
+            createConsumerUri({
+                clusterId: 'cluster-id',
+                consumerGroupId: 'group-id',
+                topicId: 'topic-id',
+                fromOffset: 'latest',
+                fromTimestamp: '1700000000000'
+            }),
+            vscode.Uri.parse(`kafka:cluster-id/group-id?topic=topic-id&from=latest&from-timestamp=1700000000000`)
+        );
+    });
+
 });
 
 suite("Extract consumer URI Test Suite", () => {
@@ -61,6 +74,19 @@ suite("Extract consumer URI Test Suite", () => {
         assert.deepStrictEqual(
             extractConsumerInfoUri(vscode.Uri.parse(`kafka:cluster-id/group-id?topic=topic-id&from=1&partitions=0-5`)),
             { clusterId: 'cluster-id', consumerGroupId: 'group-id', topicId: 'topic-id', fromOffset: '1', partitions: '0-5' }
+        );
+    });
+
+    test("Consumer URI with timestamp mode", () => {
+        assert.deepStrictEqual(
+            extractConsumerInfoUri(vscode.Uri.parse(`kafka:cluster-id/group-id?topic=topic-id&from=latest&from-timestamp=1700000000000`)),
+            {
+                clusterId: 'cluster-id',
+                consumerGroupId: 'group-id',
+                topicId: 'topic-id',
+                fromOffset: 'latest',
+                fromTimestamp: '1700000000000'
+            }
         );
     });
 

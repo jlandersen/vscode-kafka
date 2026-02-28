@@ -1,6 +1,13 @@
 import { ConsumedRecord } from "../client";
 
 export type ConsumerStreamState = "running" | "paused" | "error";
+export type ConsumerConsumeMode = "latest" | "earliest" | "timestamp";
+
+export interface ConsumerSessionConsumeSettings {
+    consumeMode: ConsumerConsumeMode;
+    consumeTimestamp: string;
+    consumedPartitions: string;
+}
 
 export interface ConsumerSessionMessage {
     id: number;
@@ -27,6 +34,11 @@ export interface ConsumerSessionState {
     totalMessages: number;
     filteredMessages: number;
     maxBufferSize: number;
+    availablePartitions: string[];
+    selectedFilterPartitions: string[];
+    consumeMode: ConsumerConsumeMode;
+    consumeTimestamp: string;
+    consumedPartitions: string;
 }
 
 export interface ConsumerSessionPage {
@@ -59,6 +71,12 @@ export class ConsumerSession {
     private searchQuery = "";
     private page = 1;
     private pageSize = DEFAULT_PAGE_SIZE;
+    private selectedFilterPartitions = new Set<string>();
+    private consumeSettings: ConsumerSessionConsumeSettings = {
+        consumeMode: "latest",
+        consumeTimestamp: "",
+        consumedPartitions: ""
+    };
 
     constructor(private readonly maxBufferSize: number) {}
 
@@ -104,8 +122,36 @@ export class ConsumerSession {
         this.page = 1;
     }
 
+    resetForConsumeSettings(settings: ConsumerSessionConsumeSettings): void {
+        this.consumeSettings = {
+            consumeMode: settings.consumeMode,
+            consumeTimestamp: settings.consumeTimestamp.trim(),
+            consumedPartitions: settings.consumedPartitions.trim()
+        };
+        this.messages = [];
+        this.searchQuery = "";
+        this.page = 1;
+        this.streamState = "running";
+        this.streamError = undefined;
+        this.selectedFilterPartitions.clear();
+    }
+
+    setConsumeSettings(settings: ConsumerSessionConsumeSettings): void {
+        this.consumeSettings = {
+            consumeMode: settings.consumeMode,
+            consumeTimestamp: settings.consumeTimestamp.trim(),
+            consumedPartitions: settings.consumedPartitions.trim()
+        };
+    }
+
     setSearchQuery(query: string): void {
         this.searchQuery = query.trim();
+        this.page = 1;
+        this.ensureValidPage();
+    }
+
+    setPartitionFilter(partitions: string[]): void {
+        this.selectedFilterPartitions = new Set(partitions.map((partition) => partition.trim()).filter((partition) => partition.length > 0));
         this.page = 1;
         this.ensureValidPage();
     }
@@ -167,7 +213,12 @@ export class ConsumerSession {
             totalPages,
             totalMessages: counts.total,
             filteredMessages: counts.filtered,
-            maxBufferSize: this.maxBufferSize
+            maxBufferSize: this.maxBufferSize,
+            availablePartitions: this.getAvailablePartitions(),
+            selectedFilterPartitions: Array.from(this.selectedFilterPartitions),
+            consumeMode: this.consumeSettings.consumeMode,
+            consumeTimestamp: this.consumeSettings.consumeTimestamp,
+            consumedPartitions: this.consumeSettings.consumedPartitions
         };
     }
 
@@ -180,18 +231,37 @@ export class ConsumerSession {
     }
 
     private getFilteredMessages(): StoredMessage[] {
-        if (!this.searchQuery) {
-            return this.messages;
-        }
-        const search = this.searchQuery.toLowerCase();
-        return this.messages.filter((message) => {
-            const content = `${message.key}\n${message.value}\n${message.headers}`.toLowerCase();
-            return content.includes(search);
-        });
+        return this.messages.filter((message) => this.matchesFilters(message));
     }
 
     private getFilteredMessagesDescending(): StoredMessage[] {
         return this.getFilteredMessages().slice().reverse();
+    }
+
+    private matchesFilters(message: StoredMessage): boolean {
+        if (this.selectedFilterPartitions.size > 0 && !this.selectedFilterPartitions.has(message.partition)) {
+            return false;
+        }
+
+        if (!this.searchQuery) {
+            return true;
+        }
+
+        const search = this.searchQuery.toLowerCase();
+        const content = `${message.key}\n${message.value}\n${message.headers}`.toLowerCase();
+        return content.includes(search);
+    }
+
+    private getAvailablePartitions(): string[] {
+        const partitions = new Set<string>();
+        for (let i = 0; i < this.messages.length; i++) {
+            const partition = this.messages[i].partition;
+            if (partition.length > 0) {
+                partitions.add(partition);
+            }
+        }
+
+        return Array.from(partitions).sort((left, right) => Number(left) - Number(right));
     }
 
     private ensureValidPage(): void {

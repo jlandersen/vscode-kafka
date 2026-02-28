@@ -229,6 +229,7 @@ export interface Client extends Disposable {
     deleteTopicRecords(topic: string, partitions: PartitionOffset[]): Promise<void>;
     fetchTopicPartitions(topic: string): Promise<number[]>;
     fetchTopicOffsets(topic: string): Promise<TopicPartitionOffsets[]>;
+    fetchTopicOffsetsByTimestamp(topic: string, timestamp: string): Promise<PartitionOffset[]>;
 }
 
 class EnsureConnectedDecorator implements Client {
@@ -313,6 +314,11 @@ class EnsureConnectedDecorator implements Client {
     public async fetchTopicOffsets(topic: string): Promise<TopicPartitionOffsets[]> {
         await this.waitUntilConnected();
         return await this.client.fetchTopicOffsets(topic);
+    }
+
+    public async fetchTopicOffsetsByTimestamp(topic: string, timestamp: string): Promise<PartitionOffset[]> {
+        await this.waitUntilConnected();
+        return await this.client.fetchTopicOffsetsByTimestamp(topic, timestamp);
     }
 
     public dispose(): void {
@@ -604,6 +610,10 @@ class KafkaJsClient implements Client {
     async fetchTopicOffsets(topic: string): Promise<TopicPartitionOffsets[]> {
         // returns the topics partitions
         return (await this.getKafkaAdminClient()).fetchTopicOffsets(topic);
+    }
+
+    async fetchTopicOffsetsByTimestamp(topic: string, timestamp: string): Promise<PartitionOffset[]> {
+        return (await this.getKafkaAdminClient()).fetchTopicOffsetsByTimestamp(topic, Number(timestamp));
     }
 
     dispose() {

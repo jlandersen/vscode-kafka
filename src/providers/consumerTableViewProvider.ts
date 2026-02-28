@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
-import { ConsumedRecord, Consumer, ConsumerCollection } from "../client";
+import { ConsumedRecord, Consumer, ConsumerCollection, createConsumerUri, extractConsumerInfoUri, parsePartitions } from "../client";
 import { ClusterSettings } from "../settings/clusters";
 import { WorkspaceSettings } from "../settings";
-import { ConsumerSession, ConsumerSessionMessage } from "./consumerSession";
+import { ConsumerConsumeMode, ConsumerSession, ConsumerSessionConsumeSettings, ConsumerSessionMessage } from "./consumerSession";
 
 const DEFAULT_BUFFER_SIZE = 5000;
 const RENDER_THROTTLE_MS = 50;
@@ -13,6 +13,8 @@ type WebviewCommand =
     | "Pause"
     | "Resume"
     | "SearchMessages"
+    | "SetPartitionFilter"
+    | "ApplyConsumeSettings"
     | "ClearMessages"
     | "PreviewMessage"
     | "ExportMessages";
@@ -23,6 +25,10 @@ interface WebviewRequest {
     pageSize?: number;
     query?: string;
     messageId?: number;
+    partitions?: string[];
+    consumeMode?: ConsumerConsumeMode;
+    consumeTimestamp?: string;
+    consumedPartitions?: string;
 }
 
 export class ConsumerTableViewProvider implements vscode.Disposable {
@@ -94,7 +100,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 }
             }),
             this.panel.webview.onDidReceiveMessage((message: WebviewRequest) => {
-                this.handleWebviewMessage(message);
+                void this.handleWebviewMessage(message);
             })
         );
     }
@@ -105,6 +111,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         this.consumer = consumer;
         this.activeConsumerUri = consumerUri;
         this.session = new ConsumerSession(this.getConfiguredBufferSize());
+        this.session.setConsumeSettings(this.getConsumeSettingsFromConsumer(consumer));
         this.panel!.title = `Kafka Consumer: ${consumer.options.topicId}`;
 
         this.consumerDisposables.push(
@@ -135,7 +142,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         this.scheduleRender();
     }
 
-    private handleWebviewMessage(message: WebviewRequest): void {
+    private async handleWebviewMessage(message: WebviewRequest): Promise<void> {
         if (!this.session) {
             return;
         }
@@ -161,11 +168,22 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 this.session.setSearchQuery(message.query || "");
                 this.sendMessages();
                 this.sendViewerState();
+                this.sendCounts();
+                break;
+            case "SetPartitionFilter":
+                this.session.setPartitionFilter(message.partitions || []);
+                this.sendMessages();
+                this.sendViewerState();
+                this.sendCounts();
+                break;
+            case "ApplyConsumeSettings":
+                await this.applyConsumeSettings(message);
                 break;
             case "ClearMessages":
                 this.session.clear();
                 this.sendMessages();
                 this.sendViewerState();
+                this.sendCounts();
                 break;
             case "PreviewMessage":
                 if (message.messageId === undefined) {
@@ -174,9 +192,119 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 this.sendPreview(message.messageId);
                 break;
             case "ExportMessages":
-                this.exportToCSV();
+                await this.exportToCSV();
                 break;
         }
+    }
+
+    private getConsumeSettingsFromConsumer(consumer: Consumer): ConsumerSessionConsumeSettings {
+        const uriInfo = extractConsumerInfoUri(consumer.uri);
+        const consumeTimestamp = this.formatTimestampForDisplay(consumer.options.fromTimestamp);
+        let consumeMode: ConsumerConsumeMode = "latest";
+        if (consumeTimestamp.length > 0) {
+            consumeMode = "timestamp";
+        } else if (consumer.options.fromOffset === "earliest") {
+            consumeMode = "earliest";
+        }
+
+        return {
+            consumeMode,
+            consumeTimestamp,
+            consumedPartitions: uriInfo.partitions || ""
+        };
+    }
+
+    private async applyConsumeSettings(message: WebviewRequest): Promise<void> {
+        if (!this.session || !this.consumer || !this.activeConsumerUri) {
+            return;
+        }
+
+        const consumeMode = message.consumeMode || "latest";
+        const consumedPartitions = (message.consumedPartitions || "").trim();
+        const consumeTimestampInput = (message.consumeTimestamp || "").trim();
+        const consumeTimestamp = consumeMode === "timestamp"
+            ? this.normalizeTimestampInput(consumeTimestampInput)
+            : undefined;
+
+        if (consumeMode === "timestamp" && !consumeTimestamp) {
+            vscode.window.showErrorMessage("Invalid timestamp. Use ISO-8601 or epoch milliseconds.");
+            return;
+        }
+
+        if (consumedPartitions.length > 0) {
+            try {
+                parsePartitions(consumedPartitions);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Invalid partitions: ${error instanceof Error ? error.message : error}`);
+                return;
+            }
+        }
+
+        const currentSettings = this.session.getState();
+        const nextSettings: ConsumerSessionConsumeSettings = {
+            consumeMode,
+            consumeTimestamp: consumeMode === "timestamp" ? consumeTimestampInput : "",
+            consumedPartitions
+        };
+
+        if (
+            currentSettings.consumeMode === nextSettings.consumeMode &&
+            currentSettings.consumeTimestamp === nextSettings.consumeTimestamp &&
+            currentSettings.consumedPartitions === nextSettings.consumedPartitions
+        ) {
+            this.session.setConsumeSettings(nextSettings);
+            this.sendViewerState();
+            return;
+        }
+
+        const currentUri = vscode.Uri.parse(this.activeConsumerUri);
+        const currentInfo = extractConsumerInfoUri(this.consumer.uri);
+        const nextInfo = {
+            ...currentInfo,
+            fromOffset: consumeMode === "earliest" ? "earliest" : "latest",
+            fromTimestamp: consumeMode === "timestamp" ? consumeTimestamp : undefined,
+            partitions: consumedPartitions.length > 0 ? consumedPartitions : undefined
+        };
+        const nextUri = createConsumerUri(nextInfo);
+
+        try {
+            await this.consumerCollection.close(currentUri);
+            const nextConsumer = await this.consumerCollection.create(nextUri);
+            this.bindConsumer(nextConsumer, nextUri.toString());
+            this.session?.resetForConsumeSettings(nextSettings);
+            this.sendConsumerInfo();
+            this.renderNow();
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to apply consume settings: ${error}`);
+        }
+    }
+
+    private normalizeTimestampInput(value: string): string | undefined {
+        if (!value) {
+            return undefined;
+        }
+
+        if (/^\\d+$/.test(value)) {
+            return value;
+        }
+
+        const asDate = Date.parse(value);
+        if (Number.isNaN(asDate)) {
+            return undefined;
+        }
+        return String(asDate);
+    }
+
+    private formatTimestampForDisplay(value: string | undefined): string {
+        if (!value || !/^\\d+$/.test(value)) {
+            return value || "";
+        }
+        const timestamp = Number(value);
+        const asDate = new Date(timestamp);
+        if (Number.isNaN(asDate.getTime())) {
+            return value;
+        }
+        return asDate.toISOString();
     }
 
     private scheduleRender(): void {
@@ -211,6 +339,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 consumerGroupId: this.consumer.options.consumerGroupId,
                 topic: this.consumer.options.topicId,
                 fromOffset: this.consumer.options.fromOffset,
+                fromTimestamp: this.consumer.options.fromTimestamp,
                 partitions: this.consumer.options.partitions
             }
         });
@@ -394,6 +523,12 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             align-items: center;
         }
 
+        .controls .section {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
         .controls input,
         .controls select {
             background: var(--input-bg);
@@ -402,6 +537,12 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             border-radius: 3px;
             padding: 4px 8px;
             min-width: 160px;
+        }
+
+        #partitionFilter {
+            min-width: 120px;
+            min-height: 84px;
+            padding: 4px;
         }
 
         button {
@@ -424,7 +565,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
 
         .table-wrap {
             overflow: auto;
-            height: calc(100vh - 140px);
+            height: calc(100vh - 240px);
         }
 
         table {
@@ -517,6 +658,26 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 <button id="next">Next</button>
             </div>
         </div>
+        <div class="controls">
+            <div class="section">
+                <label for="consumeMode">Consume mode</label>
+                <select id="consumeMode">
+                    <option value="latest">Latest</option>
+                    <option value="earliest">From beginning</option>
+                    <option value="timestamp">From timestamp</option>
+                </select>
+                <input id="consumeTimestamp" type="text" placeholder="ISO-8601 or epoch ms" />
+            </div>
+            <div class="section">
+                <label for="consumedPartitions">Consumed partitions</label>
+                <input id="consumedPartitions" type="text" placeholder="all or e.g. 0,2-4" />
+                <button id="applyConsumeSettings">Apply</button>
+            </div>
+            <div class="section">
+                <label for="partitionFilter">Filtered partitions</label>
+                <select id="partitionFilter" multiple></select>
+            </div>
+        </div>
     </div>
     <div class="table-wrap">
         <table>
@@ -554,6 +715,11 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         const countsEl = document.getElementById("counts");
         const statusEl = document.getElementById("status");
         const previewEl = document.getElementById("preview");
+        const consumeModeEl = document.getElementById("consumeMode");
+        const consumeTimestampEl = document.getElementById("consumeTimestamp");
+        const consumedPartitionsEl = document.getElementById("consumedPartitions");
+        const applyConsumeSettingsEl = document.getElementById("applyConsumeSettings");
+        const partitionFilterEl = document.getElementById("partitionFilter");
 
         let state = {
             streamState: "running",
@@ -563,7 +729,12 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             totalMessages: 0,
             filteredMessages: 0,
             maxBufferSize: 0,
-            searchQuery: ""
+            searchQuery: "",
+            availablePartitions: [],
+            selectedFilterPartitions: [],
+            consumeMode: "latest",
+            consumeTimestamp: "",
+            consumedPartitions: ""
         };
         let searchDebounce;
 
@@ -598,6 +769,27 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 });
                 rowsEl.appendChild(row);
             }
+        }
+
+        function renderPartitionFilter() {
+            const selected = new Set(state.selectedFilterPartitions || []);
+            const availablePartitions = state.availablePartitions || [];
+
+            partitionFilterEl.innerHTML = "";
+            for (const partition of availablePartitions) {
+                const option = document.createElement("option");
+                option.value = partition;
+                option.textContent = partition;
+                option.selected = selected.has(partition);
+                partitionFilterEl.appendChild(option);
+            }
+        }
+
+        function updateConsumeInputs() {
+            consumeModeEl.value = state.consumeMode || "latest";
+            consumeTimestampEl.value = state.consumeTimestamp || "";
+            consumedPartitionsEl.value = state.consumedPartitions || "";
+            consumeTimestampEl.disabled = consumeModeEl.value !== "timestamp";
         }
 
         function updateStatus() {
@@ -651,6 +843,8 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                         searchEl.value = state.searchQuery || "";
                     }
                     pageSizeEl.value = String(state.pageSize || 100);
+                    renderPartitionFilter();
+                    updateConsumeInputs();
                     updateStatus();
                     break;
                 }
@@ -702,6 +896,24 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
 
         pageSizeEl.addEventListener("change", () => {
             requestPage(1);
+        });
+
+        partitionFilterEl.addEventListener("change", () => {
+            const partitions = Array.from(partitionFilterEl.selectedOptions).map((option) => option.value);
+            post("SetPartitionFilter", { partitions });
+        });
+
+        consumeModeEl.addEventListener("change", () => {
+            consumeTimestampEl.disabled = consumeModeEl.value !== "timestamp";
+        });
+
+        applyConsumeSettingsEl.addEventListener("click", () => {
+            post("ApplyConsumeSettings", {
+                consumeMode: consumeModeEl.value,
+                consumeTimestamp: consumeTimestampEl.value,
+                consumedPartitions: consumedPartitionsEl.value
+            });
+            previewEl.textContent = "Select a message row to preview.";
         });
 
         post("GetMessagesCount");

@@ -315,6 +315,11 @@ export class TestKafkaClient implements Client {
         return admin.fetchTopicOffsets(topic);
     }
 
+    async fetchTopicOffsetsByTimestamp(topic: string, timestamp: string): Promise<SeekEntry[]> {
+        const admin = await this.getAdmin();
+        return admin.fetchTopicOffsetsByTimestamp(topic, Number(timestamp));
+    }
+
     private async getAdmin(): Promise<Admin> {
         if (!this.admin) {
             throw new Error("Client not connected");

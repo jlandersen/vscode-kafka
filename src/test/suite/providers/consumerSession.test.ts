@@ -92,4 +92,53 @@ suite("ConsumerSession Test Suite", () => {
         assert.strictEqual(state.filteredMessages, 8);
         assert.strictEqual(state.totalPages, 3);
     });
+
+    test("applies partition filter on top of search filters", () => {
+        const session = new ConsumerSession(20);
+
+        session.addRecord(createRecord(1, "order-created"));
+        session.addRecord(createRecord(2, "payment-received"));
+        session.addRecord({ ...createRecord(3, "order-shipped"), partition: 1 });
+
+        session.setSearchQuery("order");
+        session.setPartitionFilter(["1"]);
+
+        const counts = session.getCounts();
+        assert.strictEqual(counts.total, 3);
+        assert.strictEqual(counts.filtered, 1);
+
+        const page = session.getMessages();
+        assert.strictEqual(page.messages.length, 1);
+        assert.strictEqual(page.messages[0].partition, "1");
+
+        const state = session.getState();
+        assert.deepStrictEqual(state.availablePartitions, ["0", "1"]);
+        assert.deepStrictEqual(state.selectedFilterPartitions, ["1"]);
+    });
+
+    test("resets viewer state when consume settings are reseeded", () => {
+        const session = new ConsumerSession(20);
+
+        session.addRecord(createRecord(1));
+        session.setSearchQuery("value-1");
+        session.setPartitionFilter(["0"]);
+        session.pause();
+        session.setError(new Error("failed"));
+
+        session.resetForConsumeSettings({
+            consumeMode: "timestamp",
+            consumeTimestamp: "2026-02-28T08:00:00.000Z",
+            consumedPartitions: "0,2-3"
+        });
+
+        const state = session.getState();
+        assert.strictEqual(state.streamState, "running");
+        assert.strictEqual(state.error, undefined);
+        assert.strictEqual(state.searchQuery, "");
+        assert.strictEqual(state.totalMessages, 0);
+        assert.deepStrictEqual(state.selectedFilterPartitions, []);
+        assert.strictEqual(state.consumeMode, "timestamp");
+        assert.strictEqual(state.consumeTimestamp, "2026-02-28T08:00:00.000Z");
+        assert.strictEqual(state.consumedPartitions, "0,2-3");
+    });
 });
