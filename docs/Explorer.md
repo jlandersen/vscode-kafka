@@ -8,11 +8,49 @@ The Kafka explorer shows configured clusters with their topics, brokers, consume
 
 In the Kafka explorer, right-click on a cluster to access several options.
 
+If a cluster has a linked Schema Registry, the cluster tree also shows:
+
+`Schema Registries -> <Registry Name> -> Subjects -> Versions`
+
 ### Select Cluster
 
 Before using a [.kafka file](KafkaFile.md#kafkafile), a cluster must be selected, you can use the `Select cluster` menu item:
 
 ![Select cluster](assets/kafka-explorer-select-cluster.png)
+
+## Schema Registry Connections
+
+Schema Registry connections are configured separately from clusters and can be reused across clusters.
+
+- Define registry connections in `kafka.schemaRegistries`.
+- Link a cluster to a registry by setting `schemaRegistryId` in the cluster config.
+- Credentials are stored in secure storage, not plain settings.
+
+Example:
+
+```json
+"kafka.schemaRegistries": [
+    {
+        "id": "local-registry",
+        "name": "Local Registry",
+        "connection": {
+            "url": "http://localhost:8081",
+            "namingStrategy": "TopicNameStrategy",
+            "auth": {
+                "username": "user"
+            }
+        }
+    }
+],
+"kafka.clusters": [
+    {
+        "id": "local-cluster",
+        "name": "Local Cluster",
+        "bootstrap": "localhost:9092",
+        "schemaRegistryId": "local-registry"
+    }
+]
+```
 
 ## Actions
 

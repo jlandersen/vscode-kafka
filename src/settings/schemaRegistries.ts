@@ -118,6 +118,14 @@ class SettingsSchemaRegistrySettings implements SchemaRegistrySettings {
 
         return schemaRegistries;
     }
+
+    static resetInstanceForTesting(): void {
+        SettingsSchemaRegistrySettings.instance = undefined as any;
+    }
 }
 
 export const getSchemaRegistrySettings = (): SchemaRegistrySettings => SettingsSchemaRegistrySettings.getInstance();
+
+export const resetSchemaRegistrySettingsForTesting = (): void => {
+    (SettingsSchemaRegistrySettings as any).resetInstanceForTesting();
+};
