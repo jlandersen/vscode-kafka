@@ -10,10 +10,13 @@ const RENDER_THROTTLE_MS = 50;
 type WebviewCommand =
     | "GetMessages"
     | "GetMessagesCount"
+    | "GetHistogram"
     | "Pause"
     | "Resume"
     | "SearchMessages"
     | "SetPartitionFilter"
+    | "SetTimeRangeFilter"
+    | "ClearTimeRangeFilter"
     | "ApplyConsumeSettings"
     | "ClearMessages"
     | "PreviewMessage"
@@ -29,6 +32,9 @@ interface WebviewRequest {
     consumeMode?: ConsumerConsumeMode;
     consumeTimestamp?: string;
     consumedPartitions?: string;
+    startMs?: number;
+    endMs?: number;
+    binCount?: number;
 }
 
 export class ConsumerTableViewProvider implements vscode.Disposable {
@@ -136,6 +142,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         if (streamState === "paused") {
             this.sendViewerState();
             this.sendCounts();
+            this.sendHistogram();
             return;
         }
 
@@ -156,6 +163,9 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             case "GetMessagesCount":
                 this.sendCounts();
                 break;
+            case "GetHistogram":
+                this.sendHistogram(message.binCount);
+                break;
             case "Pause":
                 this.session.pause();
                 this.sendViewerState();
@@ -169,12 +179,28 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 this.sendMessages();
                 this.sendViewerState();
                 this.sendCounts();
+                this.sendHistogram();
                 break;
             case "SetPartitionFilter":
                 this.session.setPartitionFilter(message.partitions || []);
                 this.sendMessages();
                 this.sendViewerState();
                 this.sendCounts();
+                this.sendHistogram();
+                break;
+            case "SetTimeRangeFilter":
+                this.session.setTimeRangeFilter(message.startMs, message.endMs);
+                this.sendMessages();
+                this.sendViewerState();
+                this.sendCounts();
+                this.sendHistogram();
+                break;
+            case "ClearTimeRangeFilter":
+                this.session.setTimeRangeFilter(undefined, undefined);
+                this.sendMessages();
+                this.sendViewerState();
+                this.sendCounts();
+                this.sendHistogram();
                 break;
             case "ApplyConsumeSettings":
                 await this.applyConsumeSettings(message);
@@ -184,6 +210,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 this.sendMessages();
                 this.sendViewerState();
                 this.sendCounts();
+                this.sendHistogram();
                 break;
             case "PreviewMessage":
                 if (message.messageId === undefined) {
@@ -323,6 +350,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         this.sendMessages();
         this.sendViewerState();
         this.sendCounts();
+        this.sendHistogram();
     }
 
     private sendConsumerInfo(): void {
@@ -376,6 +404,17 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         this.panel.webview.postMessage({
             command: "MessagesCount",
             data: this.session.getCounts()
+        });
+    }
+
+    private sendHistogram(binCount?: number): void {
+        if (!this.panel || !this.session) {
+            return;
+        }
+
+        this.panel.webview.postMessage({
+            command: "Histogram",
+            data: this.session.getHistogram(binCount)
         });
     }
 
@@ -486,6 +525,10 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             --btn-hover: var(--vscode-button-hoverBackground);
             --input-bg: var(--vscode-input-background);
             --input-fg: var(--vscode-input-foreground);
+            --hist-total: var(--vscode-editorLineNumber-foreground);
+            --hist-filtered: var(--vscode-charts-blue);
+            --hist-selection: var(--vscode-editor-selectionBackground);
+            --hist-selection-border: var(--vscode-focusBorder);
         }
 
         body {
@@ -565,7 +608,33 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
 
         .table-wrap {
             overflow: auto;
-            height: calc(100vh - 240px);
+            height: calc(100vh - 340px);
+        }
+
+        .histogram-wrap {
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .histogram-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #timeRangeLabel {
+            flex: 1;
+        }
+
+        #histogramCanvas {
+            width: 100%;
+            height: 84px;
+            border: 1px solid var(--border);
+            background: var(--vscode-editorWidget-background);
         }
 
         table {
@@ -679,6 +748,14 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             </div>
         </div>
     </div>
+    <div class="histogram-wrap">
+        <div class="histogram-header">
+            <strong>Time Range</strong>
+            <span id="timeRangeLabel" class="status">All buffered messages</span>
+            <button id="clearTimeRange" disabled>Clear Range</button>
+        </div>
+        <canvas id="histogramCanvas" aria-label="Message timestamp histogram"></canvas>
+    </div>
     <div class="table-wrap">
         <table>
             <thead>
@@ -702,6 +779,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
 
     <script>
         const vscode = acquireVsCodeApi();
+        const HISTOGRAM_BIN_COUNT = 60;
 
         const rowsEl = document.getElementById("rows");
         const searchEl = document.getElementById("search");
@@ -720,6 +798,9 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         const consumedPartitionsEl = document.getElementById("consumedPartitions");
         const applyConsumeSettingsEl = document.getElementById("applyConsumeSettings");
         const partitionFilterEl = document.getElementById("partitionFilter");
+        const histogramCanvasEl = document.getElementById("histogramCanvas");
+        const timeRangeLabelEl = document.getElementById("timeRangeLabel");
+        const clearTimeRangeEl = document.getElementById("clearTimeRange");
 
         let state = {
             streamState: "running",
@@ -728,15 +809,26 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             totalPages: 1,
             totalMessages: 0,
             filteredMessages: 0,
+            filteredBeforeTimeRange: 0,
             maxBufferSize: 0,
             searchQuery: "",
             availablePartitions: [],
             selectedFilterPartitions: [],
             consumeMode: "latest",
             consumeTimestamp: "",
-            consumedPartitions: ""
+            consumedPartitions: "",
+            timeRangeStartMs: undefined,
+            timeRangeEndMs: undefined
+        };
+        let histogram = {
+            bins: [],
+            minTimestampMs: undefined,
+            maxTimestampMs: undefined
         };
         let searchDebounce;
+        let brushStartX;
+        let brushCurrentX;
+        let brushing = false;
 
         function post(command, payload = {}) {
             vscode.postMessage({ command, ...payload });
@@ -792,6 +884,170 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             consumeTimestampEl.disabled = consumeModeEl.value !== "timestamp";
         }
 
+        function formatTime(value) {
+            const asNumber = Number(value);
+            if (!Number.isFinite(asNumber)) {
+                return "";
+            }
+            const date = new Date(asNumber);
+            if (Number.isNaN(date.getTime())) {
+                return String(value);
+            }
+            return date.toISOString();
+        }
+
+        function hasTimeRangeFilter() {
+            return Number.isFinite(state.timeRangeStartMs) && Number.isFinite(state.timeRangeEndMs);
+        }
+
+        function updateTimeRangeLabel() {
+            if (!hasTimeRangeFilter()) {
+                timeRangeLabelEl.textContent = "All buffered messages";
+                clearTimeRangeEl.disabled = true;
+                return;
+            }
+
+            const start = formatTime(state.timeRangeStartMs);
+            const end = formatTime(state.timeRangeEndMs);
+            timeRangeLabelEl.textContent = "From " + start + " to " + end;
+            clearTimeRangeEl.disabled = false;
+        }
+
+        function getCanvasSize() {
+            const rect = histogramCanvasEl.getBoundingClientRect();
+            const width = Math.max(1, Math.floor(rect.width));
+            const height = Math.max(1, Math.floor(rect.height));
+            return { width, height };
+        }
+
+        function getHistogramRange() {
+            if (!Number.isFinite(histogram.minTimestampMs) || !Number.isFinite(histogram.maxTimestampMs)) {
+                return undefined;
+            }
+            return {
+                minTimestampMs: Number(histogram.minTimestampMs),
+                maxTimestampMs: Number(histogram.maxTimestampMs)
+            };
+        }
+
+        function clamp(value, min, max) {
+            return Math.min(Math.max(value, min), max);
+        }
+
+        function getSelectionPixels(width) {
+            if (brushing && Number.isFinite(brushStartX) && Number.isFinite(brushCurrentX)) {
+                return {
+                    left: clamp(Math.min(brushStartX, brushCurrentX), 0, width),
+                    right: clamp(Math.max(brushStartX, brushCurrentX), 0, width)
+                };
+            }
+
+            if (!hasTimeRangeFilter()) {
+                return undefined;
+            }
+
+            const range = getHistogramRange();
+            if (!range) {
+                return undefined;
+            }
+
+            const span = Math.max(1, range.maxTimestampMs - range.minTimestampMs);
+            const start = clamp((state.timeRangeStartMs - range.minTimestampMs) / span, 0, 1);
+            const end = clamp((state.timeRangeEndMs - range.minTimestampMs) / span, 0, 1);
+            return {
+                left: Math.floor(Math.min(start, end) * width),
+                right: Math.ceil(Math.max(start, end) * width)
+            };
+        }
+
+        function renderHistogram() {
+            const context = histogramCanvasEl.getContext("2d");
+            if (!context) {
+                return;
+            }
+
+            const size = getCanvasSize();
+            const dpr = window.devicePixelRatio || 1;
+            const targetWidth = Math.floor(size.width * dpr);
+            const targetHeight = Math.floor(size.height * dpr);
+            if (histogramCanvasEl.width !== targetWidth || histogramCanvasEl.height !== targetHeight) {
+                histogramCanvasEl.width = targetWidth;
+                histogramCanvasEl.height = targetHeight;
+            }
+
+            context.setTransform(dpr, 0, 0, dpr, 0, 0);
+            context.clearRect(0, 0, size.width, size.height);
+
+            const bins = Array.isArray(histogram.bins) ? histogram.bins : [];
+            if (!bins.length) {
+                context.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--muted");
+                context.font = "12px " + getComputedStyle(document.body).fontFamily;
+                context.fillText("No buffered messages yet", 10, Math.max(18, Math.floor(size.height / 2)));
+                return;
+            }
+
+            const style = getComputedStyle(document.documentElement);
+            const totalColor = style.getPropertyValue("--hist-total");
+            const filteredColor = style.getPropertyValue("--hist-filtered");
+            const selectionColor = style.getPropertyValue("--hist-selection");
+            const selectionBorderColor = style.getPropertyValue("--hist-selection-border");
+
+            const maxTotal = Math.max(1, ...bins.map((bin) => Number(bin.totalCount) || 0));
+            const maxFiltered = Math.max(1, ...bins.map((bin) => Number(bin.filteredCount) || 0));
+            const binWidth = size.width / bins.length;
+
+            for (let i = 0; i < bins.length; i++) {
+                const bin = bins[i];
+                const x = Math.floor(i * binWidth);
+                const width = Math.max(1, Math.ceil(((i + 1) * binWidth) - x) - 1);
+                const totalHeight = Math.round(((Number(bin.totalCount) || 0) / maxTotal) * size.height);
+                const filteredHeight = Math.round(((Number(bin.filteredCount) || 0) / maxFiltered) * size.height);
+
+                context.fillStyle = totalColor;
+                context.globalAlpha = 0.4;
+                context.fillRect(x, size.height - totalHeight, width, totalHeight);
+
+                context.fillStyle = filteredColor;
+                context.globalAlpha = 0.9;
+                context.fillRect(x, size.height - filteredHeight, width, filteredHeight);
+            }
+
+            context.globalAlpha = 1;
+            const selection = getSelectionPixels(size.width);
+            if (selection && selection.right > selection.left) {
+                context.fillStyle = selectionColor;
+                context.globalAlpha = 0.35;
+                context.fillRect(selection.left, 0, selection.right - selection.left, size.height);
+                context.globalAlpha = 1;
+                context.strokeStyle = selectionBorderColor;
+                context.strokeRect(selection.left + 0.5, 0.5, Math.max(1, selection.right - selection.left - 1), Math.max(1, size.height - 1));
+            }
+        }
+
+        function getRelativeX(event) {
+            const rect = histogramCanvasEl.getBoundingClientRect();
+            return clamp(event.clientX - rect.left, 0, rect.width);
+        }
+
+        function applyBrushSelection() {
+            const range = getHistogramRange();
+            const size = getCanvasSize();
+            if (!range || !Number.isFinite(brushStartX) || !Number.isFinite(brushCurrentX) || size.width <= 0) {
+                return;
+            }
+
+            const left = Math.min(brushStartX, brushCurrentX);
+            const right = Math.max(brushStartX, brushCurrentX);
+            if (Math.abs(right - left) < 2) {
+                return;
+            }
+
+            const span = Math.max(1, range.maxTimestampMs - range.minTimestampMs);
+            const startMs = Math.floor(range.minTimestampMs + ((left / size.width) * span));
+            const endMs = Math.ceil(range.minTimestampMs + ((right / size.width) * span));
+            post("SetTimeRangeFilter", { startMs, endMs });
+        }
+
         function updateStatus() {
             pageInfoEl.textContent = "Page " + state.page + " / " + state.totalPages;
             prevEl.disabled = state.page <= 1;
@@ -800,8 +1056,13 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
 
             const total = state.totalMessages || 0;
             const filtered = state.filteredMessages || 0;
+            const filteredBeforeTimeRange = state.filteredBeforeTimeRange || 0;
             const buffer = state.maxBufferSize || 0;
-            countsEl.textContent = "Messages: " + filtered + "/" + total + " (buffer " + buffer + ")";
+            if (hasTimeRangeFilter()) {
+                countsEl.textContent = "Messages: " + filtered + "/" + total + " (time range " + filtered + "/" + filteredBeforeTimeRange + ", buffer " + buffer + ")";
+            } else {
+                countsEl.textContent = "Messages: " + filtered + "/" + total + " (buffer " + buffer + ")";
+            }
 
             if (state.streamState === "error") {
                 statusEl.textContent = "Error: " + (state.error || "unknown");
@@ -845,13 +1106,25 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                     pageSizeEl.value = String(state.pageSize || 100);
                     renderPartitionFilter();
                     updateConsumeInputs();
+                    updateTimeRangeLabel();
                     updateStatus();
+                    renderHistogram();
                     break;
                 }
                 case "MessagesCount": {
                     state.totalMessages = message.data.total;
                     state.filteredMessages = message.data.filtered;
+                    state.filteredBeforeTimeRange = message.data.filteredBeforeTimeRange;
                     updateStatus();
+                    break;
+                }
+                case "Histogram": {
+                    histogram = {
+                        bins: message.data.bins || [],
+                        minTimestampMs: message.data.minTimestampMs,
+                        maxTimestampMs: message.data.maxTimestampMs
+                    };
+                    renderHistogram();
                     break;
                 }
                 case "PreviewMessage": {
@@ -903,6 +1176,39 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             post("SetPartitionFilter", { partitions });
         });
 
+        histogramCanvasEl.addEventListener("mousedown", (event) => {
+            if (!Array.isArray(histogram.bins) || histogram.bins.length === 0) {
+                return;
+            }
+            brushing = true;
+            brushStartX = getRelativeX(event);
+            brushCurrentX = brushStartX;
+            renderHistogram();
+        });
+
+        histogramCanvasEl.addEventListener("mousemove", (event) => {
+            if (!brushing) {
+                return;
+            }
+            brushCurrentX = getRelativeX(event);
+            renderHistogram();
+        });
+
+        window.addEventListener("mouseup", () => {
+            if (!brushing) {
+                return;
+            }
+            brushing = false;
+            applyBrushSelection();
+            brushStartX = undefined;
+            brushCurrentX = undefined;
+            renderHistogram();
+        });
+
+        clearTimeRangeEl.addEventListener("click", () => {
+            post("ClearTimeRangeFilter");
+        });
+
         consumeModeEl.addEventListener("change", () => {
             consumeTimestampEl.disabled = consumeModeEl.value !== "timestamp";
         });
@@ -916,7 +1222,12 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             previewEl.textContent = "Select a message row to preview.";
         });
 
+        window.addEventListener("resize", () => {
+            renderHistogram();
+        });
+
         post("GetMessagesCount");
+        post("GetHistogram", { binCount: HISTOGRAM_BIN_COUNT });
         requestPage(1);
     </script>
 </body>

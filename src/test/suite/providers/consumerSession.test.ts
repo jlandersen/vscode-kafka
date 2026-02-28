@@ -122,6 +122,7 @@ suite("ConsumerSession Test Suite", () => {
         session.addRecord(createRecord(1));
         session.setSearchQuery("value-1");
         session.setPartitionFilter(["0"]);
+        session.setTimeRangeFilter(1700000000000, 1700000000001);
         session.pause();
         session.setError(new Error("failed"));
 
@@ -137,8 +138,61 @@ suite("ConsumerSession Test Suite", () => {
         assert.strictEqual(state.searchQuery, "");
         assert.strictEqual(state.totalMessages, 0);
         assert.deepStrictEqual(state.selectedFilterPartitions, []);
+        assert.strictEqual(state.timeRangeStartMs, undefined);
+        assert.strictEqual(state.timeRangeEndMs, undefined);
         assert.strictEqual(state.consumeMode, "timestamp");
         assert.strictEqual(state.consumeTimestamp, "2026-02-28T08:00:00.000Z");
         assert.strictEqual(state.consumedPartitions, "0,2-3");
+    });
+
+    test("intersects time range filter with partition and search filters", () => {
+        const session = new ConsumerSession(20);
+
+        session.addRecord(createRecord(1, "order-created"));
+        session.addRecord(createRecord(2, "payment-received"));
+        session.addRecord({ ...createRecord(3, "order-shipped"), partition: 1 });
+        session.addRecord({ ...createRecord(4, "order-cancelled"), partition: 1 });
+
+        session.setSearchQuery("order");
+        session.setPartitionFilter(["1"]);
+        session.setTimeRangeFilter(1700000000003, 1700000000004);
+
+        const counts = session.getCounts();
+        assert.strictEqual(counts.total, 4);
+        assert.strictEqual(counts.filteredBeforeTimeRange, 2);
+        assert.strictEqual(counts.filtered, 2);
+
+        const page = session.getMessages();
+        assert.deepStrictEqual(page.messages.map((message) => message.offset), ["4", "3"]);
+
+        session.setTimeRangeFilter(1700000000004, 1700000000004);
+        const narrowedPage = session.getMessages();
+        assert.deepStrictEqual(narrowedPage.messages.map((message) => message.offset), ["4"]);
+
+        const narrowedCounts = session.getCounts();
+        assert.strictEqual(narrowedCounts.filteredBeforeTimeRange, 2);
+        assert.strictEqual(narrowedCounts.filtered, 1);
+    });
+
+    test("builds histogram bins from buffered timestamps", () => {
+        const session = new ConsumerSession(20);
+
+        session.addRecord(createRecord(1, "order-created"));
+        session.addRecord(createRecord(2, "payment-received"));
+        session.addRecord({ ...createRecord(3, "order-shipped"), partition: 1 });
+        session.addRecord({ ...createRecord(4, "order-refunded"), partition: 1 });
+
+        session.setSearchQuery("order");
+        session.setPartitionFilter(["1"]);
+
+        const histogram = session.getHistogram(4);
+        assert.strictEqual(histogram.bins.length, 10);
+        assert.strictEqual(histogram.minTimestampMs, 1700000000001);
+        assert.strictEqual(histogram.maxTimestampMs, 1700000000004);
+
+        const totalCounts = histogram.bins.reduce((total, bin) => total + bin.totalCount, 0);
+        const filteredCounts = histogram.bins.reduce((total, bin) => total + bin.filteredCount, 0);
+        assert.strictEqual(totalCounts, 4);
+        assert.strictEqual(filteredCounts, 2);
     });
 });
