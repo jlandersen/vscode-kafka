@@ -3,6 +3,10 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## Unreleased
 
+### Added
+- Add experimental `kafka.consumers.messageViewer.enabled` feature flag to keep the legacy consumer view as default during Message Viewer migration.
+- Add Message Viewer session core with pause/resume, search, pagination, preview/export actions, and bounded in-memory buffering (`kafka.consumers.messageViewer.maxBufferSize`).
+
 ## [0.25.1] - 2026-02-27
 
 ### Fixed

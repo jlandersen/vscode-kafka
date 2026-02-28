@@ -1,46 +1,74 @@
 import * as vscode from "vscode";
 import { ConsumedRecord, Consumer, ConsumerCollection } from "../client";
 import { ClusterSettings } from "../settings/clusters";
+import { WorkspaceSettings } from "../settings";
+import { ConsumerSession, ConsumerSessionMessage } from "./consumerSession";
 
-/**
- * Provides a table view for consumed Kafka messages.
- * Displays messages in an Excel-like table format with columns for Key, Partition, Offset, Value, and Headers.
- */
+const DEFAULT_BUFFER_SIZE = 5000;
+const RENDER_THROTTLE_MS = 50;
+
+type WebviewCommand =
+    | "GetMessages"
+    | "GetMessagesCount"
+    | "Pause"
+    | "Resume"
+    | "SearchMessages"
+    | "ClearMessages"
+    | "PreviewMessage"
+    | "ExportMessages";
+
+interface WebviewRequest {
+    command: WebviewCommand;
+    page?: number;
+    pageSize?: number;
+    query?: string;
+    messageId?: number;
+}
+
 export class ConsumerTableViewProvider implements vscode.Disposable {
     private panel: vscode.WebviewPanel | undefined;
     private disposables: vscode.Disposable[] = [];
-    private messages: ConsumedRecord[] = [];
+    private consumerDisposables: vscode.Disposable[] = [];
+    private session: ConsumerSession | undefined;
     private consumer: Consumer | undefined;
+    private activeConsumerUri: string | undefined;
+    private renderTimer: NodeJS.Timeout | undefined;
 
     constructor(
         private readonly extensionUri: vscode.Uri,
-        private consumerCollection: ConsumerCollection,
-        private clusterSettings: ClusterSettings
+        private readonly consumerCollection: ConsumerCollection,
+        private readonly clusterSettings: ClusterSettings,
+        private readonly workspaceSettings: WorkspaceSettings
     ) {}
 
-    /**
-     * Opens or reveals the table view for a consumer URI.
-     */
     public async show(consumerUri: vscode.Uri): Promise<void> {
         const consumer = this.consumerCollection.get(consumerUri);
-        
         if (!consumer) {
-            vscode.window.showErrorMessage('Consumer not found');
-            return;
-        }
-        
-        this.consumer = consumer;
-
-        // If panel already exists, reveal it
-        if (this.panel) {
-            this.panel.reveal(vscode.ViewColumn.Beside);
+            vscode.window.showErrorMessage("Consumer not found");
             return;
         }
 
-        // Create and show a new webview panel
+        if (!this.panel) {
+            this.createPanel();
+        }
+
+        this.panel?.reveal(vscode.ViewColumn.Beside);
+
+        if (this.activeConsumerUri === consumerUri.toString()) {
+            this.sendConsumerInfo();
+            this.renderNow();
+            return;
+        }
+
+        this.bindConsumer(consumer, consumerUri.toString());
+        this.sendConsumerInfo();
+        this.renderNow();
+    }
+
+    private createPanel(): void {
         this.panel = vscode.window.createWebviewPanel(
-            'kafkaConsumerTable',
-            `Kafka Consumer: ${this.consumer.options.topicId}`,
+            "kafkaConsumerTable",
+            "Kafka Consumer",
             vscode.ViewColumn.Beside,
             {
                 enableScripts: true,
@@ -49,147 +77,211 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             }
         );
 
-        // Set the HTML content
         this.panel.webview.html = this.getWebviewContent();
 
-        // Listen for when the panel is disposed
-        this.panel.onDidDispose(() => {
-            this.panel = undefined;
-            this.messages = [];
-        }, null, this.disposables);
-
-        // Handle messages from the webview
-        this.panel.webview.onDidReceiveMessage(
-            message => {
-                switch (message.command) {
-                    case 'clear':
-                        this.messages = [];
-                        this.panel?.webview.postMessage({ command: 'clear' });
-                        break;
-                    case 'export':
-                        this.exportToCSV();
-                        break;
+        this.disposables.push(
+            this.panel.onDidDispose(() => {
+                this.panel = undefined;
+                this.activeConsumerUri = undefined;
+                this.consumer = undefined;
+                this.session = undefined;
+                this.clearRenderTimer();
+                this.disposeConsumerListeners();
+            }),
+            this.panel.onDidChangeViewState((event) => {
+                if (event.webviewPanel.visible) {
+                    this.renderNow();
                 }
-            },
-            null,
-            this.disposables
+            }),
+            this.panel.webview.onDidReceiveMessage((message: WebviewRequest) => {
+                this.handleWebviewMessage(message);
+            })
         );
+    }
 
-        // Subscribe to consumer messages
-        if (this.consumer) {
-            this.disposables.push(
-                this.consumer.onDidReceiveRecord(e => {
-                    this.onMessageReceived(e.record);
-                })
-            );
+    private bindConsumer(consumer: Consumer, consumerUri: string): void {
+        this.disposeConsumerListeners();
 
-            // Send consumer info
-            this.sendConsumerInfo();
+        this.consumer = consumer;
+        this.activeConsumerUri = consumerUri;
+        this.session = new ConsumerSession(this.getConfiguredBufferSize());
+        this.panel!.title = `Kafka Consumer: ${consumer.options.topicId}`;
+
+        this.consumerDisposables.push(
+            consumer.onDidReceiveRecord((event) => {
+                this.onRecord(event.record);
+            }),
+            consumer.onDidReceiveError((error) => {
+                this.session?.setError(error);
+                this.renderNow();
+            })
+        );
+    }
+
+    private onRecord(record: ConsumedRecord): void {
+        if (!this.session) {
+            return;
+        }
+
+        this.session.addRecord(record);
+
+        const streamState = this.session.getState().streamState;
+        if (streamState === "paused") {
+            this.sendViewerState();
+            this.sendCounts();
+            return;
+        }
+
+        this.scheduleRender();
+    }
+
+    private handleWebviewMessage(message: WebviewRequest): void {
+        if (!this.session) {
+            return;
+        }
+
+        switch (message.command) {
+            case "GetMessages":
+                this.session.setPagination(message.page, message.pageSize);
+                this.sendMessages();
+                this.sendViewerState();
+                break;
+            case "GetMessagesCount":
+                this.sendCounts();
+                break;
+            case "Pause":
+                this.session.pause();
+                this.sendViewerState();
+                break;
+            case "Resume":
+                this.session.resume();
+                this.renderNow();
+                break;
+            case "SearchMessages":
+                this.session.setSearchQuery(message.query || "");
+                this.sendMessages();
+                this.sendViewerState();
+                break;
+            case "ClearMessages":
+                this.session.clear();
+                this.sendMessages();
+                this.sendViewerState();
+                break;
+            case "PreviewMessage":
+                if (message.messageId === undefined) {
+                    return;
+                }
+                this.sendPreview(message.messageId);
+                break;
+            case "ExportMessages":
+                this.exportToCSV();
+                break;
         }
     }
 
-    /**
-     * Sends consumer configuration information to the webview.
-     */
+    private scheduleRender(): void {
+        if (this.renderTimer) {
+            return;
+        }
+
+        this.renderTimer = setTimeout(() => {
+            this.renderTimer = undefined;
+            this.renderNow();
+        }, RENDER_THROTTLE_MS);
+    }
+
+    private renderNow(): void {
+        this.clearRenderTimer();
+        this.sendMessages();
+        this.sendViewerState();
+        this.sendCounts();
+    }
+
     private sendConsumerInfo(): void {
         if (!this.consumer || !this.panel) {
             return;
         }
 
         const clusterName = this.clusterSettings.get(this.consumer.clusterId)?.name;
-        const info = {
-            cluster: clusterName || this.consumer.options.bootstrap,
-            bootstrap: this.consumer.options.bootstrap,
-            consumerGroupId: this.consumer.options.consumerGroupId,
-            topic: this.consumer.options.topicId,
-            fromOffset: this.consumer.options.fromOffset,
-            partitions: this.consumer.options.partitions
-        };
-
-        this.panel.webview.postMessage({ command: 'consumerInfo', data: info });
+        this.panel.webview.postMessage({
+            command: "ConsumerInfo",
+            data: {
+                cluster: clusterName || this.consumer.options.bootstrap,
+                bootstrap: this.consumer.options.bootstrap,
+                consumerGroupId: this.consumer.options.consumerGroupId,
+                topic: this.consumer.options.topicId,
+                fromOffset: this.consumer.options.fromOffset,
+                partitions: this.consumer.options.partitions
+            }
+        });
     }
 
-    /**
-     * Called when a new message is received from the consumer.
-     */
-    private onMessageReceived(record: ConsumedRecord): void {
-        if (!this.panel) {
+    private sendMessages(): void {
+        if (!this.panel || !this.session) {
             return;
         }
 
-        // Add message to collection
-        this.messages.push(record);
-
-        // Send message to webview
-        this.panel.webview.postMessage({ 
-            command: 'newMessage', 
-            data: this.formatRecord(record) 
+        const page = this.session.getMessages();
+        this.panel.webview.postMessage({
+            command: "Messages",
+            data: page
         });
     }
 
-    /**
-     * Formats a consumed record for display in the table.
-     */
-    private formatRecord(record: ConsumedRecord): any {
-        return {
-            key: this.formatValue(record.key),
-            partition: record.partition ?? '',
-            offset: record.offset ?? '',
-            value: this.formatValue(record.value),
-            headers: record.headers ? this.formatHeaders(record.headers) : '',
-            timestamp: new Date().toISOString()
-        };
-    }
+    private sendViewerState(): void {
+        if (!this.panel || !this.session) {
+            return;
+        }
 
-    /**
-     * Formats a value (key or value) for display.
-     */
-    private formatValue(value: any): string {
-        if (value === null || value === undefined) {
-            return '';
-        }
-        if (typeof value === 'string') {
-            return value;
-        }
-        if (Buffer.isBuffer(value)) {
-            return value.toString('utf-8');
-        }
-        if (typeof value === 'object') {
-            return JSON.stringify(value);
-        }
-        return String(value);
-    }
-
-    /**
-     * Formats headers for display.
-     */
-    private formatHeaders(headers: any): string {
-        if (!headers) {
-            return '';
-        }
-        const entries = Object.entries(headers).map(([key, value]) => {
-            const formattedValue = this.formatValue(value);
-            return `${key}: ${formattedValue}`;
+        this.panel.webview.postMessage({
+            command: "ViewerState",
+            data: this.session.getState()
         });
-        return entries.join(', ');
     }
 
-    /**
-     * Exports messages to CSV format.
-     */
+    private sendCounts(): void {
+        if (!this.panel || !this.session) {
+            return;
+        }
+
+        this.panel.webview.postMessage({
+            command: "MessagesCount",
+            data: this.session.getCounts()
+        });
+    }
+
+    private sendPreview(messageId: number): void {
+        if (!this.panel || !this.session) {
+            return;
+        }
+
+        const preview = this.session.getPreviewMessage(messageId);
+        this.panel.webview.postMessage({
+            command: "PreviewMessage",
+            data: preview
+                ? { found: true, message: preview }
+                : { found: false }
+        });
+    }
+
     private async exportToCSV(): Promise<void> {
-        if (this.messages.length === 0) {
-            vscode.window.showWarningMessage('No messages to export');
+        if (!this.session) {
             return;
         }
 
-        const csvFilesFilter = 'CSV Files';
-        const allFilesFilter = 'All Files';
+        const messages = this.session.getExportMessages();
+        if (messages.length === 0) {
+            vscode.window.showWarningMessage("No messages to export");
+            return;
+        }
+
+        const csvFilesFilter = "CSV Files";
+        const allFilesFilter = "All Files";
         const uri = await vscode.window.showSaveDialog({
             defaultUri: vscode.Uri.file(`kafka-messages-${Date.now()}.csv`),
             filters: {
-                [csvFilesFilter]: ['csv'],
-                [allFilesFilter]: ['*']
+                [csvFilesFilter]: ["csv"],
+                [allFilesFilter]: ["*"]
             }
         });
 
@@ -197,296 +289,435 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             return;
         }
 
-        // Create CSV content
-        const headers = ['Key', 'Partition', 'Offset', 'Value', 'Headers'];
-        const rows = this.messages.map(record => {
-            const formatted = this.formatRecord(record);
-            return [
-                this.escapeCSV(formatted.key),
-                formatted.partition,
-                formatted.offset,
-                this.escapeCSV(formatted.value),
-                this.escapeCSV(formatted.headers)
-            ];
-        });
-
-        const csv = [
-            headers.join(','),
-            ...rows.map(row => row.join(','))
-        ].join('\n');
-
+        const csv = this.toCsv(messages);
         try {
-            await vscode.workspace.fs.writeFile(uri, Buffer.from(csv, 'utf-8'));
-            vscode.window.showInformationMessage(`Exported ${this.messages.length} messages to ${uri.fsPath}`);
+            await vscode.workspace.fs.writeFile(uri, Buffer.from(csv, "utf-8"));
+            vscode.window.showInformationMessage(`Exported ${messages.length} messages to ${uri.fsPath}`);
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to export: ${error}`);
+            vscode.window.showErrorMessage(`Failed to export messages: ${error}`);
         }
     }
 
-    /**
-     * Escapes a value for CSV format.
-     */
-    private escapeCSV(value: string): string {
-        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-            return `"${value.replace(/"/g, '""')}"`;
+    private toCsv(messages: ConsumerSessionMessage[]): string {
+        const header = ["Timestamp", "Key", "Partition", "Offset", "Value", "Headers"];
+        const rows = messages.map((message) => [
+            this.escapeCsv(message.timestamp),
+            this.escapeCsv(message.key),
+            this.escapeCsv(message.partition),
+            this.escapeCsv(message.offset),
+            this.escapeCsv(message.value),
+            this.escapeCsv(message.headers)
+        ]);
+        return [header.join(","), ...rows.map((row) => row.join(","))].join("\n");
+    }
+
+    private escapeCsv(value: string): string {
+        if (value.includes(",") || value.includes("\"") || value.includes("\n")) {
+            return `"${value.replace(/\"/g, '""')}"`;
         }
         return value;
     }
 
-    /**
-     * Gets the HTML content for the webview.
-     */
+    private getConfiguredBufferSize(): number {
+        const configured = this.workspaceSettings.consumerMessageViewerMaxBufferSize;
+        if (!Number.isFinite(configured) || configured < 1) {
+            return DEFAULT_BUFFER_SIZE;
+        }
+        return Math.floor(configured);
+    }
+
+    private clearRenderTimer(): void {
+        if (!this.renderTimer) {
+            return;
+        }
+        clearTimeout(this.renderTimer);
+        this.renderTimer = undefined;
+    }
+
+    private disposeConsumerListeners(): void {
+        this.consumerDisposables.forEach((disposable) => disposable.dispose());
+        this.consumerDisposables = [];
+    }
+
     private getWebviewContent(): string {
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kafka Consumer Table</title>
+    <title>Kafka Message Viewer</title>
     <style>
+        :root {
+            --border: var(--vscode-panel-border);
+            --bg: var(--vscode-editor-background);
+            --fg: var(--vscode-foreground);
+            --muted: var(--vscode-descriptionForeground);
+            --btn-bg: var(--vscode-button-background);
+            --btn-fg: var(--vscode-button-foreground);
+            --btn-hover: var(--vscode-button-hoverBackground);
+            --input-bg: var(--vscode-input-background);
+            --input-fg: var(--vscode-input-foreground);
+        }
+
         body {
+            margin: 0;
+            color: var(--fg);
+            background: var(--bg);
             font-family: var(--vscode-font-family);
             font-size: var(--vscode-font-size);
-            color: var(--vscode-foreground);
-            background-color: var(--vscode-editor-background);
-            padding: 0;
-            margin: 0;
         }
-        
+
         .header {
+            border-bottom: 1px solid var(--border);
             padding: 10px;
-            background-color: var(--vscode-editor-background);
-            border-bottom: 1px solid var(--vscode-panel-border);
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
+            gap: 10px;
             position: sticky;
             top: 0;
+            background: var(--bg);
             z-index: 100;
         }
-        
-        .info {
-            font-size: 0.9em;
-            color: var(--vscode-descriptionForeground);
+
+        .metadata {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            color: var(--muted);
+            font-size: 12px;
         }
-        
-        .info-item {
-            margin-right: 15px;
-            display: inline-block;
-        }
-        
+
         .controls {
             display: flex;
-            gap: 10px;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
         }
-        
+
+        .controls input,
+        .controls select {
+            background: var(--input-bg);
+            color: var(--input-fg);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            padding: 4px 8px;
+            min-width: 160px;
+        }
+
         button {
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
             border: none;
+            border-radius: 3px;
+            background: var(--btn-bg);
+            color: var(--btn-fg);
             padding: 5px 12px;
             cursor: pointer;
-            border-radius: 2px;
-            font-size: 0.9em;
         }
-        
+
         button:hover {
-            background-color: var(--vscode-button-hoverBackground);
+            background: var(--btn-hover);
         }
-        
-        button:active {
-            background-color: var(--vscode-button-activeBackground);
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: default;
         }
-        
-        .table-container {
+
+        .table-wrap {
             overflow: auto;
-            height: calc(100vh - 60px);
+            height: calc(100vh - 140px);
         }
-        
+
         table {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
         }
-        
-        th, td {
-            padding: 8px;
+
+        th,
+        td {
+            border: 1px solid var(--border);
+            padding: 6px 8px;
             text-align: left;
-            border: 1px solid var(--vscode-panel-border);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-        
+
         th {
-            background-color: var(--vscode-editor-inactiveSelectionBackground);
             position: sticky;
             top: 0;
-            z-index: 10;
-            font-weight: 600;
+            background: var(--vscode-editor-inactiveSelectionBackground);
+            z-index: 2;
+        }
+
+        tbody tr:hover {
+            background: var(--vscode-list-hoverBackground);
             cursor: pointer;
-            user-select: none;
         }
-        
-        th:hover {
-            background-color: var(--vscode-list-hoverBackground);
-        }
-        
-        tr:nth-child(even) {
-            background-color: var(--vscode-list-inactiveSelectionBackground);
-        }
-        
-        tr:hover {
-            background-color: var(--vscode-list-hoverBackground);
-        }
-        
-        td {
-            max-width: 300px;
-        }
-        
-        td:hover {
-            white-space: normal;
-            word-wrap: break-word;
-        }
-        
-        .col-key {
-            width: 15%;
-        }
-        
-        .col-partition {
-            width: 8%;
-        }
-        
-        .col-offset {
-            width: 10%;
-        }
-        
-        .col-value {
-            width: 50%;
-        }
-        
-        .col-headers {
-            width: 17%;
-        }
-        
-        .message-count {
-            color: var(--vscode-descriptionForeground);
-            font-size: 0.9em;
-        }
-        
-        .empty-state {
+
+        .empty {
             text-align: center;
-            padding: 50px;
-            color: var(--vscode-descriptionForeground);
+            color: var(--muted);
+            padding: 28px;
+        }
+
+        .pagination {
+            margin-left: auto;
+            display: inline-flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .status {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .preview {
+            border-top: 1px solid var(--border);
+            padding: 10px;
+            height: 180px;
+            overflow: auto;
+            background: var(--vscode-editorWidget-background);
+        }
+
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: var(--vscode-editor-font-family);
+            font-size: 12px;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="info">
-            <span class="info-item" id="clusterInfo"></span>
-            <span class="info-item" id="topicInfo"></span>
-            <span class="info-item" id="consumerGroupInfo"></span>
-            <span class="message-count">Messages: <span id="messageCount">0</span></span>
+        <div class="metadata">
+            <span id="cluster"></span>
+            <span id="topic"></span>
+            <span id="group"></span>
+            <span id="counts"></span>
+            <span id="status" class="status"></span>
         </div>
         <div class="controls">
-            <button id="clearBtn">Clear</button>
-            <button id="exportBtn">Export CSV</button>
+            <input id="search" type="text" placeholder="Search key, value, headers" />
+            <button id="pauseResume">Pause</button>
+            <button id="clear">Clear</button>
+            <button id="export">Export CSV</button>
+            <label for="pageSize">Page size</label>
+            <select id="pageSize">
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="250">250</option>
+                <option value="500">500</option>
+            </select>
+            <div class="pagination">
+                <button id="prev">Prev</button>
+                <span id="pageInfo"></span>
+                <button id="next">Next</button>
+            </div>
         </div>
     </div>
-    
-    <div class="table-container">
-        <table id="messageTable">
+    <div class="table-wrap">
+        <table>
             <thead>
                 <tr>
-                    <th class="col-key">Key</th>
-                    <th class="col-partition">Partition</th>
-                    <th class="col-offset">Offset</th>
-                    <th class="col-value">Value</th>
-                    <th class="col-headers">Headers</th>
+                    <th style="width: 16%">Timestamp</th>
+                    <th style="width: 14%">Key</th>
+                    <th style="width: 8%">Partition</th>
+                    <th style="width: 10%">Offset</th>
+                    <th style="width: 36%">Value</th>
+                    <th style="width: 16%">Headers</th>
                 </tr>
             </thead>
-            <tbody id="messageBody">
-                <tr class="empty-state">
-                    <td colspan="5">Waiting for messages...</td>
-                </tr>
+            <tbody id="rows">
+                <tr><td colspan="6" class="empty">Waiting for messages...</td></tr>
             </tbody>
         </table>
     </div>
-    
+    <div class="preview">
+        <pre id="preview">Select a message row to preview.</pre>
+    </div>
+
     <script>
         const vscode = acquireVsCodeApi();
-        const messageBody = document.getElementById('messageBody');
-        const messageCount = document.getElementById('messageCount');
-        let messages = [];
-        
-        // Handle messages from extension
-        window.addEventListener('message', event => {
+
+        const rowsEl = document.getElementById("rows");
+        const searchEl = document.getElementById("search");
+        const pauseResumeEl = document.getElementById("pauseResume");
+        const clearEl = document.getElementById("clear");
+        const exportEl = document.getElementById("export");
+        const prevEl = document.getElementById("prev");
+        const nextEl = document.getElementById("next");
+        const pageInfoEl = document.getElementById("pageInfo");
+        const pageSizeEl = document.getElementById("pageSize");
+        const countsEl = document.getElementById("counts");
+        const statusEl = document.getElementById("status");
+        const previewEl = document.getElementById("preview");
+
+        let state = {
+            streamState: "running",
+            page: 1,
+            pageSize: 100,
+            totalPages: 1,
+            totalMessages: 0,
+            filteredMessages: 0,
+            maxBufferSize: 0,
+            searchQuery: ""
+        };
+        let searchDebounce;
+
+        function post(command, payload = {}) {
+            vscode.postMessage({ command, ...payload });
+        }
+
+        function requestPage(page) {
+            post("GetMessages", { page, pageSize: Number(pageSizeEl.value) });
+        }
+
+        function renderRows(messages) {
+            if (!messages.length) {
+                rowsEl.innerHTML = '<tr><td colspan="6" class="empty">No messages for current filters.</td></tr>';
+                return;
+            }
+
+            rowsEl.innerHTML = "";
+            for (const message of messages) {
+                const row = document.createElement("tr");
+                row.dataset.messageId = String(message.id);
+                row.innerHTML = [
+                    message.timestamp,
+                    message.key,
+                    message.partition,
+                    message.offset,
+                    message.value,
+                    message.headers
+                ].map((value) => "<td>" + escapeHtml(value) + "</td>").join("");
+                row.addEventListener("click", () => {
+                    post("PreviewMessage", { messageId: message.id });
+                });
+                rowsEl.appendChild(row);
+            }
+        }
+
+        function updateStatus() {
+            pageInfoEl.textContent = "Page " + state.page + " / " + state.totalPages;
+            prevEl.disabled = state.page <= 1;
+            nextEl.disabled = state.page >= state.totalPages;
+            pauseResumeEl.textContent = state.streamState === "paused" ? "Resume" : "Pause";
+
+            const total = state.totalMessages || 0;
+            const filtered = state.filteredMessages || 0;
+            const buffer = state.maxBufferSize || 0;
+            countsEl.textContent = "Messages: " + filtered + "/" + total + " (buffer " + buffer + ")";
+
+            if (state.streamState === "error") {
+                statusEl.textContent = "Error: " + (state.error || "unknown");
+            } else {
+                statusEl.textContent = state.streamState === "paused" ? "Paused" : "Running";
+            }
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        window.addEventListener("message", (event) => {
             const message = event.data;
-            
+
             switch (message.command) {
-                case 'newMessage':
-                    addMessage(message.data);
+                case "ConsumerInfo": {
+                    document.getElementById("cluster").textContent = "Cluster: " + message.data.cluster;
+                    document.getElementById("topic").textContent = "Topic: " + message.data.topic;
+                    document.getElementById("group").textContent = "Group: " + message.data.consumerGroupId;
                     break;
-                case 'clear':
-                    clearMessages();
+                }
+                case "Messages": {
+                    state.page = message.data.page;
+                    state.pageSize = message.data.pageSize;
+                    state.totalPages = message.data.totalPages;
+                    renderRows(message.data.messages);
+                    updateStatus();
                     break;
-                case 'consumerInfo':
-                    updateConsumerInfo(message.data);
+                }
+                case "ViewerState": {
+                    state = { ...state, ...message.data };
+                    if (searchEl.value !== state.searchQuery) {
+                        searchEl.value = state.searchQuery || "";
+                    }
+                    pageSizeEl.value = String(state.pageSize || 100);
+                    updateStatus();
                     break;
+                }
+                case "MessagesCount": {
+                    state.totalMessages = message.data.total;
+                    state.filteredMessages = message.data.filtered;
+                    updateStatus();
+                    break;
+                }
+                case "PreviewMessage": {
+                    if (!message.data || !message.data.found) {
+                        previewEl.textContent = "Message not found.";
+                        break;
+                    }
+                    previewEl.textContent = JSON.stringify(message.data.message, null, 2);
+                    break;
+                }
             }
         });
-        
-        function addMessage(data) {
-            messages.push(data);
-            
-            // Remove empty state if present
-            const emptyState = messageBody.querySelector('.empty-state');
-            if (emptyState) {
-                emptyState.remove();
-            }
-            
-            // Add new row
-            const row = messageBody.insertRow(0); // Insert at top for newest first
-            row.insertCell(0).textContent = data.key;
-            row.insertCell(1).textContent = data.partition;
-            row.insertCell(2).textContent = data.offset;
-            row.insertCell(3).textContent = data.value;
-            row.insertCell(4).textContent = data.headers;
-            
-            // Update count
-            messageCount.textContent = messages.length;
-        }
-        
-        function clearMessages() {
-            messages = [];
-            messageBody.innerHTML = '<tr class="empty-state"><td colspan="5">No messages</td></tr>';
-            messageCount.textContent = '0';
-        }
-        
-        function updateConsumerInfo(info) {
-            document.getElementById('clusterInfo').textContent = 'Cluster: ' + info.cluster;
-            document.getElementById('topicInfo').textContent = 'Topic: ' + info.topic;
-            document.getElementById('consumerGroupInfo').textContent = 'Group: ' + info.consumerGroupId;
-        }
-        
-        // Button handlers
-        document.getElementById('clearBtn').addEventListener('click', () => {
-            vscode.postMessage({ command: 'clear' });
+
+        searchEl.addEventListener("input", () => {
+            clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(() => {
+                post("SearchMessages", { query: searchEl.value });
+            }, 180);
         });
-        
-        document.getElementById('exportBtn').addEventListener('click', () => {
-            vscode.postMessage({ command: 'export' });
+
+        pauseResumeEl.addEventListener("click", () => {
+            const command = state.streamState === "paused" ? "Resume" : "Pause";
+            post(command);
         });
+
+        clearEl.addEventListener("click", () => {
+            post("ClearMessages");
+            previewEl.textContent = "Select a message row to preview.";
+        });
+
+        exportEl.addEventListener("click", () => {
+            post("ExportMessages");
+        });
+
+        prevEl.addEventListener("click", () => {
+            requestPage(Math.max(1, state.page - 1));
+        });
+
+        nextEl.addEventListener("click", () => {
+            requestPage(Math.min(state.totalPages, state.page + 1));
+        });
+
+        pageSizeEl.addEventListener("change", () => {
+            requestPage(1);
+        });
+
+        post("GetMessagesCount");
+        requestPage(1);
     </script>
 </body>
 </html>`;
     }
 
     public dispose(): void {
+        this.clearRenderTimer();
+        this.disposeConsumerListeners();
         if (this.panel) {
             this.panel.dispose();
         }
-        this.disposables.forEach(d => d.dispose());
+        this.disposables.forEach((disposable) => disposable.dispose());
+        this.disposables = [];
     }
 }

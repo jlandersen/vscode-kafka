@@ -7,6 +7,7 @@ import { ConsumerVirtualTextDocumentProvider, ConsumerTableViewProvider } from "
 import { ProgressLocation, window } from "vscode";
 import { getErrorMessage } from "../errors";
 import { ConsumerValidator } from "../validators/consumer";
+import type { WorkspaceSettings } from "../settings";
 
 export interface LaunchConsumerCommand extends ConsumerInfoUri {
 
@@ -25,7 +26,7 @@ abstract class LaunchConsumerCommandHandler {
     ) {
     }
 
-    async execute(command?: LaunchConsumerCommand): Promise<void> {
+    async execute(command?: LaunchConsumerCommand): Promise<vscode.Uri | undefined> {
         if (!command) {
             const client = await pickClient(this.clientAccessor);
             if (!client) {
@@ -60,7 +61,7 @@ abstract class LaunchConsumerCommandHandler {
                     //  The consumer is already started, just open the document which tracks consumer messages.
                     const consumeUri = createConsumerUri(command);
                     openDocument(consumeUri);
-                    return;
+                    return consumeUri;
                 }
 
                 // Validate start command
@@ -72,6 +73,7 @@ abstract class LaunchConsumerCommandHandler {
 
                 // Start the consumer
                 await startConsumerWithProgress(consumeUri, this.consumerCollection, this.explorer);
+                return consumeUri;
             } else {
                 // Stop the consumer
                 if (consumer) {
@@ -83,6 +85,7 @@ abstract class LaunchConsumerCommandHandler {
         catch (e) {
             vscode.window.showErrorMessage(`Error while ${this.start ? 'starting' : 'stopping'} the consumer: ${getErrorMessage(e)}`);
         }
+        return undefined;
     }
 }
 
@@ -93,9 +96,24 @@ export class StartConsumerCommandHandler extends LaunchConsumerCommandHandler {
     constructor(
         clientAccessor: ClientAccessor,
         consumerCollection: ConsumerCollection,
-        explorer: KafkaExplorer
+        explorer: KafkaExplorer,
+        private readonly workspaceSettings: WorkspaceSettings,
+        private readonly tableViewProvider?: ConsumerTableViewProvider
     ) {
         super(clientAccessor, consumerCollection, explorer, true);
+    }
+
+    async execute(command?: LaunchConsumerCommand): Promise<vscode.Uri | undefined> {
+        const uri = await super.execute(command);
+        if (!this.workspaceSettings.consumerMessageViewerEnabled || !this.tableViewProvider) {
+            return uri;
+        }
+
+        if (!uri || uri.scheme !== "kafka") {
+            return uri;
+        }
+        await this.tableViewProvider.show(uri);
+        return uri;
     }
 }
 

@@ -29,6 +29,7 @@ export interface ConsumedRecord {
     value: string | Buffer | null | SerializationResult;
     offset?: string;
     partition?: number;
+    timestamp?: string;
     key?: string | Buffer | SerializationResult;
     headers?: MessageHeaders;
 }

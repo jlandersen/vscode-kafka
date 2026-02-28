@@ -56,6 +56,17 @@
 					"default": "false",
 					"markdownDescription": "Print headers of message. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Consuming%22%2C%22section%22%3A%22kafkaconsumersheadersprint%22%7D%5D)"
 				},
+				"kafka.consumers.messageViewer.enabled": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Enable the experimental Message Viewer webview when starting consumers. When disabled, the existing text-based consumer view remains the default during migration."
+				},
+				"kafka.consumers.messageViewer.maxBufferSize": {
+					"type": "number",
+					"default": 5000,
+					"minimum": 100,
+					"markdownDescription": "Maximum number of consumed messages retained in the Message Viewer in-memory session buffer."
+				},
 				"kafka.explorer.topics.sort": {
 					"type": "string",
 					"enum": [

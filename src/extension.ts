@@ -76,7 +76,12 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     context.subscriptions.push(new ConsumerStatusBarItem(consumerCollection));
     context.subscriptions.push(new SelectedClusterStatusBarItem(clusterSettings));
     const consumerVirtualTextDocumentProvider = new ConsumerVirtualTextDocumentProvider(consumerCollection, clusterSettings);
-    const consumerTableViewProvider = new ConsumerTableViewProvider(context.extensionUri, consumerCollection, clusterSettings);
+    const consumerTableViewProvider = new ConsumerTableViewProvider(
+        context.extensionUri,
+        consumerCollection,
+        clusterSettings,
+        workspaceSettings
+    );
     context.subscriptions.push(consumerTableViewProvider);
 
     // Commands
@@ -86,7 +91,13 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     const produceRecordCommandHandler = new ProduceRecordCommandHandler(clientAccessor, producerCollection, outputChannelProvider, explorer, workspaceSettings);
     const produceRecordWithInputCommandHandler = new ProduceRecordWithInputCommandHandler(produceRecordCommandHandler);
     const stopScheduledProducerCommandHandler = new StopScheduledProducerCommandHandler(producerCollection, outputChannelProvider, explorer);
-    const startConsumerCommandHandler = new StartConsumerCommandHandler(clientAccessor, consumerCollection, explorer);
+    const startConsumerCommandHandler = new StartConsumerCommandHandler(
+        clientAccessor,
+        consumerCollection,
+        explorer,
+        workspaceSettings,
+        consumerTableViewProvider
+    );
     const stopConsumerCommandHandler = new StopConsumerCommandHandler(clientAccessor, consumerCollection, explorer);
     const listConsumersCommandHandler = new ListConsumersCommandHandler(consumerCollection, consumerTableViewProvider);
     const toggleConsumerCommandHandler = new ToggleConsumerCommandHandler(consumerCollection);
