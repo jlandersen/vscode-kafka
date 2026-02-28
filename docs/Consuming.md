@@ -14,9 +14,9 @@ You can start consuming messages from the [Kafka Explorer](Explorer.md#explorer)
 
 ![Start Consumer with Explorer](assets/start-consumer-from-explorer.png)
 
-Once this command is launched, it creates a consumer group (with an auto-generated id), and opens the [Consumer View](#consumer-view) where you can see the messages being consumed:
+Once this command is launched, it creates a consumer group (with an auto-generated id), and opens the [Message Viewer](#message-viewer) where you can see the messages being consumed:
 
-![Consumer group / Consumer View](assets/consumer-group-after-starting-from-explorer.png)
+![Consumer group / Message Viewer](assets/consumer-group-after-starting-from-explorer.png)
 
 In this case, the starting offset can be only be configured via the [kafka.consumers.offset](#kafkaconsumersoffset) preference.
 
@@ -115,18 +115,27 @@ Here is an example of hover on topic:
 
 ![Start Consumer from command palette](assets/start-consumer-from-command.png)
 
-## Consumer View
+## Message Viewer
 
-The `Consumer View` is a read-only editor which shows consumed messages for a given topic:
+![Message Viewer](assets/consumer-view.png)
 
-![Consumer view](assets/consumer-view.png)
+The Message Viewer provides:
 
-This editor provides 2 commands on the top right of the editor:
+ * consumed partition selection (what the consumer fetches)
+ * filtered partition selection (what the table shows)
+ * consume modes (`latest`, `from beginning`, `from timestamp`) with deterministic reseed
+ * live histogram + brush-based time range filter
 
- * `Clear Consumer View`: clears the view.
- * `Start/Stop`: to stop or (re)start the consumer.
+Time range behavior:
 
-Consumers are based on virtual documents, available in the VS Code extension API. A consumer will keep running even if you close the document in the editor. You should make sure to close the consumer explicitly, either via the command palette, the status bar element or the start/stop action button as well. The VS Code API does not support detecting if a virtual document is closed immediately. Instead, the underlying virtual document is automatically closed after two minutes if the document is closed in the editor.
+ * brushing on the histogram applies a timestamp range filter after partition and search filters
+ * `Clear range` removes only the time filter and preserves partition/search selections
+ * changing consume settings (`consumed partitions`, `consume mode`) reseeds and clears transient viewer filters, including the active time range
+
+Count semantics:
+
+ * `x / y shown` reflects currently visible rows after partition + search + time filters
+ * the histogram overlay keeps total vs filtered counts aligned with the same base subset so the current range impact is explicit
 
 ## Preferences
 
@@ -139,3 +148,7 @@ You can configure start offset for new consumers in settings (earliest, latest).
 You can configure printing headers of message to view in settings (default: false).
 
 ![Headers](assets/kafka-consumer-headers.png)
+
+### `kafka.consumers.messageViewer.maxBufferSize`
+
+Maximum number of consumed messages retained in the Message Viewer in-memory session. Older messages are evicted when the cap is reached.
