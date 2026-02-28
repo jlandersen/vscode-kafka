@@ -3,6 +3,9 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## Unreleased
 
+### Added
+- **Schema Registry Integration**: Added first-class Schema Registry support with reusable registry connections, cluster linking, and explorer browsing for subjects and schema versions.
+
 ## [0.26.0] - 2026-02-28
 
 ### Added
