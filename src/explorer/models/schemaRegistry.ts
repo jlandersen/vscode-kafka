@@ -173,6 +173,8 @@ export class TopicSchemaSubjectsItem extends NodeBase {
     public label = "Schema Subjects";
     public contextValue = "topicschemas";
     public collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+    private static readonly subjectListCacheMaxEntries = 32;
+    private static readonly subjectListCache = new WeakMap<SchemaRegistryProvider, Map<string, Promise<SubjectSummary[]>>>();
     private discovery: TopicSubjectDiscoveryNodes | undefined;
 
     constructor(private readonly topicItem: TopicItem, private readonly factory: SchemaRegistryProviderFactory = new DefaultSchemaRegistryProviderFactory()) {
@@ -213,7 +215,7 @@ export class TopicSchemaSubjectsItem extends NodeBase {
         }
 
         const namingStrategy = registryRef.connection.namingStrategy || TOPIC_NAME_STRATEGY;
-        const allSubjects = await provider.listSubjects(registryRef);
+        const allSubjects = await TopicSchemaSubjectsItem.getCachedSubjects(registryRef, provider);
         const discoveredSubjects = discoverSubjects(allSubjects, this.topicItem.topic.id, namingStrategy);
         const subjectNodes = discoveredSubjects.subjects
             .sort((a, b) => a.name.localeCompare(b.name))
@@ -229,6 +231,37 @@ export class TopicSchemaSubjectsItem extends NodeBase {
     public clearChildrenCache(): void {
         this.discovery = undefined;
         super.clearChildrenCache();
+    }
+
+    private static async getCachedSubjects(registryRef: SchemaRegistryRef, provider: SchemaRegistryProvider): Promise<SubjectSummary[]> {
+        const cacheKey = `${registryRef.id}|${registryRef.connection.url}|${registryRef.connection.namingStrategy || TOPIC_NAME_STRATEGY}`;
+        let providerCache = this.subjectListCache.get(provider);
+        if (!providerCache) {
+            providerCache = new Map<string, Promise<SubjectSummary[]>>();
+            this.subjectListCache.set(provider, providerCache);
+        }
+
+        const cachedSubjects = providerCache.get(cacheKey);
+        if (cachedSubjects) {
+            providerCache.delete(cacheKey);
+            providerCache.set(cacheKey, cachedSubjects);
+            return cachedSubjects;
+        }
+
+        const subjectListPromise = provider.listSubjects(registryRef).catch(error => {
+            providerCache.delete(cacheKey);
+            throw error;
+        });
+        providerCache.set(cacheKey, subjectListPromise);
+
+        if (providerCache.size > this.subjectListCacheMaxEntries) {
+            const oldestKey = providerCache.keys().next().value;
+            if (oldestKey) {
+                providerCache.delete(oldestKey);
+            }
+        }
+
+        return subjectListPromise;
     }
 }
 

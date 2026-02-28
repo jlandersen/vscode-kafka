@@ -201,6 +201,39 @@ suite("Schema Registry Explorer Test Suite", () => {
         assert.ok(children[0] instanceof InformationItem);
         assert.strictEqual(children[0].label, "No discoverable subjects");
     });
+
+    test("topic schema subjects items reuse cached subject list across sibling topics", async () => {
+        const registryRef: SchemaRegistryRef = {
+            id: "registry-cache-test",
+            name: "Cache Test Registry",
+            clusterId: "cluster-1",
+            clusterName: "Cluster 1",
+            connection: {
+                url: "http://localhost:18081",
+                namingStrategy: "TopicNameStrategy"
+            }
+        };
+
+        let listSubjectsCalls = 0;
+        const provider: SchemaRegistryProvider = {
+            listSubjects: async () => {
+                listSubjectsCalls += 1;
+                return [{ name: "orders-value" }, { name: "payments-value" }];
+            },
+            listSubjectVersions: async () => [],
+            getSchemaVersion: async () => {
+                throw new Error("not used");
+            }
+        };
+        const factory = createFactory(registryRef, provider);
+
+        const ordersItem = new TopicSchemaSubjectsItem(createTopicItem("orders"), factory);
+        const paymentsItem = new TopicSchemaSubjectsItem(createTopicItem("payments"), factory);
+
+        assert.strictEqual(await ordersItem.hasDiscoverableSubjects(), true);
+        assert.strictEqual(await paymentsItem.hasDiscoverableSubjects(), true);
+        assert.strictEqual(listSubjectsCalls, 1);
+    });
 });
 
 function createTopicItem(topicId: string): any {
