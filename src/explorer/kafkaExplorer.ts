@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 import { ClientAccessor, ClientState } from "../client";
-import { WorkspaceSettings, ClusterSettings, SchemaRegistrySettings } from "../settings";
+import { WorkspaceSettings, ClusterSettings } from "../settings";
 import { NodeBase } from "./models/nodeBase";
 import { TreeView } from "vscode";
 import { KafkaModel, KafkaModelProvider } from "./models/kafka";
@@ -25,7 +25,6 @@ export class KafkaExplorer implements KafkaModelProvider, vscode.Disposable, vsc
         = this.onDidChangeTreeDataEvent.event;
 
     private readonly clusterSettings: ClusterSettings;
-    private readonly schemaRegistrySettings: SchemaRegistrySettings;
     private readonly clientAccessor: ClientAccessor;
 
     protected tree: TreeView<NodeBase> | undefined;
@@ -39,10 +38,8 @@ export class KafkaExplorer implements KafkaModelProvider, vscode.Disposable, vsc
     constructor(
         settings: WorkspaceSettings,
         clusterSettings: ClusterSettings,
-        schemaRegistrySettings: SchemaRegistrySettings,
         clientAccessor: ClientAccessor) {
         this.clusterSettings = clusterSettings;
-        this.schemaRegistrySettings = schemaRegistrySettings;
         this.clientAccessor = clientAccessor;
         this.root = null;
         this.tree = vscode.window.createTreeView(TREEVIEW_ID, {
@@ -222,7 +219,7 @@ export class KafkaExplorer implements KafkaModelProvider, vscode.Disposable, vsc
      */
     public getDataModel(): KafkaModel {
         if (!this.root) {
-            this.root = new KafkaModel(this.clusterSettings, this.schemaRegistrySettings, this.clientAccessor);
+            this.root = new KafkaModel(this.clusterSettings, this.clientAccessor);
             this.onDidChangeDataModelEmitter.fire(this.root);
         }
         return this.root;

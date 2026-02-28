@@ -40,7 +40,7 @@ import {
 import { Context } from "./context";
 import { SecretsStorage } from "./settings/secretsStorage";
 import { markdownPreviewProvider } from "./docs/markdownPreviewProvider";
-import { BrokerItem, KafkaExplorer, TopicItem } from "./explorer";
+import { BrokerItem, ExplorerRefreshTarget, KafkaExplorer, SchemaRegistryExplorer, TopicItem } from "./explorer";
 import { ClusterItem } from "./explorer/models/cluster";
 import { NodeBase } from "./explorer/models/nodeBase";
 import { SchemaRegistryConnectionNode, SchemaRegistryErrorItem, SchemaRegistryNode, SchemaSubjectNode, SchemaVersionNode } from "./explorer/models/schemaRegistry";
@@ -81,8 +81,30 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     // Views (sidebar, status bar items etc.)
     const outputChannelProvider = new OutputChannelProvider();
     context.subscriptions.push(outputChannelProvider);
-    const explorer = new KafkaExplorer(workspaceSettings, clusterSettings, schemaRegistrySettings, clientAccessor);
+    const explorer = new KafkaExplorer(workspaceSettings, clusterSettings, clientAccessor);
+    const schemaRegistryExplorer = new SchemaRegistryExplorer(schemaRegistrySettings, clusterSettings);
+    const schemaExplorerRefreshTarget: ExplorerRefreshTarget = {
+        refresh: () => {
+            explorer.refresh();
+            schemaRegistryExplorer.refresh();
+        },
+        refreshItem: (item?: NodeBase) => {
+            if (!item) {
+                explorer.refresh();
+                schemaRegistryExplorer.refresh();
+                return;
+            }
+
+            if (item instanceof SchemaRegistryConnectionNode) {
+                schemaRegistryExplorer.refreshItem(item);
+                return;
+            }
+
+            explorer.refreshItem(item);
+        }
+    };
     context.subscriptions.push(explorer);
+    context.subscriptions.push(schemaRegistryExplorer);
     context.subscriptions.push(new ConsumerStatusBarItem(consumerCollection));
     context.subscriptions.push(new SelectedClusterStatusBarItem(clusterSettings));
     const consumerTableViewProvider = new ConsumerTableViewProvider(
@@ -122,13 +144,13 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     const dumpTopicMetadataCommandHandler = new DumpTopicMetadataCommandHandler(clientAccessor, outputChannelProvider);
     const dumpClusterMetadataCommandHandler = new DumpClusterMetadataCommandHandler(clientAccessor, outputChannelProvider);
     const dumpBrokerMetadataCommandHandler = new DumpBrokerMetadataCommandHandler(clientAccessor, outputChannelProvider);
-    const refreshSchemaRegistryCommandHandler = new RefreshSchemaRegistryCommandHandler(explorer);
-    const addSchemaRegistryCommandHandler = new AddSchemaRegistryCommandHandler(schemaRegistrySettings, explorer, context);
-    const editSchemaRegistryCommandHandler = new EditSchemaRegistryCommandHandler(schemaRegistrySettings, explorer, context);
-    const deleteSchemaRegistryCommandHandler = new DeleteSchemaRegistryCommandHandler(schemaRegistrySettings, clusterSettings, explorer);
-    const linkSchemaRegistryClusterCommandHandler = new LinkSchemaRegistryClusterCommandHandler(schemaRegistrySettings, clusterSettings, explorer);
-    const unlinkSchemaRegistryClusterCommandHandler = new UnlinkSchemaRegistryClusterCommandHandler(schemaRegistrySettings, clusterSettings, explorer);
-    const retrySchemaRegistryCommandHandler = new RetrySchemaRegistryCommandHandler(explorer);
+    const refreshSchemaRegistryCommandHandler = new RefreshSchemaRegistryCommandHandler(schemaExplorerRefreshTarget);
+    const addSchemaRegistryCommandHandler = new AddSchemaRegistryCommandHandler(schemaRegistrySettings, schemaExplorerRefreshTarget, context);
+    const editSchemaRegistryCommandHandler = new EditSchemaRegistryCommandHandler(schemaRegistrySettings, schemaExplorerRefreshTarget, context);
+    const deleteSchemaRegistryCommandHandler = new DeleteSchemaRegistryCommandHandler(schemaRegistrySettings, clusterSettings, schemaExplorerRefreshTarget);
+    const linkSchemaRegistryClusterCommandHandler = new LinkSchemaRegistryClusterCommandHandler(schemaRegistrySettings, clusterSettings, schemaExplorerRefreshTarget);
+    const unlinkSchemaRegistryClusterCommandHandler = new UnlinkSchemaRegistryClusterCommandHandler(schemaRegistrySettings, clusterSettings, schemaExplorerRefreshTarget);
+    const retrySchemaRegistryCommandHandler = new RetrySchemaRegistryCommandHandler(schemaExplorerRefreshTarget);
     const openSchemaRegistrySettingsCommandHandler = new OpenSchemaRegistrySettingsCommandHandler();
     const openSchemaRegistryVersionCommandHandler = new OpenSchemaRegistryVersionCommandHandler(schemaRegistryDocumentProvider);
     const compareSchemaRegistryVersionsCommandHandler = new CompareSchemaRegistryVersionsCommandHandler(

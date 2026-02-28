@@ -13,7 +13,7 @@ import {
     WizardPageSectionDefinition
 } from "@redhat-developer/vscode-wizard";
 
-import { KafkaExplorer } from "../explorer";
+import { ExplorerRefreshTarget } from "../explorer";
 import { SchemaRegistry } from "../schema-registry";
 import { SchemaRegistrySettings } from "../settings";
 import { validateFile } from "./validators";
@@ -50,7 +50,7 @@ const namingStrategies: NamingStrategyOption[] = [
 export function openSchemaRegistryForm(
     schemaRegistry: SchemaRegistry | undefined,
     schemaRegistrySettings: SchemaRegistrySettings,
-    explorer: KafkaExplorer,
+    explorer: ExplorerRefreshTarget,
     context: vscode.ExtensionContext
 ): void {
     const wizardDef: WizardDefinition = {

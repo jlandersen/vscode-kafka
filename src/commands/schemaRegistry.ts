@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import { KafkaExplorer } from "../explorer";
+import { ExplorerRefreshTarget } from "../explorer";
 import { NodeBase } from "../explorer/models/nodeBase";
 import { SchemaRegistryConnectionNode, SchemaRegistryErrorItem, SchemaRegistryNode, SchemaSubjectNode, SchemaVersionNode } from "../explorer/models/schemaRegistry";
 import { getSchemaRegistryErrorMessage, SchemaRegistryProvider } from "../schema-registry";
@@ -12,7 +12,7 @@ import { openSchemaRegistryForm } from "../wizards/schemaRegistries";
 export class RefreshSchemaRegistryCommandHandler {
     public static readonly commandId = "vscode-kafka.schemaRegistry.refresh";
 
-    constructor(private readonly explorer: KafkaExplorer) {
+    constructor(private readonly explorer: ExplorerRefreshTarget) {
     }
 
     public async execute(item?: NodeBase): Promise<void> {
@@ -23,7 +23,7 @@ export class RefreshSchemaRegistryCommandHandler {
 export class RetrySchemaRegistryCommandHandler {
     public static readonly commandId = "vscode-kafka.schemaRegistry.retry";
 
-    constructor(private readonly explorer: KafkaExplorer) {
+    constructor(private readonly explorer: ExplorerRefreshTarget) {
     }
 
     public async execute(item?: SchemaRegistryErrorItem): Promise<void> {
@@ -154,7 +154,7 @@ export class AddSchemaRegistryCommandHandler {
 
     constructor(
         private readonly schemaRegistrySettings: SchemaRegistrySettings,
-        private readonly explorer: KafkaExplorer,
+        private readonly explorer: ExplorerRefreshTarget,
         private readonly context: vscode.ExtensionContext
     ) {
     }
@@ -169,7 +169,7 @@ export class EditSchemaRegistryCommandHandler {
 
     constructor(
         private readonly schemaRegistrySettings: SchemaRegistrySettings,
-        private readonly explorer: KafkaExplorer,
+        private readonly explorer: ExplorerRefreshTarget,
         private readonly context: vscode.ExtensionContext
     ) {
     }
@@ -215,7 +215,7 @@ export class DeleteSchemaRegistryCommandHandler {
     constructor(
         private readonly schemaRegistrySettings: SchemaRegistrySettings,
         private readonly clusterSettings: ClusterSettings,
-        private readonly explorer: KafkaExplorer
+        private readonly explorer: ExplorerRefreshTarget
     ) {
     }
 
@@ -288,7 +288,7 @@ export class LinkSchemaRegistryClusterCommandHandler {
     constructor(
         private readonly schemaRegistrySettings: SchemaRegistrySettings,
         private readonly clusterSettings: ClusterSettings,
-        private readonly explorer: KafkaExplorer
+        private readonly explorer: ExplorerRefreshTarget
     ) {
     }
 
@@ -362,7 +362,7 @@ export class UnlinkSchemaRegistryClusterCommandHandler {
     constructor(
         private readonly schemaRegistrySettings: SchemaRegistrySettings,
         private readonly clusterSettings: ClusterSettings,
-        private readonly explorer: KafkaExplorer
+        private readonly explorer: ExplorerRefreshTarget
     ) {
     }
 

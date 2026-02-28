@@ -1,11 +1,11 @@
 # Explorer
 
-The Kafka explorer has two root groups:
+The Kafka sidebar has two separate explorer views:
 
 - `Clusters`
 - `Schema Registries`
 
-The `Clusters` tree shows configured clusters with their topics, brokers, consumers and configurations.
+The `Clusters` view shows configured clusters with their topics, brokers, consumers and configurations.
 
 ![Kafka Explorer](assets/kafka-explorer.png)
 
@@ -31,7 +31,7 @@ Schema Registry connections are configured separately from clusters and can be r
 - Link a cluster to a registry by setting `schemaRegistryId` in the cluster config.
 - Credentials are stored in secure storage, not plain settings.
 
-Schema Registry connections can be managed directly in the explorer and command palette:
+Schema Registry connections can be managed directly in the `Schema Registries` view and command palette:
 
 - `Kafka: Add Schema Registry`
 - `Kafka: Edit Schema Registry`
