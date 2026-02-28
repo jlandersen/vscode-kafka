@@ -120,7 +120,7 @@ value-format: protobuf(demo.UserCreated)
 value-schema: file(./schemas/user-events.proto)
 ```
 
-![Consumer Table View](docs/assets/start-consumer-from-kafkafile.png)
+![Consumer Message Viewer](docs/assets/consumer-view.png)
 
 ### 🔐 **Security**
 - 🔒 **SASL Authentication** - PLAIN, SCRAM-256, SCRAM-512 (Kafka 0.10+)
