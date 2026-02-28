@@ -58,8 +58,8 @@ export interface ConsumerCollectionChangedEvent {
 }
 
 export class Consumer implements vscode.Disposable {
-    private static readonly seekRetryAttempts = 20;
-    private static readonly seekRetryDelayMs = 50;
+    private static readonly seekRetryAttempts = 120;
+    private static readonly seekRetryDelayMs = 100;
 
     private kafkaClient?: Client;
     private consumer?: KafkaConsumer;
@@ -537,6 +537,9 @@ export function extractConsumerInfoUri(uri: vscode.Uri): ConsumerInfoUri {
 export function parsePartitions(partitions?: string): number[] | undefined {
     partitions = partitions?.trim();
     if (partitions && partitions.length > 0) {
+        if (partitions.toLowerCase() === "all") {
+            return undefined;
+        }
         let from: string | undefined = undefined;
         let to: string | undefined = undefined;
         const result = new Set<number>();

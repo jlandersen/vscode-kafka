@@ -99,6 +99,11 @@ suite("Parse partitions Test Suite", () => {
         assert.deepStrictEqual(parsePartitions('0'), [0]);
     });
 
+    test("Parse partitions as all", () => {
+        assert.deepStrictEqual(parsePartitions('all'), undefined);
+        assert.deepStrictEqual(parsePartitions('ALL'), undefined);
+    });
+
     test("Parse partitions as range", () => {
         assert.deepStrictEqual(parsePartitions('0,2'), [0, 2]);
         assert.deepStrictEqual(parsePartitions('0,           2'), [0, 2]);

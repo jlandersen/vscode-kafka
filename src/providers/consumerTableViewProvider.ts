@@ -24,7 +24,7 @@ type WebviewCommand =
     | "PreviewMessage"
     | "ExportMessages";
 
-type ConsumerLifecycleAction = "starting" | "stopping";
+type ConsumerLifecycleAction = "starting" | "stopping" | "applyingSettings";
 
 interface WebviewRequest {
     command: WebviewCommand;
@@ -310,25 +310,42 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             partitions: consumedPartitions.length > 0 ? consumedPartitions : undefined
         };
         const nextUri = createConsumerUri(nextInfo);
+        const replacingActiveConsumer = this.getConsumersForScope(currentInfo).length > 0;
 
         try {
+            if (replacingActiveConsumer) {
+                this.lifecycleAction = "applyingSettings";
+                this.sendConsumerInfo();
+            }
+
             this.activeConsumerInfo = nextInfo;
             this.activeConsumerUri = nextUri.toString();
             this.session?.resetForConsumeSettings(nextSettings);
 
-            if (this.consumer) {
-                await this.consumerCollection.close(currentUri);
-                this.consumer = undefined;
+            const consumersToClose = this.getConsumersForScope(currentInfo);
+            if (consumersToClose.length > 0) {
+                for (const activeConsumer of consumersToClose) {
+                    await this.consumerCollection.close(activeConsumer.uri);
+                }
                 const nextConsumer = await this.consumerCollection.create(nextUri);
                 if (this.consumer === undefined) {
                     this.bindConsumer(nextConsumer, nextUri.toString());
                 }
+            } else {
+                await this.consumerCollection.close(currentUri);
+                this.consumer = undefined;
             }
 
             this.sendConsumerInfo();
             this.renderNow();
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to apply consume settings: ${error}`);
+        } finally {
+            if (replacingActiveConsumer) {
+                this.lifecycleAction = undefined;
+                this.sendConsumerInfo();
+                this.renderNow();
+            }
         }
     }
 
@@ -361,6 +378,13 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
     private async startActiveConsumer(): Promise<void> {
         if (!this.activeConsumerInfo || !this.activeConsumerUri || this.consumer) {
             return;
+        }
+
+        const consumersToClose = this.getConsumersForScope(this.activeConsumerInfo);
+        if (consumersToClose.length > 0) {
+            for (const activeConsumer of consumersToClose) {
+                await this.consumerCollection.close(activeConsumer.uri);
+            }
         }
 
         const nextUri = createConsumerUri(this.activeConsumerInfo);
@@ -592,6 +616,14 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             return DEFAULT_BUFFER_SIZE;
         }
         return Math.floor(configured);
+    }
+
+    private getConsumersForScope(info: ConsumerInfoUri): Consumer[] {
+        return this.consumerCollection.getAll().filter((consumer) => (
+            consumer.clusterId === info.clusterId &&
+            consumer.options.consumerGroupId === info.consumerGroupId &&
+            consumer.options.topicId === info.topicId
+        ));
     }
 
     private clearRenderTimer(): void {
@@ -1153,7 +1185,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         }
 
         function updateStatus() {
-            const lifecycleInProgress = state.lifecycleAction === "starting" || state.lifecycleAction === "stopping";
+            const lifecycleInProgress = Boolean(state.lifecycleAction);
             pageInfoEl.textContent = "Page " + state.page + " / " + state.totalPages;
             prevEl.disabled = state.page <= 1;
             nextEl.disabled = state.page >= state.totalPages;
@@ -1166,6 +1198,10 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             startStopEl.disabled = lifecycleInProgress;
             pauseResumeEl.disabled = !state.consumerRunning || lifecycleInProgress;
             pauseResumeEl.textContent = state.streamState === "paused" ? "Resume" : "Pause";
+            consumeModeEl.disabled = lifecycleInProgress;
+            consumeTimestampEl.disabled = lifecycleInProgress || consumeModeEl.value !== "timestamp";
+            consumedPartitionsEl.disabled = lifecycleInProgress;
+            applyConsumeSettingsEl.disabled = lifecycleInProgress;
 
             const total = state.totalMessages || 0;
             const filtered = state.filteredMessages || 0;
@@ -1181,6 +1217,8 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 statusEl.textContent = "Starting consumer...";
             } else if (state.lifecycleAction === "stopping") {
                 statusEl.textContent = "Stopping consumer...";
+            } else if (state.lifecycleAction === "applyingSettings") {
+                statusEl.textContent = "Applying consume settings...";
             } else if (!state.consumerRunning) {
                 statusEl.textContent = "Stopped";
             } else if (state.streamState === "error") {
@@ -1341,7 +1379,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         });
 
         consumeModeEl.addEventListener("change", () => {
-            consumeTimestampEl.disabled = consumeModeEl.value !== "timestamp";
+            consumeTimestampEl.disabled = Boolean(state.lifecycleAction) || consumeModeEl.value !== "timestamp";
         });
 
         applyConsumeSettingsEl.addEventListener("click", () => {
