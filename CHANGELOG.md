@@ -8,6 +8,15 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 - Add Message Viewer session core with pause/resume, search, pagination, preview/export actions, and bounded in-memory buffering (`kafka.consumers.messageViewer.maxBufferSize`).
 - Add Message Viewer consume controls for consumed partitions, filtered partitions, and consume mode (`latest`, `from beginning`, `from timestamp`) with deterministic reseed behavior.
 - Add Message Viewer histogram with brush-based time-range filtering and time-filter-aware counts.
+- Add Message Viewer rollout documentation for histogram brushing, count semantics, and default-flip gate/rollback guidance.
+
+### Changed
+- Make Message Viewer the default consumer UI and remove the legacy text consumer view flow and related commands.
+
+### Fixed
+- Add start/stop lifecycle controls to the Message Viewer so consumers can be closed and restarted from the viewer UI.
+- Reseed offsets when consume mode changes (`latest`, `from beginning`, `from timestamp`) so mode/partition updates take effect immediately.
+- Reapply updated `.kafka` `CONSUMER` block settings when starting an already-running consumer group from code lens.
 
 ## [0.25.1] - 2026-02-27
 

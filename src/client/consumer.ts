@@ -142,7 +142,8 @@ export class Consumer implements vscode.Disposable {
 
         const seekByTimestamp = typeof fromTimestamp === "string" && fromTimestamp.trim().length > 0;
         const offsetAsNumber = fromOffset && subscribeOptions.fromBeginning === undefined && !seekByTimestamp;
-        if (partitions || offsetAsNumber || seekByTimestamp) {
+        const reseedByConsumeMode = fromOffset === "earliest" || fromOffset === "latest";
+        if (partitions || offsetAsNumber || seekByTimestamp || reseedByConsumeMode) {
             const definedOffset = offsetAsNumber ? fromOffset : undefined;
             const topicOffsets = await this.kafkaClient?.fetchTopicOffsets(topic);
             const timestampOffsets = seekByTimestamp

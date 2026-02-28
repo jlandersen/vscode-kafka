@@ -85,9 +85,8 @@ message UserCreated {
 ![Producing Messages](docs/assets/kafka-file-producers.png)
 
 ### 📥 **Flexible Consumer**
-Consume messages with multiple visualization options:
-- 📝 **Text View** - Traditional streaming text output with syntax highlighting
-- 📊 **Table View** - Excel-like table with sortable columns, search, and CSV export
+Consume messages with the Message Viewer:
+- 📊 **Message Viewer** - Table view with search, filters, histogram, and CSV export
 - 🎯 **Targeted Consumption** - Consume from specific partitions or offsets
 - 💾 **Export Data** - Export consumed messages to CSV for analysis
 
@@ -165,7 +164,7 @@ Click the `+` icon in the Kafka Explorer or use `Ctrl+Shift+P` → "Kafka: Add C
 |-------|-------------|
 | [Kafka Explorer](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Explorer.md) | Navigating clusters, topics, brokers, and consumer groups |
 | [Producing Messages](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Producing.md) | Creating producers with Faker templates and scheduled production |
-| [Consuming Messages](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Consuming.md) | Text view, table view, and consumption options |
+| [Consuming Messages](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Consuming.md) | Message Viewer and consumption options |
 | [.kafka File Format](https://github.com/jlandersen/vscode-kafka/blob/master/docs/KafkaFile.md) | Syntax reference for producer and consumer definitions |
 | [Settings](https://github.com/jlandersen/vscode-kafka/blob/master/docs/Settings.md) | Extension configuration options |
 

@@ -3,11 +3,10 @@ import * as vscode from "vscode";
 import { pickClient, pickConsumerGroupId, pickTopic } from "./common";
 import { ConsumerCollection, ClientAccessor, createConsumerUri, ConsumerInfoUri, ConsumerLaunchState } from "../client";
 import { KafkaExplorer } from "../explorer";
-import { ConsumerVirtualTextDocumentProvider, ConsumerTableViewProvider } from "../providers";
+import { ConsumerTableViewProvider } from "../providers";
 import { ProgressLocation, window } from "vscode";
 import { getErrorMessage } from "../errors";
 import { ConsumerValidator } from "../validators/consumer";
-import type { WorkspaceSettings } from "../settings";
 
 export interface LaunchConsumerCommand extends ConsumerInfoUri {
 
@@ -55,27 +54,24 @@ abstract class LaunchConsumerCommandHandler {
         try {
             const consumer = this.consumerCollection.getByConsumerGroupId(command.clusterId, command.consumerGroupId);
             if (this.start) {
-                // Try to start consumer
-
+                ConsumerValidator.validate(command);
+                const consumeUri = createConsumerUri(command);
                 if (consumer) {
-                    //  The consumer is already started, just open the document which tracks consumer messages.
-                    const consumeUri = createConsumerUri(command);
-                    openDocument(consumeUri);
-                    return consumeUri;
+                    if (consumer.uri.toString() === consumeUri.toString()) {
+                        return consumer.uri;
+                    }
+
+                    await stopConsumerWithProgress(consumer.uri, this.consumerCollection, this.explorer);
                 }
 
-                // Validate start command
-                ConsumerValidator.validate(command);
+                const restartedConsumer = this.consumerCollection.getByConsumerGroupId(command.clusterId, command.consumerGroupId);
+                if (restartedConsumer) {
+                    await stopConsumerWithProgress(restartedConsumer.uri, this.consumerCollection, this.explorer);
+                }
 
-                //  Open the document which tracks consumer messages.
-                const consumeUri = createConsumerUri(command);
-                openDocument(consumeUri);
-
-                // Start the consumer
                 await startConsumerWithProgress(consumeUri, this.consumerCollection, this.explorer);
                 return consumeUri;
             } else {
-                // Stop the consumer
                 if (consumer) {
                     const consumeUri = consumer.uri;
                     await stopConsumerWithProgress(consumeUri, this.consumerCollection, this.explorer);
@@ -97,18 +93,13 @@ export class StartConsumerCommandHandler extends LaunchConsumerCommandHandler {
         clientAccessor: ClientAccessor,
         consumerCollection: ConsumerCollection,
         explorer: KafkaExplorer,
-        private readonly workspaceSettings: WorkspaceSettings,
-        private readonly tableViewProvider?: ConsumerTableViewProvider
+        private readonly tableViewProvider: ConsumerTableViewProvider
     ) {
         super(clientAccessor, consumerCollection, explorer, true);
     }
 
     async execute(command?: LaunchConsumerCommand): Promise<vscode.Uri | undefined> {
         const uri = await super.execute(command);
-        if (!this.workspaceSettings.consumerMessageViewerEnabled || !this.tableViewProvider) {
-            return uri;
-        }
-
         if (!uri || uri.scheme !== "kafka") {
             return uri;
         }
@@ -130,84 +121,9 @@ export class StopConsumerCommandHandler extends LaunchConsumerCommandHandler {
     }
 }
 
-export class ToggleConsumerCommandHandler {
-
-    public static commandId = 'vscode-kafka.consumer.toggle';
-
-    constructor(private consumerCollection: ConsumerCollection) {
-    }
-
-    async execute(): Promise<void> {
-        if (!vscode.window.activeTextEditor) {
-            return;
-        }
-
-        const { uri } = vscode.window.activeTextEditor.document;
-        if (uri.scheme !== "kafka") {
-            return;
-        }
-
-        const started = this.consumerCollection.has(uri);
-        try {
-            if (started) {
-                await stopConsumerWithProgress(uri, this.consumerCollection);
-            } else {
-                await startConsumerWithProgress(uri, this.consumerCollection);
-            }
-        }
-        catch (e) {
-            vscode.window.showErrorMessage(`Error while ${!started ? 'starting' : 'stopping'} the consumer: ${getErrorMessage(e)}`);
-        }
-    }
-}
-export class ClearConsumerViewCommandHandler {
-
-    public static commandId = 'vscode-kafka.consumer.clear';
-
-    constructor(private provider: ConsumerVirtualTextDocumentProvider) {
-
-    }
-    async execute(): Promise<void> {
-        if (!vscode.window.activeTextEditor) {
-            return;
-        }
-
-        const { document } = vscode.window.activeTextEditor;
-        if (document.uri.scheme !== "kafka") {
-            return;
-        }
-        this.provider.clear(document);
-    }
-}
-
-export class OpenConsumerTableViewCommandHandler {
-
-    public static commandId = 'vscode-kafka.consumer.viewtable';
-
-    constructor(private tableViewProvider: ConsumerTableViewProvider) {
-
-    }
-
-    async execute(): Promise<void> {
-        if (!vscode.window.activeTextEditor) {
-            return;
-        }
-
-        const { document } = vscode.window.activeTextEditor;
-        if (document.uri.scheme !== "kafka") {
-            vscode.window.showErrorMessage('This command is only available for Kafka consumer views');
-            return;
-        }
-
-        await this.tableViewProvider.show(document.uri);
-    }
-}
-
 enum ConsumerOption {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     Open,
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    OpenAsTable,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     Close,
 }
@@ -215,12 +131,8 @@ enum ConsumerOption {
 export class ListConsumersCommandHandler {
     private static optionQuickPickItems = [
         {
-            label: "Open existing",
+            label: "Open Message Viewer",
             option: ConsumerOption.Open,
-        },
-        {
-            label: "Open as Table",
-            option: ConsumerOption.OpenAsTable,
         },
         {
             label: "Close",
@@ -228,7 +140,7 @@ export class ListConsumersCommandHandler {
         },
     ];
 
-    constructor(private consumerCollection: ConsumerCollection, private tableViewProvider?: ConsumerTableViewProvider) {
+    constructor(private consumerCollection: ConsumerCollection, private tableViewProvider: ConsumerTableViewProvider) {
     }
 
     async execute(): Promise<void> {
@@ -255,14 +167,7 @@ export class ListConsumersCommandHandler {
 
         switch (pickedOption.option) {
             case ConsumerOption.Open:
-                openDocument(pickedConsumer.uri);
-                break;
-            case ConsumerOption.OpenAsTable:
-                if (this.tableViewProvider) {
-                    await this.tableViewProvider.show(pickedConsumer.uri);
-                } else {
-                    vscode.window.showErrorMessage('Table view provider not available');
-                }
+                await this.tableViewProvider.show(pickedConsumer.uri);
                 break;
             case ConsumerOption.Close:
                 this.consumerCollection.close(pickedConsumer.uri);
@@ -375,47 +280,4 @@ async function stopConsumerWithProgress(consumeUri: vscode.Uri, consumerCollecti
                 .catch(error => reject(error));
         });
     });
-}
-
-async function openDocument(uri: vscode.Uri): Promise<void> {
-
-    const visibleConsumerEditor = vscode.window.visibleTextEditors.find(te => te.document.uri.toString() === uri.toString());
-    if (visibleConsumerEditor) {
-        //Document already exists and is active, nothing to do
-        return;
-    }
-
-    // Then we check if the document is already open
-    const docs = vscode.workspace.textDocuments;
-    let document: vscode.TextDocument | undefined = docs.find(doc => doc.uri.toString() === uri.toString());
-
-    // If there's no document we open it
-    if (!document) {
-        document = await vscode.workspace.openTextDocument(uri);
-    }
-
-    // Check if there's an active editor, to later decide in which column the consumer
-    // view will be opened
-    const hasActiveEditor = !!vscode.window.activeTextEditor;
-
-    // Finally reveal the document
-    //
-    // Caveat #1: For documents opened programatically, then closed from the UI,
-    // VS Code doesn't instantly trigger onDidCloseTextDocument, so there's a
-    // chance the document instance we just retrieved doesn't correspond to an
-    // actual TextEditor.
-    // See https://github.com/microsoft/vscode/issues/15178
-    //
-    // Caveat #2: if a document is opened in a different panel, it's not revealed.
-    // Instead, a new TextEditor instance is added to the active panel. This is the
-    // default vscode behavior
-    await vscode.window.showTextDocument(
-        document,
-        {
-            preview: false,
-            preserveFocus: true,
-            viewColumn: hasActiveEditor ? vscode.ViewColumn.Beside : vscode.ViewColumn.Active,
-        }
-    );
-    await vscode.languages.setTextDocumentLanguage(document, "kafka-consumer");
 }

@@ -20,7 +20,6 @@ const DEFAULT_CONSUMER_FILTER:string[] = [];
 
 export interface WorkspaceSettings extends vscode.Disposable {
     consumerOffset: InitialConsumerOffset;
-    consumerMessageViewerEnabled: boolean;
     consumerMessageViewerMaxBufferSize: number;
     topicSortOption: TopicSortOption;
     topicFilters : string[];
@@ -46,7 +45,6 @@ class VsCodeWorkspaceSettings implements WorkspaceSettings {
     public topicFilters = DEFAULT_TOPIC_FILTER;
     public consumerFilters = DEFAULT_CONSUMER_FILTER;
     public consumerHeadersPrint = false;
-    public consumerMessageViewerEnabled = false;
     public consumerMessageViewerMaxBufferSize = 5000;
 
     private constructor() {
@@ -72,7 +70,6 @@ class VsCodeWorkspaceSettings implements WorkspaceSettings {
         this.topicFilters = configuration.get<string[]>("explorer.topics.filter", DEFAULT_TOPIC_FILTER);
         this.consumerFilters = configuration.get<string[]>("explorer.consumers.filter", DEFAULT_CONSUMER_FILTER);
         this.consumerHeadersPrint = configuration.get<boolean>("consumers.headers.print", false);
-        this.consumerMessageViewerEnabled = configuration.get<boolean>("consumers.messageViewer.enabled", false);
         this.consumerMessageViewerMaxBufferSize = configuration.get<number>("consumers.messageViewer.maxBufferSize", 5000);
     }
 

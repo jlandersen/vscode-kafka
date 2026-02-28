@@ -56,11 +56,6 @@
 					"default": "false",
 					"markdownDescription": "Print headers of message. See [here](command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22Consuming%22%2C%22section%22%3A%22kafkaconsumersheadersprint%22%7D%5D)"
 				},
-				"kafka.consumers.messageViewer.enabled": {
-					"type": "boolean",
-					"default": false,
-					"markdownDescription": "Enable the experimental Message Viewer webview when starting consumers. When disabled, the existing text-based consumer view remains the default during migration."
-				},
 				"kafka.consumers.messageViewer.maxBufferSize": {
 					"type": "number",
 					"default": 5000,
@@ -308,12 +303,6 @@
 					"kafka"
 				],
 				"configuration": "./language-configuration.json"
-			},
-			{
-				"id": "kafka-consumer",
-				"aliases": [
-					"Kafka Consumer"
-				]
 			}
 		],
 		"grammars": [
@@ -321,11 +310,6 @@
 				"language": "kafka",
 				"scopeName": "source.kafka",
 				"path": "./syntaxes/kafka.tmLanguage.json"
-			},
-			{
-				"language": "kafka-consumer",
-				"scopeName": "source.kafka.consumer",
-				"path": "./syntaxes/kafka-consumer.tmLanguage.json"
 			}
 		],
 		"snippets": [
@@ -452,30 +436,6 @@
 				"category": "Kafka"
 			},
 			{
-				"command": "vscode-kafka.consumer.toggle",
-				"title": "Start/Stop Consumer",
-				"category": "Kafka",
-				"icon": {
-					"light": "images/light/toggle.svg",
-					"dark": "images/dark/toggle.svg"
-				}
-			},
-			{
-				"command": "vscode-kafka.consumer.clear",
-				"title": "Clear Consumer View",
-				"category": "Kafka",
-				"icon": {
-					"light": "images/light/clear-all.svg",
-					"dark": "images/dark/clear-all.svg"
-				}
-			},
-			{
-				"command": "vscode-kafka.consumer.viewtable",
-				"title": "View as Table",
-				"category": "Kafka",
-				"icon": "$(table)"
-			},
-			{
 				"command": "vscode-kafka.consumer.deletegroup",
 				"title": "Delete Consumer Group",
 				"category": "Kafka"
@@ -565,23 +525,6 @@
 					"command": "vscode-kafka.explorer.deleteselected",
 					"when": "view == kafkaExplorer && viewItem == topic && listMultiSelection",
 					"group": "3_modification"
-				}
-			],
-			"editor/title": [
-				{
-					"command": "vscode-kafka.consumer.toggle",
-					"group": "navigation",
-					"when": "resourceScheme == kafka"
-				},
-				{
-					"command": "vscode-kafka.consumer.clear",
-					"group": "navigation",
-					"when": "resourceScheme == kafka"
-				},
-				{
-					"command": "vscode-kafka.consumer.viewtable",
-					"group": "navigation",
-					"when": "resourceScheme == kafka"
 				}
 			]
 		},

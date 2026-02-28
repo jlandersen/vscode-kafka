@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { ConsumedRecord, Consumer, ConsumerCollection, createConsumerUri, extractConsumerInfoUri, parsePartitions } from "../client";
+import { ConsumedRecord, Consumer, ConsumerCollection, ConsumerInfoUri, createConsumerUri, extractConsumerInfoUri, parsePartitions } from "../client";
 import { ClusterSettings } from "../settings/clusters";
 import { WorkspaceSettings } from "../settings";
 import { ConsumerConsumeMode, ConsumerSession, ConsumerSessionConsumeSettings, ConsumerSessionMessage } from "./consumerSession";
@@ -11,6 +11,8 @@ type WebviewCommand =
     | "GetMessages"
     | "GetMessagesCount"
     | "GetHistogram"
+    | "StartConsumer"
+    | "StopConsumer"
     | "Pause"
     | "Resume"
     | "SearchMessages"
@@ -21,6 +23,8 @@ type WebviewCommand =
     | "ClearMessages"
     | "PreviewMessage"
     | "ExportMessages";
+
+type ConsumerLifecycleAction = "starting" | "stopping";
 
 interface WebviewRequest {
     command: WebviewCommand;
@@ -44,6 +48,8 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
     private session: ConsumerSession | undefined;
     private consumer: Consumer | undefined;
     private activeConsumerUri: string | undefined;
+    private activeConsumerInfo: ConsumerInfoUri | undefined;
+    private lifecycleAction: ConsumerLifecycleAction | undefined;
     private renderTimer: NodeJS.Timeout | undefined;
 
     constructor(
@@ -95,6 +101,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             this.panel.onDidDispose(() => {
                 this.panel = undefined;
                 this.activeConsumerUri = undefined;
+                this.activeConsumerInfo = undefined;
                 this.consumer = undefined;
                 this.session = undefined;
                 this.clearRenderTimer();
@@ -104,6 +111,9 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 if (event.webviewPanel.visible) {
                     this.renderNow();
                 }
+            }),
+            this.consumerCollection.onDidChangeCollection(() => {
+                this.handleCollectionChanged();
             }),
             this.panel.webview.onDidReceiveMessage((message: WebviewRequest) => {
                 void this.handleWebviewMessage(message);
@@ -116,6 +126,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
 
         this.consumer = consumer;
         this.activeConsumerUri = consumerUri;
+        this.activeConsumerInfo = extractConsumerInfoUri(consumer.uri);
         this.session = new ConsumerSession(this.getConfiguredBufferSize());
         this.session.setConsumeSettings(this.getConsumeSettingsFromConsumer(consumer));
         this.panel!.title = `Kafka Consumer: ${consumer.options.topicId}`;
@@ -155,6 +166,12 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         }
 
         switch (message.command) {
+            case "StartConsumer":
+                await this.startActiveConsumer();
+                break;
+            case "StopConsumer":
+                await this.stopActiveConsumer();
+                break;
             case "GetMessages":
                 this.session.setPagination(message.page, message.pageSize);
                 this.sendMessages();
@@ -242,7 +259,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
     }
 
     private async applyConsumeSettings(message: WebviewRequest): Promise<void> {
-        if (!this.session || !this.consumer || !this.activeConsumerUri) {
+        if (!this.session || !this.activeConsumerInfo || !this.activeConsumerUri) {
             return;
         }
 
@@ -285,7 +302,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         }
 
         const currentUri = vscode.Uri.parse(this.activeConsumerUri);
-        const currentInfo = extractConsumerInfoUri(this.consumer.uri);
+        const currentInfo = this.activeConsumerInfo;
         const nextInfo = {
             ...currentInfo,
             fromOffset: consumeMode === "earliest" ? "earliest" : "latest",
@@ -295,14 +312,93 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         const nextUri = createConsumerUri(nextInfo);
 
         try {
-            await this.consumerCollection.close(currentUri);
-            const nextConsumer = await this.consumerCollection.create(nextUri);
-            this.bindConsumer(nextConsumer, nextUri.toString());
+            this.activeConsumerInfo = nextInfo;
+            this.activeConsumerUri = nextUri.toString();
             this.session?.resetForConsumeSettings(nextSettings);
+
+            if (this.consumer) {
+                await this.consumerCollection.close(currentUri);
+                this.consumer = undefined;
+                const nextConsumer = await this.consumerCollection.create(nextUri);
+                if (this.consumer === undefined) {
+                    this.bindConsumer(nextConsumer, nextUri.toString());
+                }
+            }
+
             this.sendConsumerInfo();
             this.renderNow();
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to apply consume settings: ${error}`);
+        }
+    }
+
+    private handleCollectionChanged(): void {
+        if (!this.activeConsumerUri) {
+            return;
+        }
+
+        const activeUri = vscode.Uri.parse(this.activeConsumerUri);
+        const activeConsumer = this.consumerCollection.get(activeUri);
+
+        if (!activeConsumer && this.consumer) {
+            this.disposeConsumerListeners();
+            this.consumer = undefined;
+            this.sendConsumerInfo();
+            this.sendViewerState();
+            return;
+        }
+
+        if (activeConsumer && !this.consumer) {
+            this.bindConsumer(activeConsumer, this.activeConsumerUri);
+            this.sendConsumerInfo();
+            this.renderNow();
+            return;
+        }
+
+        this.sendConsumerInfo();
+    }
+
+    private async startActiveConsumer(): Promise<void> {
+        if (!this.activeConsumerInfo || !this.activeConsumerUri || this.consumer) {
+            return;
+        }
+
+        const nextUri = createConsumerUri(this.activeConsumerInfo);
+        this.lifecycleAction = "starting";
+        this.sendConsumerInfo();
+
+        try {
+            const nextConsumer = await this.consumerCollection.create(nextUri);
+            if (this.consumer === undefined) {
+                this.bindConsumer(nextConsumer, nextUri.toString());
+            }
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to start consumer: ${error}`);
+        } finally {
+            this.lifecycleAction = undefined;
+            this.sendConsumerInfo();
+            this.renderNow();
+        }
+    }
+
+    private async stopActiveConsumer(): Promise<void> {
+        if (!this.activeConsumerUri || !this.consumer) {
+            return;
+        }
+
+        const currentUri = vscode.Uri.parse(this.activeConsumerUri);
+        this.lifecycleAction = "stopping";
+        this.sendConsumerInfo();
+        try {
+            await this.consumerCollection.close(currentUri);
+            this.disposeConsumerListeners();
+            this.consumer = undefined;
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to stop consumer: ${error}`);
+        } finally {
+            this.lifecycleAction = undefined;
+            this.sendConsumerInfo();
+            this.sendViewerState();
         }
     }
 
@@ -354,21 +450,25 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
     }
 
     private sendConsumerInfo(): void {
-        if (!this.consumer || !this.panel) {
+        if (!this.panel || !this.activeConsumerInfo) {
             return;
         }
 
-        const clusterName = this.clusterSettings.get(this.consumer.clusterId)?.name;
+        const activeUri = this.activeConsumerUri ? vscode.Uri.parse(this.activeConsumerUri) : undefined;
+        const activeConsumer = activeUri ? this.consumerCollection.get(activeUri) : null;
+        const clusterName = this.clusterSettings.get(this.activeConsumerInfo.clusterId)?.name;
         this.panel.webview.postMessage({
             command: "ConsumerInfo",
             data: {
-                cluster: clusterName || this.consumer.options.bootstrap,
-                bootstrap: this.consumer.options.bootstrap,
-                consumerGroupId: this.consumer.options.consumerGroupId,
-                topic: this.consumer.options.topicId,
-                fromOffset: this.consumer.options.fromOffset,
-                fromTimestamp: this.consumer.options.fromTimestamp,
-                partitions: this.consumer.options.partitions
+                cluster: clusterName || activeConsumer?.options.bootstrap || this.activeConsumerInfo.clusterId,
+                bootstrap: activeConsumer?.options.bootstrap || "",
+                consumerGroupId: this.activeConsumerInfo.consumerGroupId,
+                topic: this.activeConsumerInfo.topicId,
+                fromOffset: this.activeConsumerInfo.fromOffset,
+                fromTimestamp: this.activeConsumerInfo.fromTimestamp,
+                partitions: this.activeConsumerInfo.partitions,
+                running: activeConsumer !== null,
+                lifecycleAction: this.lifecycleAction
             }
         });
     }
@@ -711,6 +811,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         </div>
         <div class="controls">
             <input id="search" type="text" placeholder="Search key, value, headers" />
+            <button id="startStop">Stop Consumer</button>
             <button id="pauseResume">Pause</button>
             <button id="clear">Clear</button>
             <button id="export">Export CSV</button>
@@ -783,6 +884,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
 
         const rowsEl = document.getElementById("rows");
         const searchEl = document.getElementById("search");
+        const startStopEl = document.getElementById("startStop");
         const pauseResumeEl = document.getElementById("pauseResume");
         const clearEl = document.getElementById("clear");
         const exportEl = document.getElementById("export");
@@ -818,7 +920,9 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             consumeTimestamp: "",
             consumedPartitions: "",
             timeRangeStartMs: undefined,
-            timeRangeEndMs: undefined
+            timeRangeEndMs: undefined,
+            consumerRunning: true,
+            lifecycleAction: undefined
         };
         let histogram = {
             bins: [],
@@ -1049,9 +1153,18 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         }
 
         function updateStatus() {
+            const lifecycleInProgress = state.lifecycleAction === "starting" || state.lifecycleAction === "stopping";
             pageInfoEl.textContent = "Page " + state.page + " / " + state.totalPages;
             prevEl.disabled = state.page <= 1;
             nextEl.disabled = state.page >= state.totalPages;
+            startStopEl.textContent = state.consumerRunning ? "Stop Consumer" : "Start Consumer";
+            if (state.lifecycleAction === "starting") {
+                startStopEl.textContent = "Starting...";
+            } else if (state.lifecycleAction === "stopping") {
+                startStopEl.textContent = "Stopping...";
+            }
+            startStopEl.disabled = lifecycleInProgress;
+            pauseResumeEl.disabled = !state.consumerRunning || lifecycleInProgress;
             pauseResumeEl.textContent = state.streamState === "paused" ? "Resume" : "Pause";
 
             const total = state.totalMessages || 0;
@@ -1064,7 +1177,13 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 countsEl.textContent = "Messages: " + filtered + "/" + total + " (buffer " + buffer + ")";
             }
 
-            if (state.streamState === "error") {
+            if (state.lifecycleAction === "starting") {
+                statusEl.textContent = "Starting consumer...";
+            } else if (state.lifecycleAction === "stopping") {
+                statusEl.textContent = "Stopping consumer...";
+            } else if (!state.consumerRunning) {
+                statusEl.textContent = "Stopped";
+            } else if (state.streamState === "error") {
                 statusEl.textContent = "Error: " + (state.error || "unknown");
             } else {
                 statusEl.textContent = state.streamState === "paused" ? "Paused" : "Running";
@@ -1088,6 +1207,9 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                     document.getElementById("cluster").textContent = "Cluster: " + message.data.cluster;
                     document.getElementById("topic").textContent = "Topic: " + message.data.topic;
                     document.getElementById("group").textContent = "Group: " + message.data.consumerGroupId;
+                    state.consumerRunning = Boolean(message.data.running);
+                    state.lifecycleAction = message.data.lifecycleAction;
+                    updateStatus();
                     break;
                 }
                 case "Messages": {
@@ -1148,6 +1270,10 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         pauseResumeEl.addEventListener("click", () => {
             const command = state.streamState === "paused" ? "Resume" : "Pause";
             post(command);
+        });
+
+        startStopEl.addEventListener("click", () => {
+            post(state.consumerRunning ? "StopConsumer" : "StartConsumer");
         });
 
         clearEl.addEventListener("click", () => {
