@@ -17,6 +17,7 @@ Browse your Kafka infrastructure in the sidebar:
 - 🖥️ **Brokers** - Monitor broker health and configuration
 - 👥 **Consumer Groups** - Track consumer lag and group membership
 - ⚙️ **Configurations** - Inspect and manage cluster settings
+- 🧬 **Schema Registries** - Browse subjects and schema versions linked to your clusters
 
 ![Kafka Explorer](docs/assets/kafka-explorer.png)
 
@@ -129,6 +130,15 @@ value-schema: file(./schemas/user-events.proto)
 - 🛡️ **SSL/TLS Support** - Secure connections with certificate validation
 - 🔑 **Secure Storage** - Credentials stored in OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
 - 🧪 **Development Mode** - Optional hostname verification bypass for self-signed certificates
+
+### 🧬 **Schema Registry**
+Manage Confluent-compatible Schema Registries directly from VS Code:
+- 🔗 **Reusable Connections** - Define named Schema Registry connections independent of clusters
+- 🔗 **Cluster Linking** - Link a registry to one or more Kafka clusters
+- 📂 **Explorer Browsing** - Browse subjects and schema versions in the sidebar
+- 📄 **Open & Compare** - Open schema versions in the editor and diff any two versions side-by-side
+- 🔍 **Topic Subject Discovery** - Automatically discover subjects related to a topic based on TopicNameStrategy, RecordNameStrategy, or TopicRecordNameStrategy
+- 🔒 **Auth & TLS** - Optional basic auth and custom TLS configuration per registry
 
 ### 🛠️ **Advanced Administration**
 - ✅ **Create Topics** - Configure partitions, replication factor, and topic settings
