@@ -808,7 +808,7 @@
 		"@redhat-developer/vscode-wizard": "^0.3.1",
 		"ajv": "^8.18.0",
 		"avsc": "^5.7.9",
-		"fs-extra": "^11.3.3",
+		"fs-extra": "^11.3.4",
 		"glob": "^13.0.6",
 		"handlebars": "^4.7.8",
 		"jks-js": "^1.1.5",
@@ -828,13 +828,13 @@
 		"@typescript-eslint/parser": "^8.56.1",
 		"@vscode/test-electron": "^2.5.2",
 		"@vscode/vsce": "^3.7.1",
-		"copy-webpack-plugin": "^13.0.1",
+		"copy-webpack-plugin": "^14.0.0",
 		"eslint": "^10.0.2",
 		"mocha": "^11.7.5",
 		"testcontainers": "^11.12.0",
 		"ts-loader": "^9.5.4",
 		"typescript": "^5.9.3",
-		"webpack": "^5.105.3",
+		"webpack": "^5.105.4",
 		"webpack-cli": "^6.0.1"
 	}
 }
