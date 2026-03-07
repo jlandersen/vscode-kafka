@@ -23,7 +23,7 @@ const compressionMap: Record<number, CompressionAlgorithmValue> = {
  * Adapter that wraps a @platformatic/kafka Producer to implement the abstract KafkaProducer interface.
  */
 export class PlatformaticProducerAdapter implements KafkaProducer {
-    constructor(private producer: PlatformaticProducer) {}
+    constructor(private producer: PlatformaticProducer, private onDisconnect?: () => void) {}
 
     async connect(): Promise<void> {
         // Platformatic uses lazy auto-connect, no explicit connect needed
@@ -31,6 +31,7 @@ export class PlatformaticProducerAdapter implements KafkaProducer {
 
     async disconnect(): Promise<void> {
         await this.producer.close();
+        this.onDisconnect?.();
     }
 
     async send(record: ProducerRecord): Promise<RecordMetadata[]> {
@@ -422,14 +423,14 @@ class EnsureConnectedDecorator implements Client {
     }
 }
 
-interface PlatformaticClientConfig {
+export interface PlatformaticClientConfig {
     clientId: string;
     bootstrapBrokers: string[];
     tls?: Record<string, unknown>;
     sasl?: Record<string, unknown>;
 }
 
-class PlatformaticClient implements Client {
+export class PlatformaticClient implements Client {
     private adminClient: Admin | undefined;
     private producerClient: PlatformaticProducer | undefined;
 
@@ -442,12 +443,17 @@ class PlatformaticClient implements Client {
     private clientConfig: PlatformaticClientConfig | undefined;
     private error: any;
 
-    constructor(public readonly cluster: Cluster, workspaceSettings: WorkspaceSettings) {
+    constructor(public readonly cluster: Cluster, prebuiltConfig?: PlatformaticClientConfig) {
         this.metadata = {
             brokers: [],
             topics: [],
         };
-        this.configPromise = this.createConfigPromise();
+        if (prebuiltConfig) {
+            this.clientConfig = prebuiltConfig;
+            this.configPromise = Promise.resolve(this);
+        } else {
+            this.configPromise = this.createConfigPromise();
+        }
     }
 
     private async createConfigPromise(): Promise<PlatformaticClient> {
@@ -485,7 +491,7 @@ class PlatformaticClient implements Client {
         return config;
     }
 
-    private async getKafkaAdminClient(): Promise<Admin> {
+    protected async getKafkaAdminClient(): Promise<Admin> {
         if (!this.adminClient) {
             const config = await this.getClientConfig();
             this.adminClient = new Admin(config as any);
@@ -501,21 +507,14 @@ class PlatformaticClient implements Client {
                 autocreateTopics: true,
             } as any);
         }
-        return new PlatformaticProducerAdapter(this.producerClient);
+        return new PlatformaticProducerAdapter(this.producerClient, () => {
+            this.producerClient = undefined;
+        });
     }
 
     public async consumer(config: ConsumerConfig): Promise<KafkaConsumer> {
         const clientConfig = await this.getClientConfig();
-        const consumerConfig: Record<string, any> = {
-            ...clientConfig,
-            groupId: config.groupId,
-        };
-        if (config.sessionTimeout !== undefined) { consumerConfig.sessionTimeout = config.sessionTimeout; }
-        if (config.rebalanceTimeout !== undefined) { consumerConfig.rebalanceTimeout = config.rebalanceTimeout; }
-        if (config.heartbeatInterval !== undefined) { consumerConfig.heartbeatInterval = config.heartbeatInterval; }
-        if (config.minBytes !== undefined) { consumerConfig.minBytes = config.minBytes; }
-        if (config.maxBytes !== undefined) { consumerConfig.maxBytes = config.maxBytes; }
-        if (config.maxWaitTimeInMs !== undefined) { consumerConfig.maxWaitTime = config.maxWaitTimeInMs; }
+        const consumerConfig = buildConsumerConfig(clientConfig, config);
 
         const consumer = new PlatformaticConsumer(consumerConfig as any);
         return new PlatformaticConsumerAdapter(consumer, (config as any).partitions);
@@ -834,8 +833,8 @@ class PlatformaticClient implements Client {
 
 }
 
-export const createClient = (cluster: Cluster, workspaceSettings: WorkspaceSettings): Client => new EnsureConnectedDecorator(
-    new PlatformaticClient(cluster, workspaceSettings));
+export const createClient = (cluster: Cluster, _workspaceSettings: WorkspaceSettings): Client => new EnsureConnectedDecorator(
+    new PlatformaticClient(cluster));
 
 export const createKafkaConfig = async (connectionOptions: ConnectionOptions): Promise<PlatformaticClientConfig> => {
     const provider = getClusterProvider(connectionOptions.clusterProviderId);
@@ -849,7 +848,7 @@ export const createKafkaConfig = async (connectionOptions: ConnectionOptions): P
     return createDefaultKafkaConfig(connectionOptions);
 };
 
-function convertToClientConfig(config: KafkaClientConfig): PlatformaticClientConfig {
+export function convertToClientConfig(config: KafkaClientConfig): PlatformaticClientConfig {
     const result: PlatformaticClientConfig = {
         clientId: config.clientId || "vscode-kafka",
         bootstrapBrokers: config.brokers,
@@ -864,6 +863,25 @@ function convertToClientConfig(config: KafkaClientConfig): PlatformaticClientCon
             mechanism: mechanism.toUpperCase(),
         };
     }
+    return result;
+}
+
+/**
+ * Builds the consumer config by merging the base client config with consumer-specific
+ * options. Only includes optional values that are explicitly defined to avoid overriding
+ * @platformatic/kafka defaults with undefined.
+ */
+export function buildConsumerConfig(clientConfig: PlatformaticClientConfig, config: ConsumerConfig): Record<string, any> {
+    const result: Record<string, any> = {
+        ...clientConfig,
+        groupId: config.groupId,
+    };
+    if (config.sessionTimeout !== undefined) { result.sessionTimeout = config.sessionTimeout; }
+    if (config.rebalanceTimeout !== undefined) { result.rebalanceTimeout = config.rebalanceTimeout; }
+    if (config.heartbeatInterval !== undefined) { result.heartbeatInterval = config.heartbeatInterval; }
+    if (config.minBytes !== undefined) { result.minBytes = config.minBytes; }
+    if (config.maxBytes !== undefined) { result.maxBytes = config.maxBytes; }
+    if (config.maxWaitTimeInMs !== undefined) { result.maxWaitTime = config.maxWaitTimeInMs; }
     return result;
 }
 
