@@ -1041,79 +1041,108 @@ function createOAuthBearerProvider(
 }
 
 /**
- * Creates an AWS MSK IAM authenticator using the custom SASL authenticate callback.
- * This generates signed authentication tokens using AWS SigV4.
+ * Generates an AWS SigV4-signed token for MSK IAM authentication.
+ * The token is a base64-encoded JSON payload containing the signed request parameters.
+ */
+async function generateAwsMskIamToken(
+    host: string,
+    region: string,
+    accessKeyId: string,
+    secretAccessKey: string,
+    sessionToken?: string,
+    now?: Date
+): Promise<string> {
+    const serviceName = 'kafka-cluster';
+    const timestamp = now ?? new Date();
+    const dateStamp = timestamp.toISOString().replace(/[:-]|\.\d{3}/g, '').slice(0, 8);
+    const amzDate = timestamp.toISOString().replace(/[:-]|\.\d{3}/g, '');
+
+    const queryParams = new URLSearchParams({
+        'Action': 'kafka-cluster:Connect',
+        'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+        'X-Amz-Credential': `${accessKeyId}/${dateStamp}/${region}/${serviceName}/aws4_request`,
+        'X-Amz-Date': amzDate,
+        'X-Amz-Expires': '900',
+        'X-Amz-SignedHeaders': 'host',
+    });
+
+    if (sessionToken) {
+        queryParams.set('X-Amz-Security-Token', sessionToken);
+    }
+
+    const canonicalRequest = [
+        'GET',
+        '/',
+        queryParams.toString(),
+        `host:${host}`,
+        '',
+        'host',
+        'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    ].join('\n');
+
+    const { createHmac, createHash } = await import('crypto');
+    const hash = (data: string) => createHash('sha256').update(data).digest('hex');
+    const hmac = (key: Buffer | string, data: string) => createHmac('sha256', key).update(data).digest();
+
+    const credentialScope = `${dateStamp}/${region}/${serviceName}/aws4_request`;
+    const stringToSign = [
+        'AWS4-HMAC-SHA256',
+        amzDate,
+        credentialScope,
+        hash(canonicalRequest),
+    ].join('\n');
+
+    const kDate = hmac(`AWS4${secretAccessKey}`, dateStamp);
+    const kRegion = hmac(kDate, region);
+    const kService = hmac(kRegion, serviceName);
+    const kSigning = hmac(kService, 'aws4_request');
+    const signature = createHmac('sha256', kSigning).update(stringToSign).digest('hex');
+
+    return Buffer.from(JSON.stringify({
+        version: '2020_10_22',
+        host,
+        'user-agent': 'vscode-kafka',
+        action: 'kafka-cluster:Connect',
+        'x-amz-algorithm': 'AWS4-HMAC-SHA256',
+        'x-amz-credential': `${accessKeyId}/${credentialScope}`,
+        'x-amz-date': amzDate,
+        'x-amz-signedheaders': 'host',
+        'x-amz-expires': '900',
+        'x-amz-signature': signature,
+        ...(sessionToken ? { 'x-amz-security-token': sessionToken } : {}),
+    })).toString('base64');
+}
+
+/**
+ * Creates an AWS MSK IAM authenticator compatible with @platformatic/kafka's
+ * SASLCustomAuthenticator interface. Extracts the broker host from the connection,
+ * generates a SigV4-signed token, and sends it as OAUTHBEARER auth bytes.
  */
 function createAwsMskIamAuthenticator(
     region: string,
     accessKeyId: string,
     secretAccessKey: string,
     sessionToken?: string
-): (host: string, port: number) => Promise<{ token: string }> {
-    return async (host: string, _port: number) => {
-        const serviceName = 'kafka-cluster';
-        const now = new Date();
-        const dateStamp = now.toISOString().replace(/[:-]|\.\d{3}/g, '').slice(0, 8);
-        const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+): (...args: unknown[]) => void {
+    return (...args: unknown[]) => {
+        const connection = args[1] as { host?: string } | undefined;
+        const authenticateAPI = args[2] as (conn: unknown, authBytes: Buffer, cb: (err: Error | null, res?: unknown) => void) => void;
+        const callback = args[6] as (err: Error | null, res?: unknown) => void;
 
-        const queryParams = new URLSearchParams({
-            'Action': 'kafka-cluster:Connect',
-            'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
-            'X-Amz-Credential': `${accessKeyId}/${dateStamp}/${region}/${serviceName}/aws4_request`,
-            'X-Amz-Date': amzDate,
-            'X-Amz-Expires': '900',
-            'X-Amz-SignedHeaders': 'host',
-        });
-
-        if (sessionToken) {
-            queryParams.set('X-Amz-Security-Token', sessionToken);
+        const host = connection?.host;
+        if (!host) {
+            callback(new Error('AWS MSK IAM auth failed: broker host not available on connection'));
+            return;
         }
 
-        const canonicalRequest = [
-            'GET',
-            '/',
-            queryParams.toString(),
-            `host:${host}`,
-            '',
-            'host',
-            'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-        ].join('\n');
-
-        const { createHmac, createHash } = await import('crypto');
-        const hash = (data: string) => createHash('sha256').update(data).digest('hex');
-        const hmac = (key: Buffer | string, data: string) => createHmac('sha256', key).update(data).digest();
-
-        const credentialScope = `${dateStamp}/${region}/${serviceName}/aws4_request`;
-        const stringToSign = [
-            'AWS4-HMAC-SHA256',
-            amzDate,
-            credentialScope,
-            hash(canonicalRequest),
-        ].join('\n');
-
-        const kDate = hmac(`AWS4${secretAccessKey}`, dateStamp);
-        const kRegion = hmac(kDate, region);
-        const kService = hmac(kRegion, serviceName);
-        const kSigning = hmac(kService, 'aws4_request');
-        const signature = createHmac('sha256', kSigning).update(stringToSign).digest('hex');
-
-        queryParams.set('X-Amz-Signature', signature);
-
-        const token = Buffer.from(JSON.stringify({
-            version: '2020_10_22',
-            host,
-            'user-agent': 'vscode-kafka',
-            action: 'kafka-cluster:Connect',
-            'x-amz-algorithm': 'AWS4-HMAC-SHA256',
-            'x-amz-credential': `${accessKeyId}/${credentialScope}`,
-            'x-amz-date': amzDate,
-            'x-amz-signedheaders': 'host',
-            'x-amz-expires': '900',
-            'x-amz-signature': signature,
-            ...(sessionToken ? { 'x-amz-security-token': sessionToken } : {}),
-        })).toString('base64');
-
-        return { token };
+        generateAwsMskIamToken(host, region, accessKeyId, secretAccessKey, sessionToken)
+            .then(token => {
+                const authBytes = Buffer.from(`n,,\x01auth=Bearer ${token}\x01\x01`);
+                authenticateAPI(connection, authBytes, callback);
+            })
+            .catch(error => {
+                callback(error instanceof Error ? error : new Error(String(error)));
+            });
     };
 }
 
@@ -1217,7 +1246,10 @@ function extractCertificatesFromTruststoreEntries(entries: Record<string, Trusts
 }
 
 export const clientTestHooks = {
-    extractCertificatesFromTruststoreEntries
+    extractCertificatesFromTruststoreEntries,
+    generateAwsMskIamToken,
+    createAwsMskIamAuthenticator,
+    createSaslOption,
 };
 
 export function addQueryParameter(query: string, name: string, value?: string): string {
