@@ -10,7 +10,13 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        include:
+          - os: macos-latest
+            vsce_target: darwin-arm64
+          - os: ubuntu-latest
+            vsce_target: linux-x64
+          - os: windows-latest
+            vsce_target: win32-x64
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -27,27 +33,37 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Build .vsix package
-        if: matrix.os != 'ubuntu-latest'
-        run: npm run package
-
-      - name: Build .vsix package on Linux
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          npx @vscode/vsce package -o vscode-kafka-${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_NUMBER}.vsix
+      - name: Build platform-specific VSIX
+        run: npx @vscode/vsce package --target "${{ matrix.vsce_target }}" -o "vscode-kafka-${{ matrix.vsce_target }}.vsix"
 
       - name: Run unit tests
         uses: coactions/setup-xvfb@v1
         with:
           run: npm test
 
-      - name: Upload linux-built vsix
-        if: matrix.os == 'ubuntu-latest'
+      - name: Verify VSIX contains native modules
+        shell: bash
+        run: |
+          python3 -c "
+          import zipfile, sys
+          vsix, target = sys.argv[1], sys.argv[2]
+          os_name, arch = target.split('-', 1)
+          with zipfile.ZipFile(vsix) as z:
+              names = z.namelist()
+              kafka = [n for n in names if '/@platformatic/kafka/' in n]
+              assert kafka, '@platformatic/kafka not found in VSIX'
+              crc32 = [n for n in names if '/@node-rs/crc32-' in n and os_name in n and arch in n]
+              assert crc32, f'No @node-rs/crc32 binding for {target}'
+              wasm = [n for n in names if '/@platformatic/wasm-utils/' in n and '.wasm' in n]
+              assert wasm, '@platformatic/wasm-utils WASM not found in VSIX'
+          print(f'Verified native modules for {target}')
+          " "vscode-kafka-${{ matrix.vsce_target }}.vsix" "${{ matrix.vsce_target }}"
+
+      - name: Upload VSIX
         uses: actions/upload-artifact@v4
         with:
-          name: vscode-kafka
-          path: vscode-kafka*.vsix
+          name: vscode-kafka-${{ matrix.vsce_target }}
+          path: vscode-kafka-${{ matrix.vsce_target }}.vsix
 
   integration-tests:
     # Integration tests only run on Linux (Docker support in GitHub Actions)
