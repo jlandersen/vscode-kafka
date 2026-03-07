@@ -5,6 +5,7 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ### Changed
 - **Kafka Client Migration**: Migrated from kafkajs to @platformatic/kafka. The extension now ships platform-specific builds (e.g. darwin-arm64, linux-x64) instead of a single universal package.
+- **Release Pipeline**: Release workflow now builds target-specific VSIX artifacts, validates installability in CI, and publishes Marketplace/Open VSX from those prebuilt packages.
 - General performance improvement of Kafka operations.
 
 ## [0.27.0] - 2026-03-01

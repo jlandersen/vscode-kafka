@@ -75,22 +75,28 @@ jobs:
 
   build-vsix:
     needs: [ci, integration-tests]
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            target: linux-x64
-          - os: ubuntu-latest
-            target: linux-arm64
-          - os: windows-latest
-            target: win32-x64
-          - os: windows-latest
-            target: win32-arm64
-          - os: macos-latest
-            target: darwin-x64
-          - os: macos-latest
-            target: darwin-arm64
-    runs-on: ${{ matrix.os }}
+          - target: linux-x64
+            npm_config_cpu: x64
+            npm_config_os: linux
+          - target: linux-arm64
+            npm_config_cpu: arm64
+            npm_config_os: linux
+          - target: win32-x64
+            npm_config_cpu: x64
+            npm_config_os: win32
+          - target: win32-arm64
+            npm_config_cpu: arm64
+            npm_config_os: win32
+          - target: darwin-x64
+            npm_config_cpu: x64
+            npm_config_os: darwin
+          - target: darwin-arm64
+            npm_config_cpu: arm64
+            npm_config_os: darwin
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -102,9 +108,11 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+        env:
+          npm_config_cpu: ${{ matrix.npm_config_cpu }}
+          npm_config_os: ${{ matrix.npm_config_os }}
 
       - name: Build target-specific VSIX
-        shell: bash
         run: npx @vscode/vsce package --target "${{ matrix.target }}" -o "vscode-kafka-${{ matrix.target }}.vsix"
 
       - name: Upload VSIX artifact
@@ -202,20 +210,12 @@ jobs:
 
       - name: Publish to VSCode Marketplace
         if: ${{ env.PUBLISH_TARGET == 'vsce' || env.PUBLISH_TARGET == 'both' }}
-        shell: bash
-        run: |
-          for VSIX in vsix/*.vsix; do
-            npx @vscode/vsce publish --packagePath "$VSIX" -p "$VSCE_TOKEN"
-          done
+        run: npx @vscode/vsce publish --packagePath $(find vsix -iname '*.vsix') -p "$VSCE_TOKEN"
         env:
           VSCE_TOKEN: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
 
       - name: Publish to Open VSX
         if: ${{ env.PUBLISH_TARGET == 'ovsx' || env.PUBLISH_TARGET == 'both' }}
-        shell: bash
-        run: |
-          for VSIX in vsix/*.vsix; do
-            npx ovsx@0.9.3 publish "$VSIX" -p "$OVSX_TOKEN"
-          done
+        run: npx ovsx@0.9.3 publish --packagePath $(find vsix -iname '*.vsix') -p "$OVSX_TOKEN"
         env:
           OVSX_TOKEN: ${{ secrets.OPENVSX_MARKETPLACE_TOKEN }}
