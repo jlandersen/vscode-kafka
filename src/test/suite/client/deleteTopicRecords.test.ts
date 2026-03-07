@@ -1,23 +1,23 @@
 import * as assert from "assert";
-import { SeekEntry } from "kafkajs";
+import { PartitionOffset } from "../../../client/types";
 
 // Note: We're testing the interface structure and type compatibility here
 // The actual deleteTopicRecords function requires a live Kafka cluster
 
 suite("Delete Topic Records Test Suite", () => {
 
-    test("SeekEntry should have partition and offset", () => {
-        const seekEntry: SeekEntry = {
+    test("PartitionOffset should have partition and offset", () => {
+        const entry: PartitionOffset = {
             partition: 0,
             offset: "100"
         };
 
-        assert.strictEqual(seekEntry.partition, 0);
-        assert.strictEqual(seekEntry.offset, "100");
+        assert.strictEqual(entry.partition, 0);
+        assert.strictEqual(entry.offset, "100");
     });
 
-    test("SeekEntry array for multiple partitions", () => {
-        const partitions: SeekEntry[] = [
+    test("PartitionOffset array for multiple partitions", () => {
+        const partitions: PartitionOffset[] = [
             { partition: 0, offset: "100" },
             { partition: 1, offset: "200" },
             { partition: 2, offset: "300" }
@@ -28,34 +28,34 @@ suite("Delete Topic Records Test Suite", () => {
         assert.strictEqual(partitions[1].offset, "200");
     });
 
-    test("SeekEntry with high offset string", () => {
-        const seekEntry: SeekEntry = {
+    test("PartitionOffset with high offset string", () => {
+        const entry: PartitionOffset = {
             partition: 0,
             offset: "9999999999999"
         };
 
-        assert.strictEqual(typeof seekEntry.offset, "string");
-        assert.ok(seekEntry.offset.length > 0);
+        assert.strictEqual(typeof entry.offset, "string");
+        assert.ok(entry.offset.length > 0);
     });
 
     test("Empty partitions array", () => {
-        const partitions: SeekEntry[] = [];
+        const partitions: PartitionOffset[] = [];
         assert.strictEqual(partitions.length, 0);
     });
 
-    test("SeekEntry with partition number parsing", () => {
+    test("PartitionOffset with partition number parsing", () => {
         const offsetData = {
             partition: "0",
             high: "500"
         };
 
-        const seekEntry: SeekEntry = {
+        const entry: PartitionOffset = {
             partition: parseInt(offsetData.partition, 10),
             offset: offsetData.high
         };
 
-        assert.strictEqual(typeof seekEntry.partition, "number");
-        assert.strictEqual(seekEntry.partition, 0);
-        assert.strictEqual(seekEntry.offset, "500");
+        assert.strictEqual(typeof entry.partition, "number");
+        assert.strictEqual(entry.partition, 0);
+        assert.strictEqual(entry.offset, "500");
     });
 });

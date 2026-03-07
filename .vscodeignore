@@ -1,6 +1,8 @@
 # IDE and test directories
 .vscode/**
 .vscode-test/**
+test-clusters/**
+out/**
 
 # Source files
 src/**
@@ -15,6 +17,8 @@ webpack.config.js
 **/tsconfig.json
 **/tslint.json
 **/.eslintrc.json
+.eslintrc*
+eslint.config.js
 .editorconfig
 
 # Documentation
@@ -22,6 +26,7 @@ docs/**
 CONTRIBUTING.md
 CHANGELOG.md
 vsc-extension-quickstart.md
+AGENTS.md
 
 # Git
 .git
@@ -29,7 +34,9 @@ vsc-extension-quickstart.md
 .github/**
 
 # Dependencies
-node_modules
+# Keep node_modules in the VSIX: @platformatic/kafka is externalized in webpack
+# and loaded at runtime, so excluding node_modules would break activation.
+# vsce already limits packaged dependencies to production deps.
 
 # Lock files
 package-lock.json
@@ -37,6 +44,9 @@ yarn.lock
 
 # Development/Docker
 docker-compose.yml
+start-cluster.sh
+stop-cluster.sh
+test-pkcs12.js
 
 # Logs and cache
 *.log

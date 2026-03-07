@@ -19,7 +19,10 @@ const config = {
     },
     devtool: 'nosources-source-map',
     externals: {
-        vscode: 'commonjs vscode' // the vscode-module is created on-the-fly and must be excluded. Add other modules that cannot be webpack'ed, 📖 -> https://webpack.js.org/configuration/externals/
+        vscode: 'commonjs vscode', // the vscode-module is created on-the-fly and must be excluded. Add other modules that cannot be webpack'ed, 📖 -> https://webpack.js.org/configuration/externals/
+        '@platformatic/kafka': 'commonjs @platformatic/kafka',
+        '@platformatic/wasm-utils': 'commonjs @platformatic/wasm-utils',
+        '@node-rs/crc32': 'commonjs @node-rs/crc32'
     },
     resolve: {
         // support reading TypeScript and JavaScript files, 📖 -> https://github.com/TypeStrong/ts-loader

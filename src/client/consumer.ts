@@ -1,4 +1,3 @@
-import { PartitionAssigner, Assignment, PartitionAssigners, AssignerProtocol } from "kafkajs";
 import { URLSearchParams } from "url";
 import * as vscode from "vscode";
 import { ClientAccessor } from ".";
@@ -115,7 +114,6 @@ export class Consumer implements vscode.Disposable {
      */
     async start(): Promise<void> {
         const partitions = this.options.partitions;
-        const partitionAssigner = this.getPartitionAssigner(partitions);
         const fromOffset = this.options.fromOffset;
         const fromTimestamp = this.options.fromTimestamp;
         const topic = this.options.topicId;
@@ -123,10 +121,8 @@ export class Consumer implements vscode.Disposable {
         this.kafkaClient = await this.clientAccessor.get(this.clusterId);
         this.consumer = await this.kafkaClient.consumer({
             groupId: this.options.consumerGroupId, retry: { retries: 3 },
-            partitionAssigners: [
-                partitionAssigner
-            ]
-        });
+            partitions,
+        } as any);
         await this.consumer.connect();
 
         const subscribeOptions = this.createSubscribeOptions(topic, fromOffset);
@@ -141,6 +137,8 @@ export class Consumer implements vscode.Disposable {
                     record: { topic: topic, partition: partition, ...message },
                 });
             },
+        }).catch((error: any) => {
+            this.onDidReceiveErrorEmitter.fire(error);
         });
 
         const seekByTimestamp = typeof fromTimestamp === "string" && fromTimestamp.trim().length > 0;
@@ -228,47 +226,6 @@ export class Consumer implements vscode.Disposable {
             return "0";
         }
         return fallback.high;
-    }
-
-    private getPartitionAssigner(partitions?: number[]): PartitionAssigner {
-        if (!partitions) {
-            return PartitionAssigners.roundRobin;
-        }
-        const userData = Buffer.alloc(0);
-        return ({ cluster }) => ({
-            name: 'AssignedPartitionsAssigner',
-            version: 1,
-            async assign({ members, topics }) {
-                const sortedMembers = members.map(({ memberId }) => memberId).sort();
-                const firstMember = sortedMembers[0];
-                const assignment = {
-                    [firstMember]: {} as Assignment,
-                };
-
-                topics.forEach(topic => {
-                    assignment[firstMember][topic] = partitions;
-                });
-
-                return Object.keys(assignment).map(memberId => ({
-                    memberId,
-                    memberAssignment: AssignerProtocol.MemberAssignment.encode({
-                        version: this.version,
-                        assignment: assignment[memberId],
-                        userData,
-                    }),
-                }));
-            },
-            protocol({ topics }) {
-                return {
-                    name: this.name,
-                    metadata: AssignerProtocol.MemberMetadata.encode({
-                        version: this.version,
-                        topics,
-                        userData,
-                    })
-                };
-            }
-        });
     }
 
     private createSubscribeOptions(topic: string, fromOffset?: string): { topic: string, fromBeginning?: boolean } {

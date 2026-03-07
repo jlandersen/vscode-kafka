@@ -1,97 +1,172 @@
 import * as fs from "fs";
 import * as jks from "jks-js";
 import { minimatch } from "minimatch";
-import { Admin, ConfigResourceTypes, Consumer as KafkaJsConsumer, ConsumerConfig as KafkaJsConsumerConfig, Kafka, KafkaConfig, Producer as KafkaJsProducer, SASLOptions, ProducerRecord as KafkaJsProducerRecord } from "kafkajs";
+import { Admin, Producer as PlatformaticProducer, Consumer as PlatformaticConsumer, ConfigResourceTypes } from "@platformatic/kafka";
+import type { CompressionAlgorithmValue } from "@platformatic/kafka";
 
 import { Disposable } from "vscode";
 import { ClientAccessor, ClientState } from ".";
 import { getClusterProvider } from "../kafka-extensions/registry";
 import { getWorkspaceSettings, WorkspaceSettings } from "../settings";
 import { TopicSortOption } from "../settings/workspace";
-import { registerCompressionCodecs } from "./compression";
 import { ConsumerConfig, KafkaProducer, KafkaConsumer, PartitionOffset, TopicPartitionOffsets, ProducerRecord, RecordMetadata, KafkaClientConfig } from "./types";
 
-// Register compression codecs (Snappy, LZ4, Zstd) before any Kafka clients are created
-registerCompressionCodecs();
+const compressionMap: Record<number, CompressionAlgorithmValue> = {
+    0: 'none',
+    1: 'gzip',
+    2: 'snappy',
+    3: 'lz4',
+    4: 'zstd',
+};
 
 /**
- * Adapter that wraps a kafkajs Producer to implement the abstract KafkaProducer interface.
+ * Adapter that wraps a @platformatic/kafka Producer to implement the abstract KafkaProducer interface.
  */
-class KafkaJsProducerAdapter implements KafkaProducer {
-    constructor(private producer: KafkaJsProducer) {}
+export class PlatformaticProducerAdapter implements KafkaProducer {
+    constructor(private producer: PlatformaticProducer) {}
 
     async connect(): Promise<void> {
-        return this.producer.connect();
+        // Platformatic uses lazy auto-connect, no explicit connect needed
     }
 
     async disconnect(): Promise<void> {
-        return this.producer.disconnect();
+        await this.producer.close();
     }
 
     async send(record: ProducerRecord): Promise<RecordMetadata[]> {
-        const kafkaJsRecord: KafkaJsProducerRecord = {
+        const messages = record.messages.map(m => ({
             topic: record.topic,
-            messages: record.messages.map(m => ({
-                key: m.key,
-                value: m.value,
-                partition: m.partition,
-                headers: m.headers,
-                timestamp: m.timestamp
-            })),
+            key: m.key !== null && m.key !== undefined ? Buffer.from(String(m.key)) : undefined,
+            value: m.value !== null ? Buffer.from(String(m.value)) : undefined,
+            partition: m.partition,
+            headers: m.headers ? new Map(
+                Object.entries(m.headers)
+                    .filter((entry): entry is [string, Buffer | string] => entry[1] !== undefined && !Array.isArray(entry[1]))
+                    .map(([k, v]) => [Buffer.from(k), Buffer.from(typeof v === 'string' ? v : v)])
+            ) : undefined,
+            timestamp: m.timestamp ? BigInt(m.timestamp) : undefined,
+        }));
+
+        const result = await this.producer.send({
+            messages,
             acks: record.acks,
-            timeout: record.timeout,
-            compression: record.compression
-        };
-        const result = await this.producer.send(kafkaJsRecord);
-        return result.map(r => ({
-            topicName: r.topicName,
+            compression: record.compression !== undefined ? compressionMap[record.compression] : undefined,
+        });
+
+        if (!result.offsets) {
+            return [];
+        }
+
+        return result.offsets.map(r => ({
+            topicName: r.topic,
             partition: r.partition,
-            errorCode: r.errorCode,
-            baseOffset: r.baseOffset,
-            logAppendTime: r.logAppendTime,
-            logStartOffset: r.logStartOffset
+            errorCode: 0,
+            baseOffset: r.offset.toString(),
         }));
     }
 }
 
 /**
- * Adapter that wraps a kafkajs Consumer to implement the abstract KafkaConsumer interface.
+ * Adapter that wraps a @platformatic/kafka Consumer to implement the abstract KafkaConsumer interface.
+ * Bridges the stream-based consume() API to the eachMessage callback pattern.
  */
-class KafkaJsConsumerAdapter implements KafkaConsumer {
-    constructor(private consumer: KafkaJsConsumer) {}
+export class PlatformaticConsumerAdapter implements KafkaConsumer {
+    private subscribedTopic?: string;
+    private fromBeginning?: boolean;
+    private stream?: import("@platformatic/kafka").MessagesStream<Buffer, Buffer, Buffer, Buffer>;
+    private seekPending: Map<string, string> = new Map();
+
+    private readonly configuredPartitions?: number[];
+
+    constructor(private consumer: PlatformaticConsumer, partitions?: number[]) {
+        this.configuredPartitions = partitions;
+    }
 
     async connect(): Promise<void> {
-        return this.consumer.connect();
+        // Platformatic uses lazy auto-connect
     }
 
     async disconnect(): Promise<void> {
-        return this.consumer.disconnect();
+        if (this.stream) {
+            try {
+                await this.stream.close();
+            } catch {
+                // Stream may already be closed or errored
+            }
+        }
+        try {
+            await this.consumer.close();
+        } catch {
+            // Consumer may already be closed
+        }
     }
 
     async subscribe(options: { topic: string; fromBeginning?: boolean }): Promise<void> {
-        return this.consumer.subscribe(options);
+        this.subscribedTopic = options.topic;
+        this.fromBeginning = options.fromBeginning;
     }
 
     async run(options: { eachMessage: (payload: { topic: string; partition: number; message: { key: Buffer | null; value: Buffer | null; timestamp: string; offset: string; headers?: any } }) => Promise<void> }): Promise<void> {
-        return this.consumer.run({
-            eachMessage: async ({ topic, partition, message }) => {
-                await options.eachMessage({
-                    topic,
-                    partition,
-                    message: {
-                        key: message.key,
-                        value: message.value,
-                        timestamp: message.timestamp,
-                        offset: message.offset,
-                        headers: message.headers
-                    }
-                });
+        if (!this.subscribedTopic) {
+            throw new Error('Must call subscribe() before run()');
+        }
+
+        let mode: string = 'latest';
+        if (this.fromBeginning === true) {
+            mode = 'earliest';
+        } else if (this.fromBeginning === false) {
+            mode = 'latest';
+        }
+
+        const offsets = this.seekPending.size > 0
+            ? Array.from(this.seekPending.entries()).map(([key, offset]) => {
+                const [topic, partition] = key.split(':');
+                return { topic, partition: parseInt(partition, 10), offset: BigInt(offset) };
+            })
+            : undefined;
+
+        if (offsets) {
+            mode = 'manual';
+        }
+
+        const consumeOptions: any = {
+            topics: [this.subscribedTopic],
+            mode: mode as any,
+            ...(offsets && { offsets }),
+            ...(this.configuredPartitions && { partitions: this.configuredPartitions }),
+        };
+
+        this.stream = await this.consumer.consume(consumeOptions);
+
+        this.stream.on('error', () => {
+            // Errors are handled through the consumer lifecycle, not the stream
+        });
+
+        this.stream.on('data', (message: any) => {
+            const headers: Record<string, Buffer | string> = {};
+            if (message.headers instanceof Map) {
+                for (const [k, v] of message.headers) {
+                    headers[typeof k === 'string' ? k : k.toString()] =
+                        typeof v === 'string' ? v : (v instanceof Buffer ? v : Buffer.from(String(v)));
+                }
             }
+
+            options.eachMessage({
+                topic: message.topic,
+                partition: message.partition ?? 0,
+                message: {
+                    key: message.key ?? null,
+                    value: message.value ?? null,
+                    timestamp: message.timestamp !== undefined ? message.timestamp.toString() : '',
+                    offset: message.offset !== undefined ? message.offset.toString() : '0',
+                    headers,
+                },
+            }).catch(() => {});
         });
     }
 
     seek(options: { topic: string; partition: number; offset: string }): void {
-        return this.consumer.seek(options);
+        this.seekPending.set(`${options.topic}:${options.partition}`, options.offset);
     }
 }
 
@@ -327,6 +402,9 @@ class EnsureConnectedDecorator implements Client {
     }
 
     private async waitUntilConnected(): Promise<void> {
+        if (this.state === ClientState.connected) {
+            return;
+        }
         const clientAccessor = ClientAccessor.getInstance();
         try {
             clientAccessor.changeState(this, ClientState.connecting);
@@ -344,135 +422,145 @@ class EnsureConnectedDecorator implements Client {
     }
 }
 
-class KafkaJsClient implements Client {
-    private kafkaJsClient: Kafka | undefined;
-    private kafkaJsProducer: KafkaJsProducer | undefined;
-    private kafkaAdminClient: Admin | undefined;
+interface PlatformaticClientConfig {
+    clientId: string;
+    bootstrapBrokers: string[];
+    tls?: Record<string, unknown>;
+    sasl?: Record<string, unknown>;
+}
+
+class PlatformaticClient implements Client {
+    private adminClient: Admin | undefined;
+    private producerClient: PlatformaticProducer | undefined;
 
     private metadata: {
         topics: Topic[];
         brokers: Broker[];
     };
 
-    // Promise which returns the KafkaJsClient instance when it is ready.
-    private kafkaPromise: Promise<KafkaJsClient>;
-
-    private error: undefined;
+    private configPromise: Promise<PlatformaticClient>;
+    private clientConfig: PlatformaticClientConfig | undefined;
+    private error: any;
 
     constructor(public readonly cluster: Cluster, workspaceSettings: WorkspaceSettings) {
         this.metadata = {
             brokers: [],
             topics: [],
         };
-        // The Kafka client is created in asynchronous since external vscode extension
-        // can contribute to the creation of Kafka instance.
-        this.kafkaPromise = this.createKafkaPromise();
+        this.configPromise = this.createConfigPromise();
     }
 
-    private async createKafkaPromise(): Promise<KafkaJsClient> {
-        return createKafka(this.cluster)
-            .then(result => {
+    private async createConfigPromise(): Promise<PlatformaticClient> {
+        return createKafkaConfig(this.cluster)
+            .then(config => {
                 this.error = undefined;
-                this.kafkaJsClient = result;
-                this.kafkaAdminClient = this.kafkaJsClient.admin();
-                this.kafkaJsProducer = this.kafkaJsClient.producer();
+                this.clientConfig = config;
                 return this;
             }, (error) => {
-                // Error while create of Kafka client (ex : cluster provider is not available)
                 this.error = error;
                 return this;
             });
     }
 
-    private async getKafkaPromise(): Promise<KafkaJsClient> {
+    private async getConfigPromise(): Promise<PlatformaticClient> {
         if (this.error) {
-            // This case comes from when a client is created with cluster provider id which is not available
-            // we try to recreate the client (when the proper extension is installed, the client will able to create)
-            this.kafkaPromise = this.createKafkaPromise();
+            this.configPromise = this.createConfigPromise();
         }
-        return this.kafkaPromise;
+        return this.configPromise;
     }
 
     public get state(): ClientState {
         return ClientState.disconnected;
     }
 
-    private async getKafkaClient(): Promise<Kafka> {
-        const promise = (await this.getKafkaPromise());
-        const client = promise.kafkaJsClient;
-        if (!client) {
+    private async getClientConfig(): Promise<PlatformaticClientConfig> {
+        const promise = await this.getConfigPromise();
+        const config = promise.clientConfig;
+        if (!config) {
             if (promise.error) {
                 throw promise.error;
             }
-            throw new Error('Kafka client cannot be null.');
+            throw new Error('Kafka client config cannot be null.');
         }
-        return client;
+        return config;
     }
 
     private async getKafkaAdminClient(): Promise<Admin> {
-        const promise = (await this.getKafkaPromise());
-        const admin = promise.kafkaAdminClient;
-        if (!admin) {
-            if (promise.error) {
-                throw promise.error;
-            }
-            throw new Error('Kafka Admin cannot be null.');
+        if (!this.adminClient) {
+            const config = await this.getClientConfig();
+            this.adminClient = new Admin(config as any);
         }
-        return admin;
+        return this.adminClient;
     }
 
     public async producer(): Promise<KafkaProducer> {
-        if (this.kafkaJsProducer) {
-            return new KafkaJsProducerAdapter(this.kafkaJsProducer);
+        if (!this.producerClient) {
+            const config = await this.getClientConfig();
+            this.producerClient = new PlatformaticProducer({
+                ...config,
+                autocreateTopics: true,
+            } as any);
         }
-        const producer = (await this.kafkaPromise).kafkaJsProducer;
-        if (!producer) {
-            throw new Error('Producer cannot be null.');
-        }
-        return new KafkaJsProducerAdapter(producer);
+        return new PlatformaticProducerAdapter(this.producerClient);
     }
 
     public async consumer(config: ConsumerConfig): Promise<KafkaConsumer> {
-        const kafkaJsConfig: KafkaJsConsumerConfig = {
+        const clientConfig = await this.getClientConfig();
+        const consumerConfig: Record<string, any> = {
+            ...clientConfig,
             groupId: config.groupId,
-            partitionAssigners: config.partitionAssigners,
-            sessionTimeout: config.sessionTimeout,
-            rebalanceTimeout: config.rebalanceTimeout,
-            heartbeatInterval: config.heartbeatInterval,
-            maxBytesPerPartition: config.maxBytesPerPartition,
-            minBytes: config.minBytes,
-            maxBytes: config.maxBytes,
-            maxWaitTimeInMs: config.maxWaitTimeInMs,
-            retry: config.retry
         };
-        const consumer = (await this.getKafkaClient()).consumer(kafkaJsConfig);
-        return new KafkaJsConsumerAdapter(consumer);
+        if (config.sessionTimeout !== undefined) { consumerConfig.sessionTimeout = config.sessionTimeout; }
+        if (config.rebalanceTimeout !== undefined) { consumerConfig.rebalanceTimeout = config.rebalanceTimeout; }
+        if (config.heartbeatInterval !== undefined) { consumerConfig.heartbeatInterval = config.heartbeatInterval; }
+        if (config.minBytes !== undefined) { consumerConfig.minBytes = config.minBytes; }
+        if (config.maxBytes !== undefined) { consumerConfig.maxBytes = config.maxBytes; }
+        if (config.maxWaitTimeInMs !== undefined) { consumerConfig.maxWaitTime = config.maxWaitTimeInMs; }
+
+        const consumer = new PlatformaticConsumer(consumerConfig as any);
+        return new PlatformaticConsumerAdapter(consumer, (config as any).partitions);
     }
 
     async connect(): Promise<void> {
-        return (await this.getKafkaAdminClient()).connect();
+        try {
+            const admin = await this.getKafkaAdminClient();
+            await admin.metadata({} as any);
+        } catch (error) {
+            if (this.adminClient) {
+                try { this.adminClient.close(); } catch { /* ignore */ }
+                this.adminClient = undefined;
+            }
+            throw error;
+        }
     }
 
     async getTopics(): Promise<Topic[]> {
-        const listTopicsResponse = await (await this.getKafkaAdminClient()).fetchTopicMetadata();
+        const admin = await this.getKafkaAdminClient();
+        const topicNames = await admin.listTopics();
+        if (topicNames.length === 0) {
+            this.metadata = { ...this.metadata, topics: [] };
+            return [];
+        }
+
+        const metadata = await admin.metadata({ topics: topicNames } as any);
 
         this.metadata = {
             ...this.metadata,
-            topics: listTopicsResponse.topics.map((t) => {
-                const partitions = t.partitions.reduce((prev, p) => ({
-                    ...prev, [p.partitionId.toString()]: {
-                        partition: p.partitionId.toString(),
+            topics: Array.from(metadata.topics.entries()).map(([name, topicMeta]) => {
+                const partitions = topicMeta.partitions.reduce((prev: Record<string, TopicPartition>, p, index) => ({
+                    ...prev, [index.toString()]: {
+                        partition: index.toString(),
                         leader: p.leader.toString(),
-                        replicas: p.replicas.map((r) => (r.toString())),
-                        isr: p.isr.map((r) => (r.toString())),
+                        replicas: p.replicas.map((r: number) => r.toString()),
+                        isr: p.isr.map((r: number) => r.toString()),
                     }
                 }), {});
 
                 return {
-                    id: t.name,
-                    partitionCount: t.partitions.length,
-                    partitions: partitions,
-                    replicationFactor: t.partitions[0].replicas.length,
+                    id: name,
+                    partitionCount: topicMeta.partitionsCount,
+                    partitions,
+                    replicationFactor: topicMeta.partitions[0]?.replicas.length ?? 0,
                 };
             }),
         };
@@ -481,175 +569,334 @@ class KafkaJsClient implements Client {
     }
 
     async getBrokers(): Promise<Broker[]> {
-        const describeClusterResponse = await (await this.getKafkaAdminClient()).describeCluster();
+        const admin = await this.getKafkaAdminClient();
+        const metadata = await admin.metadata({} as any);
 
         this.metadata = {
             ...this.metadata,
-            brokers: describeClusterResponse.brokers.map((b) => {
-                return {
-                    id: b.nodeId.toString(),
-                    host: b.host,
-                    port: b.port,
-                    isController: b.nodeId === describeClusterResponse.controller,
-                };
-            }),
+            brokers: Array.from(metadata.brokers.entries()).map(([nodeId, broker]) => ({
+                id: nodeId.toString(),
+                host: broker.host,
+                port: broker.port,
+                isController: nodeId === metadata.controllerId,
+            })),
         };
 
         return this.metadata.brokers;
     }
 
     async getBrokerConfigs(brokerId: string): Promise<ConfigEntry[]> {
-        const describeConfigsResponse = await (await this.getKafkaAdminClient()).describeConfigs({
-            includeSynonyms: false,
-            resources: [
-                {
-                    type: ConfigResourceTypes.BROKER,
-                    name: brokerId,
-                },
-            ],
+        const admin = await this.getKafkaAdminClient();
+        const result = await admin.describeConfigs({
+            resources: [{
+                resourceType: ConfigResourceTypes.BROKER,
+                resourceName: brokerId,
+            } as any],
         });
 
-        return describeConfigsResponse.resources[0].configEntries;
+        return result[0].configs.map(c => ({
+            configName: c.name,
+            configValue: c.value ?? null,
+        }));
     }
 
     async getTopicConfigs(topicId: string): Promise<ConfigEntry[]> {
-        const describeConfigsResponse = await (await this.getKafkaAdminClient()).describeConfigs({
-            includeSynonyms: false,
-            resources: [
-                {
-                    type: ConfigResourceTypes.TOPIC,
-                    name: topicId,
-                },
-            ],
+        const admin = await this.getKafkaAdminClient();
+        const result = await admin.describeConfigs({
+            resources: [{
+                resourceType: ConfigResourceTypes.TOPIC,
+                resourceName: topicId,
+            } as any],
         });
 
-        return describeConfigsResponse.resources[0].configEntries;
+        return result[0].configs.map(c => ({
+            configName: c.name,
+            configValue: c.value ?? null,
+        }));
     }
 
     async getConsumerGroupIds(): Promise<string[]> {
-        const listGroupsResponse = await (await this.getKafkaAdminClient()).listGroups();
-        return listGroupsResponse.groups.map((g) => (g.groupId));
+        const admin = await this.getKafkaAdminClient();
+        const groups = await admin.listGroups();
+        return Array.from(groups.keys());
     }
 
     async getConsumerGroupDetails(groupId: string): Promise<ConsumerGroup> {
         const admin = await this.getKafkaAdminClient();
-        const describeGroupResponse = await admin.describeGroups([groupId]);
 
-        const groupTopicOffsets = await admin.fetchOffsets({ groupId: groupId });
+        // describeGroups can hang for groups with non-standard protocols (e.g.
+        // Schema Registry) because the library's member-metadata parser throws
+        // inside a callback, leaving the promise permanently unsettled. Race it
+        // against a timeout so the rest of the method still completes.
+        const describePromise = admin.describeGroups({ groups: [groupId] })
+            .then((map: Map<string, any>) => map.get(groupId) ?? null);
+
+        const groupOrNull = await Promise.race([
+            describePromise,
+            new Promise<null>(resolve => setTimeout(() => resolve(null), 10_000)),
+        ]);
+
+        const offsetsResult = await admin.listConsumerGroupOffsets({ groups: [groupId] });
+        const groupOffsets = offsetsResult[0];
+
+        const topicNames = groupOffsets.topics.map(t => t.name);
+
+        // Fetch metadata for all topics in the group. The client library skips
+        // internal topics (e.g. _schemas) when caching metadata, which causes
+        // listOffsets to hang with an uncaught TypeError. By checking metadata
+        // first we can skip those topics safely.
+        const metadata = await (admin as any).metadata({ topics: topicNames });
+        const knownTopics = new Set<string>(
+            topicNames.filter(name => metadata.topics.get(name) != null)
+        );
+
         let consumerGroupOffsets = new Array<ConsumerGroupOffset>();
-        for (let groupTopicOffset of groupTopicOffsets) {
-            const topicOffsets = await admin.fetchTopicOffsets(groupTopicOffset.topic);
-            for (let topicPartitionOffset of topicOffsets) {
-                const groupTopicPartitionOffset = groupTopicOffset.partitions.find(p => p.partition === topicPartitionOffset.partition);
-                let consumerGroupOffset: ConsumerGroupOffset = {
-                    topic: groupTopicOffset.topic,
-                    partition: topicPartitionOffset.partition,
-                    start: topicPartitionOffset.low,
-                    end: topicPartitionOffset.high,
-                    offset: groupTopicPartitionOffset?.offset ?? "",
-                    lag: (parseInt(topicPartitionOffset.high || '0') - parseInt(groupTopicPartitionOffset?.offset || '0')) as any
-                };
-                consumerGroupOffsets.push(consumerGroupOffset);
+        for (const topicOffsets of groupOffsets.topics) {
+            const topicName = topicOffsets.name;
+            const partitionIndexes = topicOffsets.partitions.map(p => p.partitionIndex);
+
+            let latestByPartition = new Map<number, bigint>();
+            let earliestByPartition = new Map<number, bigint>();
+
+            if (knownTopics.has(topicName)) {
+                try {
+                    const [latestOffsets, earliestOffsets] = await Promise.all([
+                        admin.listOffsets({
+                            topics: [{
+                                name: topicName,
+                                partitions: partitionIndexes.map(p => ({ partitionIndex: p, timestamp: -1n })),
+                            }],
+                        }),
+                        admin.listOffsets({
+                            topics: [{
+                                name: topicName,
+                                partitions: partitionIndexes.map(p => ({ partitionIndex: p, timestamp: -2n })),
+                            }],
+                        }),
+                    ]);
+
+                    latestByPartition = new Map(
+                        latestOffsets[0]?.partitions.map(p => [p.partitionIndex, p.offset]) ?? []
+                    );
+                    earliestByPartition = new Map(
+                        earliestOffsets[0]?.partitions.map(p => [p.partitionIndex, p.offset]) ?? []
+                    );
+                } catch {
+                    // Offset range unavailable — committed offsets are still shown below.
+                }
+            }
+
+            for (const partition of topicOffsets.partitions) {
+                const high = latestByPartition.get(partition.partitionIndex)?.toString() ?? '?';
+                const low = earliestByPartition.get(partition.partitionIndex)?.toString() ?? '?';
+                const offset = partition.committedOffset.toString();
+                const lag = high !== '?' ? (parseInt(high) - parseInt(offset)).toString() : '?';
+                consumerGroupOffsets.push({
+                    topic: topicName,
+                    partition: partition.partitionIndex,
+                    start: low,
+                    end: high,
+                    offset,
+                    lag,
+                });
             }
         }
 
-        const consumerGroup: ConsumerGroup = {
-            groupId: groupId,
-            state: describeGroupResponse.groups[0].state,
-            protocolType: describeGroupResponse.groups[0].protocolType,
-            protocol: describeGroupResponse.groups[0].protocol,
-            members: describeGroupResponse.groups[0].members.map((m) => {
-                return {
-                    memberId: m.memberId,
-                    clientId: m.clientId,
-                    clientHost: m.clientHost,
-                };
-            }),
-            offsets: consumerGroupOffsets,
+        const stateMap: Record<string, ConsumerGroup['state']> = {
+            'PREPARING_REBALANCE': 'PreparingRebalance',
+            'COMPLETING_REBALANCE': 'CompletingRebalance',
+            'STABLE': 'Stable',
+            'DEAD': 'Dead',
+            'EMPTY': 'Empty',
         };
 
-        return consumerGroup;
+        const members: ConsumerGroupMember[] = groupOrNull
+            ? Array.from(groupOrNull.members.values()).map((m: any) => ({
+                memberId: m.id,
+                clientId: m.clientId,
+                clientHost: m.clientHost,
+            }))
+            : [];
+
+        return {
+            groupId,
+            state: groupOrNull ? (stateMap[groupOrNull.state] || 'Unknown') : 'Unknown',
+            protocolType: groupOrNull?.protocol || '',
+            protocol: groupOrNull?.protocol || '',
+            members,
+            offsets: consumerGroupOffsets,
+        };
     }
 
     async deleteConsumerGroups(groupIds: string[]): Promise<void> {
-        await (await this.getKafkaAdminClient()).deleteGroups(groupIds);
+        const admin = await this.getKafkaAdminClient();
+        await admin.deleteGroups({ groups: groupIds });
     }
 
     async createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]> {
-        await (await this.getKafkaAdminClient()).createTopics({
-            validateOnly: false,
-            waitForLeaders: true,
-            topics: [{
-                topic: createTopicRequest.topic,
-                numPartitions: createTopicRequest.partitions,
-                replicationFactor: createTopicRequest.replicationFactor,
-            }],
+        const admin = await this.getKafkaAdminClient();
+        await admin.createTopics({
+            topics: [createTopicRequest.topic],
+            partitions: createTopicRequest.partitions,
+            replicas: createTopicRequest.replicationFactor,
         });
         return [];
     }
 
     async deleteTopic(deleteTopicRequest: DeleteTopicRequest): Promise<void> {
-        return await (await this.getKafkaAdminClient()).deleteTopics({
+        const admin = await this.getKafkaAdminClient();
+        await admin.deleteTopics({
             topics: deleteTopicRequest.topics,
-            timeout: deleteTopicRequest.timeout
         });
     }
 
     async deleteTopicRecords(topic: string, partitions: PartitionOffset[]): Promise<void> {
-        return await (await this.getKafkaAdminClient()).deleteTopicRecords({
-            topic,
-            partitions
+        const admin = await this.getKafkaAdminClient();
+        await admin.deleteRecords({
+            topics: [{
+                name: topic,
+                partitions: partitions.map(p => ({
+                    partition: p.partition,
+                    offset: BigInt(p.offset),
+                })),
+            }],
         });
     }
 
     async fetchTopicPartitions(topic: string): Promise<number[]> {
-        // returns the topics partitions
-        const partitionMetadata = await (await this.getKafkaAdminClient()).fetchTopicMetadata({ topics: [topic] });
-        return partitionMetadata?.topics[0].partitions.map(m => m.partitionId) || [0];
+        const admin = await this.getKafkaAdminClient();
+        const metadata = await admin.metadata({ topics: [topic] } as any);
+        const topicMeta = metadata.topics.get(topic);
+        if (!topicMeta) {
+            return [0];
+        }
+        return Array.from({ length: topicMeta.partitionsCount }, (_, i) => i);
     }
 
     async fetchTopicOffsets(topic: string): Promise<TopicPartitionOffsets[]> {
-        // returns the topics partitions
-        return (await this.getKafkaAdminClient()).fetchTopicOffsets(topic);
+        const admin = await this.getKafkaAdminClient();
+        const partitions = await this.fetchTopicPartitions(topic);
+
+        const latestOffsets = await admin.listOffsets({
+            topics: [{
+                name: topic,
+                partitions: partitions.map(p => ({ partitionIndex: p, timestamp: -1n })),
+            }],
+        });
+        const earliestOffsets = await admin.listOffsets({
+            topics: [{
+                name: topic,
+                partitions: partitions.map(p => ({ partitionIndex: p, timestamp: -2n })),
+            }],
+        });
+
+        const latestByPartition = new Map(
+            latestOffsets[0]?.partitions.map(p => [p.partitionIndex, p.offset]) ?? []
+        );
+        const earliestByPartition = new Map(
+            earliestOffsets[0]?.partitions.map(p => [p.partitionIndex, p.offset]) ?? []
+        );
+
+        return partitions.map(p => ({
+            partition: p,
+            offset: latestByPartition.get(p)?.toString() ?? '0',
+            high: latestByPartition.get(p)?.toString() ?? '0',
+            low: earliestByPartition.get(p)?.toString() ?? '0',
+        }));
     }
 
     async fetchTopicOffsetsByTimestamp(topic: string, timestamp: string): Promise<PartitionOffset[]> {
-        return (await this.getKafkaAdminClient()).fetchTopicOffsetsByTimestamp(topic, Number(timestamp));
+        const admin = await this.getKafkaAdminClient();
+        const partitions = await this.fetchTopicPartitions(topic);
+        const ts = BigInt(timestamp);
+
+        const result = await admin.listOffsets({
+            topics: [{
+                name: topic,
+                partitions: partitions.map(p => ({ partitionIndex: p, timestamp: ts })),
+            }],
+        });
+
+        return result[0]?.partitions.map(p => ({
+            partition: p.partitionIndex,
+            offset: p.offset.toString(),
+        })) ?? [];
     }
 
     dispose() {
-        if (this.kafkaAdminClient) {
-            this.kafkaAdminClient.disconnect();
+        if (this.adminClient) {
+            this.adminClient.close();
+        }
+        if (this.producerClient) {
+            this.producerClient.close();
         }
     }
 
 }
 
 export const createClient = (cluster: Cluster, workspaceSettings: WorkspaceSettings): Client => new EnsureConnectedDecorator(
-    new KafkaJsClient(cluster, workspaceSettings));
+    new PlatformaticClient(cluster, workspaceSettings));
 
-export const createKafka = async (connectionOptions: ConnectionOptions): Promise<Kafka> => {
+export const createKafkaConfig = async (connectionOptions: ConnectionOptions): Promise<PlatformaticClientConfig> => {
     const provider = getClusterProvider(connectionOptions.clusterProviderId);
     if (!provider) {
         throw new Error(`Cannot find cluster provider for '${connectionOptions.clusterProviderId}' ID.`);
     }
-    const kafkaConfig = await provider.createKafkaConfig(connectionOptions) || createDefaultKafkaConfig(connectionOptions);
-    return new Kafka(kafkaConfig as KafkaConfig);
+    const kafkaConfig = await provider.createKafkaConfig(connectionOptions);
+    if (kafkaConfig) {
+        return convertToClientConfig(kafkaConfig);
+    }
+    return createDefaultKafkaConfig(connectionOptions);
 };
 
-export const createDefaultKafkaConfig = (connectionOptions: ConnectionOptions): KafkaClientConfig => {
+function convertToClientConfig(config: KafkaClientConfig): PlatformaticClientConfig {
+    const result: PlatformaticClientConfig = {
+        clientId: config.clientId || "vscode-kafka",
+        bootstrapBrokers: config.brokers,
+    };
+    if (config.ssl) {
+        result.tls = typeof config.ssl === 'boolean' ? {} : config.ssl;
+    }
+    if (config.sasl) {
+        const { mechanism, ...rest } = config.sasl;
+        result.sasl = {
+            ...rest,
+            mechanism: mechanism.toUpperCase(),
+        };
+    }
+    return result;
+}
+
+export const createDefaultKafkaConfig = (connectionOptions: ConnectionOptions): PlatformaticClientConfig => {
+    const result: PlatformaticClientConfig = {
+        clientId: "vscode-kafka",
+        bootstrapBrokers: connectionOptions.bootstrap.split(","),
+    };
+
+    const sasl = createSaslOption(connectionOptions);
+    if (sasl) {
+        result.sasl = sasl;
+    }
+
+    const tls = createTls(connectionOptions);
+    if (tls) {
+        result.tls = tls;
+    }
+
+    return result;
+};
+
+export const createDefaultExternalKafkaConfig = (connectionOptions: ConnectionOptions): KafkaClientConfig => {
     return {
         clientId: "vscode-kafka",
         brokers: connectionOptions.bootstrap.split(","),
-        sasl: createSaslOption(connectionOptions),
-        ssl: createSsl(connectionOptions)
     };
 };
 
 /**
  * Creates the appropriate KafkaJS SASL options based on the mechanism.
  */
-function createSaslOption(connectionOptions: ConnectionOptions): SASLOptions | undefined {
+function createSaslOption(connectionOptions: ConnectionOptions): Record<string, unknown> | undefined {
     const sasl = connectionOptions.saslOption;
     if (!sasl) {
         return undefined;
@@ -659,7 +906,7 @@ function createSaslOption(connectionOptions: ConnectionOptions): SASLOptions | u
         case 'plain':
             if (sasl.username && sasl.password) {
                 return {
-                    mechanism: 'plain',
+                    mechanism: 'PLAIN',
                     username: sasl.username,
                     password: sasl.password
                 };
@@ -669,7 +916,7 @@ function createSaslOption(connectionOptions: ConnectionOptions): SASLOptions | u
         case 'scram-sha-256':
             if (sasl.username && sasl.password) {
                 return {
-                    mechanism: 'scram-sha-256',
+                    mechanism: 'SCRAM-SHA-256',
                     username: sasl.username,
                     password: sasl.password
                 };
@@ -679,7 +926,7 @@ function createSaslOption(connectionOptions: ConnectionOptions): SASLOptions | u
         case 'scram-sha-512':
             if (sasl.username && sasl.password) {
                 return {
-                    mechanism: 'scram-sha-512',
+                    mechanism: 'SCRAM-SHA-512',
                     username: sasl.username,
                     password: sasl.password
                 };
@@ -689,8 +936,8 @@ function createSaslOption(connectionOptions: ConnectionOptions): SASLOptions | u
         case 'oauthbearer':
             if (sasl.oauthTokenEndpoint && sasl.oauthClientId && sasl.oauthClientSecret) {
                 return {
-                    mechanism: 'oauthbearer',
-                    oauthBearerProvider: createOAuthBearerProvider(
+                    mechanism: 'OAUTHBEARER',
+                    token: createOAuthBearerProvider(
                         sasl.oauthTokenEndpoint,
                         sasl.oauthClientId,
                         sasl.oauthClientSecret
@@ -702,11 +949,13 @@ function createSaslOption(connectionOptions: ConnectionOptions): SASLOptions | u
         case 'aws':
             if (sasl.awsRegion && sasl.awsAccessKeyId && sasl.awsSecretAccessKey) {
                 return {
-                    mechanism: 'aws',
-                    authorizationIdentity: sasl.awsAccessKeyId,
-                    accessKeyId: sasl.awsAccessKeyId,
-                    secretAccessKey: sasl.awsSecretAccessKey,
-                    sessionToken: sasl.awsSessionToken
+                    mechanism: 'OAUTHBEARER',
+                    authenticate: createAwsMskIamAuthenticator(
+                        sasl.awsRegion,
+                        sasl.awsAccessKeyId,
+                        sasl.awsSecretAccessKey,
+                        sasl.awsSessionToken
+                    )
                 };
             }
             break;
@@ -723,20 +972,17 @@ function createOAuthBearerProvider(
     tokenEndpoint: string,
     clientId: string,
     clientSecret: string
-): () => Promise<{ value: string }> {
-    // Cache for the OAuth token to avoid unnecessary requests
+): () => Promise<string> {
     let cachedToken: { value: string; expiresAt: number } | undefined;
 
     return async () => {
         const now = Date.now();
         
-        // Return cached token if still valid (with 60 second buffer)
         if (cachedToken && cachedToken.expiresAt > now + 60000) {
-            return { value: cachedToken.value };
+            return cachedToken.value;
         }
 
         try {
-            // Build the token request
             const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
             const contentTypeHeader = 'Content-Type';
             const authorizationHeader = 'Authorization';
@@ -761,7 +1007,6 @@ function createOAuthBearerProvider(
                 throw new Error('OAuth response did not contain access_token');
             }
 
-            // Calculate expiration time (default to 1 hour if not specified)
             const expiresInValue = tokenResponse['expires_in'];
             const expiresIn = typeof expiresInValue === 'number' ? expiresInValue : 3600;
             cachedToken = {
@@ -769,11 +1014,88 @@ function createOAuthBearerProvider(
                 expiresAt: now + (expiresIn * 1000)
             };
 
-            return { value: accessToken };
+            return accessToken;
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             throw new Error(`Failed to obtain OAuth token: ${message}`);
         }
+    };
+}
+
+/**
+ * Creates an AWS MSK IAM authenticator using the custom SASL authenticate callback.
+ * This generates signed authentication tokens using AWS SigV4.
+ */
+function createAwsMskIamAuthenticator(
+    region: string,
+    accessKeyId: string,
+    secretAccessKey: string,
+    sessionToken?: string
+): (host: string, port: number) => Promise<{ token: string }> {
+    return async (host: string, _port: number) => {
+        const serviceName = 'kafka-cluster';
+        const now = new Date();
+        const dateStamp = now.toISOString().replace(/[:-]|\.\d{3}/g, '').slice(0, 8);
+        const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+
+        const queryParams = new URLSearchParams({
+            'Action': 'kafka-cluster:Connect',
+            'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+            'X-Amz-Credential': `${accessKeyId}/${dateStamp}/${region}/${serviceName}/aws4_request`,
+            'X-Amz-Date': amzDate,
+            'X-Amz-Expires': '900',
+            'X-Amz-SignedHeaders': 'host',
+        });
+
+        if (sessionToken) {
+            queryParams.set('X-Amz-Security-Token', sessionToken);
+        }
+
+        const canonicalRequest = [
+            'GET',
+            '/',
+            queryParams.toString(),
+            `host:${host}`,
+            '',
+            'host',
+            'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        ].join('\n');
+
+        const { createHmac, createHash } = await import('crypto');
+        const hash = (data: string) => createHash('sha256').update(data).digest('hex');
+        const hmac = (key: Buffer | string, data: string) => createHmac('sha256', key).update(data).digest();
+
+        const credentialScope = `${dateStamp}/${region}/${serviceName}/aws4_request`;
+        const stringToSign = [
+            'AWS4-HMAC-SHA256',
+            amzDate,
+            credentialScope,
+            hash(canonicalRequest),
+        ].join('\n');
+
+        const kDate = hmac(`AWS4${secretAccessKey}`, dateStamp);
+        const kRegion = hmac(kDate, region);
+        const kService = hmac(kRegion, serviceName);
+        const kSigning = hmac(kService, 'aws4_request');
+        const signature = createHmac('sha256', kSigning).update(stringToSign).digest('hex');
+
+        queryParams.set('X-Amz-Signature', signature);
+
+        const token = Buffer.from(JSON.stringify({
+            version: '2020_10_22',
+            host,
+            'user-agent': 'vscode-kafka',
+            action: 'kafka-cluster:Connect',
+            'x-amz-algorithm': 'AWS4-HMAC-SHA256',
+            'x-amz-credential': `${accessKeyId}/${credentialScope}`,
+            'x-amz-date': amzDate,
+            'x-amz-signedheaders': 'host',
+            'x-amz-expires': '900',
+            'x-amz-signature': signature,
+            ...(sessionToken ? { 'x-amz-security-token': sessionToken } : {}),
+        })).toString('base64');
+
+        return { token };
     };
 }
 
@@ -810,22 +1132,22 @@ async function delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function createSsl(connectionOptions: ConnectionOptions): KafkaClientConfig['ssl'] {
+function createTls(connectionOptions: ConnectionOptions): Record<string, unknown> | undefined {
     if (connectionOptions.ssl) {
         const sslOption = connectionOptions.ssl;
         if (typeof sslOption === 'boolean') {
-            return sslOption;
+            return {};
         }
         const ca = createCaCertificates(sslOption);
         const key = sslOption.key ? fs.readFileSync(sslOption.key) : undefined;
         const cert = sslOption.cert ? fs.readFileSync(sslOption.cert) : undefined;
-        return {
-            ca,
-            key,
-            cert,
-            passphrase: sslOption.passphrase,
-            rejectUnauthorized: sslOption.rejectUnauthorized
-        };
+        const result: Record<string, unknown> = {};
+        if (ca) { result.ca = ca; }
+        if (key) { result.key = key; }
+        if (cert) { result.cert = cert; }
+        if (sslOption.passphrase) { result.passphrase = sslOption.passphrase; }
+        if (sslOption.rejectUnauthorized !== undefined) { result.rejectUnauthorized = sslOption.rejectUnauthorized; }
+        return result;
     }
     return undefined;
 }

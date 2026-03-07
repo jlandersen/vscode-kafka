@@ -45,7 +45,7 @@ export class Icons {
     }
 
     public static get Information(): DarkLightPath {
-        return getDarkLightPath("information.svg");
+        return getDarkLightPath("info.svg");
     }
 }
 

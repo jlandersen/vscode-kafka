@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { Cluster, ConnectionOptions, createDefaultKafkaConfig as createDefaultKafkaConfig } from "../client/client";
+import { Cluster, ConnectionOptions, createDefaultExternalKafkaConfig } from "../client/client";
 import { KafkaClientConfig } from "../client/types";
 import { ClusterSettings } from "../settings/clusters";
 import { ClusterProviderParticipant, KafkaExtensionParticipant } from "./api";
@@ -192,7 +192,7 @@ export function getDefaultKafkaExtensionParticipant(): KafkaExtensionParticipant
         getClusterProviderParticipant(clusterProviderId: string): ClusterProviderParticipant {
             return {
                 configureClusters: (clusterSettings: ClusterSettings): Promise<Cluster[] | undefined> => Promise.resolve(undefined),
-                createKafkaConfig: (connectionOptions: ConnectionOptions): KafkaClientConfig => createDefaultKafkaConfig(connectionOptions)
+                createKafkaConfig: (connectionOptions: ConnectionOptions): KafkaClientConfig => createDefaultExternalKafkaConfig(connectionOptions)
             } as ClusterProviderParticipant;
         }
     };

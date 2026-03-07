@@ -8,9 +8,9 @@
  */
 
 import * as assert from "assert";
-import { CompressionTypes, Producer, Consumer } from "kafkajs";
 import { createPlaintextFixture, TestFixture } from "./kafkaContainers";
 import { createTestClient, TestKafkaClient } from "./testClient";
+import { KafkaProducer, KafkaConsumer } from "../../client/types";
 
 suite("Compression Integration Tests", function () {
     this.timeout(180000);
@@ -47,7 +47,7 @@ suite("Compression Integration Tests", function () {
 
         console.log(`Created topic for Snappy compression test: ${topicName}`);
 
-        const producer: Producer = await client.producer();
+        const producer: KafkaProducer = await client.producer();
 
         const testMessages = [
             { key: "snappy-key-1", value: "Snappy compressed message 1" },
@@ -57,7 +57,7 @@ suite("Compression Integration Tests", function () {
 
         await producer.send({
             topic: topicName,
-            compression: CompressionTypes.Snappy,
+            compression: 2, // Snappy
             messages: testMessages.map(m => ({
                 key: Buffer.from(m.key),
                 value: Buffer.from(m.value),
@@ -68,7 +68,7 @@ suite("Compression Integration Tests", function () {
 
         await producer.disconnect();
 
-        const consumer: Consumer = await client.consumer({
+        const consumer: KafkaConsumer = await client.consumer({
             groupId,
             sessionTimeout: 30000,
             heartbeatInterval: 3000,
@@ -79,45 +79,53 @@ suite("Compression Integration Tests", function () {
         const consumedMessages: Array<{ key: string; value: string }> = [];
         const consumePromise = new Promise<void>((resolve, reject) => {
             let timeoutId: NodeJS.Timeout;
+            let resolved = false;
 
             consumer.run({
                 eachMessage: async ({ message }) => {
+                    if (resolved) { return; }
                     const key = message.key?.toString() || "";
                     const value = message.value?.toString() || "";
 
                     consumedMessages.push({ key, value });
                     console.log(`Consumed Snappy message: key=${key}, value=${value}`);
 
-                    if (consumedMessages.length === testMessages.length) {
+                    if (consumedMessages.length >= testMessages.length) {
+                        resolved = true;
                         clearTimeout(timeoutId);
                         resolve();
                     }
                 },
-            }).catch(reject);
+            }).catch(e => { if (!resolved) { reject(e); } });
 
             timeoutId = setTimeout(() => {
-                reject(new Error(`Timeout: Only consumed ${consumedMessages.length}/${testMessages.length} Snappy messages`));
+                if (!resolved) {
+                    resolved = true;
+                    reject(new Error(`Timeout: Only consumed ${consumedMessages.length}/${testMessages.length} Snappy messages`));
+                }
             }, 30000);
         });
 
-        await consumePromise;
+        try {
+            await consumePromise;
 
-        assert.strictEqual(
-            consumedMessages.length,
-            testMessages.length,
-            `Should consume all ${testMessages.length} Snappy-compressed messages`
-        );
+            assert.strictEqual(
+                consumedMessages.length,
+                testMessages.length,
+                `Should consume all ${testMessages.length} Snappy-compressed messages`
+            );
 
-        for (let i = 0; i < testMessages.length; i++) {
-            assert.strictEqual(consumedMessages[i].key, testMessages[i].key, `Snappy message ${i} key should match`);
-            assert.strictEqual(consumedMessages[i].value, testMessages[i].value, `Snappy message ${i} value should match`);
+            for (let i = 0; i < testMessages.length; i++) {
+                assert.strictEqual(consumedMessages[i].key, testMessages[i].key, `Snappy message ${i} key should match`);
+                assert.strictEqual(consumedMessages[i].value, testMessages[i].value, `Snappy message ${i} value should match`);
+            }
+
+            console.log(`Successfully verified Snappy compression: produced and consumed ${consumedMessages.length} messages`);
+        } finally {
+            await consumer.disconnect();
+            await client.deleteConsumerGroups([groupId]).catch(() => {});
+            await client.deleteTopic({ topics: [topicName] }).catch(() => {});
         }
-
-        console.log(`Successfully verified Snappy compression: produced and consumed ${consumedMessages.length} messages`);
-
-        await consumer.disconnect();
-        await client.deleteConsumerGroups([groupId]);
-        await client.deleteTopic({ topics: [topicName] });
     });
 
     test("should produce and consume LZ4-compressed messages", async function () {
@@ -132,7 +140,7 @@ suite("Compression Integration Tests", function () {
 
         console.log(`Created topic for LZ4 compression test: ${topicName}`);
 
-        const producer: Producer = await client.producer();
+        const producer: KafkaProducer = await client.producer();
 
         const testMessages = [
             { key: "lz4-key-1", value: "LZ4 compressed message 1" },
@@ -142,7 +150,7 @@ suite("Compression Integration Tests", function () {
 
         await producer.send({
             topic: topicName,
-            compression: CompressionTypes.LZ4,
+            compression: 3, // LZ4
             messages: testMessages.map(m => ({
                 key: Buffer.from(m.key),
                 value: Buffer.from(m.value),
@@ -153,7 +161,7 @@ suite("Compression Integration Tests", function () {
 
         await producer.disconnect();
 
-        const consumer: Consumer = await client.consumer({
+        const consumer: KafkaConsumer = await client.consumer({
             groupId,
             sessionTimeout: 30000,
             heartbeatInterval: 3000,
@@ -164,44 +172,52 @@ suite("Compression Integration Tests", function () {
         const consumedMessages: Array<{ key: string; value: string }> = [];
         const consumePromise = new Promise<void>((resolve, reject) => {
             let timeoutId: NodeJS.Timeout;
+            let resolved = false;
 
             consumer.run({
                 eachMessage: async ({ message }) => {
+                    if (resolved) { return; }
                     const key = message.key?.toString() || "";
                     const value = message.value?.toString() || "";
 
                     consumedMessages.push({ key, value });
                     console.log(`Consumed LZ4 message: key=${key}, value=${value}`);
 
-                    if (consumedMessages.length === testMessages.length) {
+                    if (consumedMessages.length >= testMessages.length) {
+                        resolved = true;
                         clearTimeout(timeoutId);
                         resolve();
                     }
                 },
-            }).catch(reject);
+            }).catch(e => { if (!resolved) { reject(e); } });
 
             timeoutId = setTimeout(() => {
-                reject(new Error(`Timeout: Only consumed ${consumedMessages.length}/${testMessages.length} LZ4 messages`));
+                if (!resolved) {
+                    resolved = true;
+                    reject(new Error(`Timeout: Only consumed ${consumedMessages.length}/${testMessages.length} LZ4 messages`));
+                }
             }, 30000);
         });
 
-        await consumePromise;
+        try {
+            await consumePromise;
 
-        assert.strictEqual(
-            consumedMessages.length,
-            testMessages.length,
-            `Should consume all ${testMessages.length} LZ4-compressed messages`
-        );
+            assert.strictEqual(
+                consumedMessages.length,
+                testMessages.length,
+                `Should consume all ${testMessages.length} LZ4-compressed messages`
+            );
 
-        for (let i = 0; i < testMessages.length; i++) {
-            assert.strictEqual(consumedMessages[i].key, testMessages[i].key, `LZ4 message ${i} key should match`);
-            assert.strictEqual(consumedMessages[i].value, testMessages[i].value, `LZ4 message ${i} value should match`);
+            for (let i = 0; i < testMessages.length; i++) {
+                assert.strictEqual(consumedMessages[i].key, testMessages[i].key, `LZ4 message ${i} key should match`);
+                assert.strictEqual(consumedMessages[i].value, testMessages[i].value, `LZ4 message ${i} value should match`);
+            }
+
+            console.log(`Successfully verified LZ4 compression: produced and consumed ${consumedMessages.length} messages`);
+        } finally {
+            await consumer.disconnect();
+            await client.deleteConsumerGroups([groupId]).catch(() => {});
+            await client.deleteTopic({ topics: [topicName] }).catch(() => {});
         }
-
-        console.log(`Successfully verified LZ4 compression: produced and consumed ${consumedMessages.length} messages`);
-
-        await consumer.disconnect();
-        await client.deleteConsumerGroups([groupId]);
-        await client.deleteTopic({ topics: [topicName] });
     });
 });

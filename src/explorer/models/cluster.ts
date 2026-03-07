@@ -9,7 +9,7 @@ import { ConsumerGroupsItem } from "./consumerGroups";
 import { KafkaModel } from "./kafka";
 import { Disposable } from "vscode";
 import { GlyphChars } from "../../constants";
-import { getErrorMessage } from "./common";
+import { ErrorItem, getErrorMessage } from "./common";
 import { SchemaRegistriesItem } from "./schemaRegistry";
 
 const TOPIC_INDEX = 2;
@@ -54,13 +54,13 @@ export class ClusterItem extends NodeBase implements Disposable {
             } catch (error) {
                 this.connectionError = getErrorMessage(error);
                 await this.refreshConnectionState();
-                return [];
+                return [new ErrorItem(this.connectionError, this)];
             }
             await this.refreshConnectionState();
         }
 
         if (this.clientState !== ClientState.connected) {
-            return [];
+            return [new ErrorItem(this.connectionError || "Cluster connection failed", this)];
         }
 
         this.connectionError = undefined;
