@@ -73,9 +73,83 @@ jobs:
         env:
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
-  # Only publish if all CI jobs pass
-  publish:
+  build-vsix:
     needs: [ci, integration-tests]
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+          - os: ubuntu-latest
+            target: linux-arm64
+          - os: windows-latest
+            target: win32-x64
+          - os: windows-latest
+            target: win32-arm64
+          - os: macos-latest
+            target: darwin-x64
+          - os: macos-latest
+            target: darwin-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build target-specific VSIX
+        shell: bash
+        run: npx @vscode/vsce package --target "${{ matrix.target }}" -o "vscode-kafka-${{ matrix.target }}.vsix"
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-${{ matrix.target }}
+          path: vscode-kafka-${{ matrix.target }}.vsix
+          if-no-files-found: error
+
+  smoke-test-vsix:
+    needs: [build-vsix]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download linux-x64 VSIX
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix-linux-x64
+          path: vsix/linux-x64
+
+      - name: Download linux-arm64 VSIX
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix-linux-arm64
+          path: vsix/linux-arm64
+
+      - name: Install VS Code CLI
+        run: |
+          wget -q https://update.code.visualstudio.com/latest/linux-deb-x64/stable -O vscode.deb
+          sudo dpkg -i vscode.deb || sudo apt-get install -f -y
+          rm -f vscode.deb
+
+      - name: Smoke test installable linux-x64 VSIX
+        run: |
+          VSIX="$(find vsix/linux-x64 -name '*.vsix' -print -quit)"
+          code --user-data-dir "$RUNNER_TEMP/vscode-user-data" --extensions-dir "$RUNNER_TEMP/vscode-extensions" --install-extension "$VSIX" --force
+          code --user-data-dir "$RUNNER_TEMP/vscode-user-data" --extensions-dir "$RUNNER_TEMP/vscode-extensions" --list-extensions | grep '^jeppeandersen\.vscode-kafka$'
+
+      - name: Validate non-host linux-arm64 artifact
+        run: |
+          VSIX="$(find vsix/linux-arm64 -name '*.vsix' -print -quit)"
+          npx @vscode/vsce generate-manifest --packagePath "$VSIX" --out "$RUNNER_TEMP/linux-arm64.manifest"
+          test -s "$RUNNER_TEMP/linux-arm64.manifest"
+
+  publish:
+    needs: [build-vsix, smoke-test-vsix]
     runs-on: ubuntu-latest
     env:
       PUBLISH_TARGET: ${{ github.event.inputs.publish_target || 'both' }}
@@ -90,6 +164,13 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Download all VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: vsix-*
+          path: vsix
+          merge-multiple: true
 
       - name: Build Release Notes
         if: startsWith(github.ref, 'refs/tags/v')
@@ -117,15 +198,24 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           body_path: RELEASE_NOTES.md
+          files: vsix/*.vsix
 
       - name: Publish to VSCode Marketplace
         if: ${{ env.PUBLISH_TARGET == 'vsce' || env.PUBLISH_TARGET == 'both' }}
-        run: npx @vscode/vsce publish -p $VSCE_TOKEN
+        shell: bash
+        run: |
+          for VSIX in vsix/*.vsix; do
+            npx @vscode/vsce publish --packagePath "$VSIX" -p "$VSCE_TOKEN"
+          done
         env:
           VSCE_TOKEN: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
 
       - name: Publish to Open VSX
         if: ${{ env.PUBLISH_TARGET == 'ovsx' || env.PUBLISH_TARGET == 'both' }}
-        run: npx ovsx@0.9.3 publish -p $OVSX_TOKEN
+        shell: bash
+        run: |
+          for VSIX in vsix/*.vsix; do
+            npx ovsx@0.9.3 publish "$VSIX" -p "$OVSX_TOKEN"
+          done
         env:
           OVSX_TOKEN: ${{ secrets.OPENVSX_MARKETPLACE_TOKEN }}
