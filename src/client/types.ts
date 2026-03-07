@@ -1,11 +1,10 @@
 /**
  * Abstract types for the Kafka client API.
- * These types are implementation-agnostic and do not expose any kafkajs dependencies.
+ * These types are implementation-agnostic.
  */
 
 /**
  * Represents an offset position within a partition.
- * Replaces kafkajs SeekEntry.
  */
 export interface PartitionOffset {
     partition: number;
@@ -14,7 +13,7 @@ export interface PartitionOffset {
 
 /**
  * Represents partition offsets with high/low watermarks.
- * Replaces kafkajs SeekEntry & { high: string; low: string }.
+ *
  */
 export interface TopicPartitionOffsets extends PartitionOffset {
     high: string;
@@ -23,7 +22,7 @@ export interface TopicPartitionOffsets extends PartitionOffset {
 
 /**
  * Message headers type.
- * Replaces kafkajs IHeaders.
+ *
  */
 export interface MessageHeaders {
     [key: string]: Buffer | string | (Buffer | string)[] | undefined;
@@ -42,7 +41,7 @@ export interface ProducerMessage {
 
 /**
  * A record to be produced to a topic.
- * Replaces kafkajs ProducerRecord.
+ *
  */
 export interface ProducerRecord {
     topic: string;
@@ -54,7 +53,7 @@ export interface ProducerRecord {
 
 /**
  * Metadata returned after producing a record.
- * Replaces kafkajs RecordMetadata.
+ *
  */
 export interface RecordMetadata {
     topicName: string;
@@ -67,7 +66,7 @@ export interface RecordMetadata {
 
 /**
  * Consumer configuration options.
- * Replaces kafkajs ConsumerConfig.
+ *
  */
 export interface ConsumerConfig {
     groupId: string;
@@ -121,7 +120,7 @@ export interface ConsumedMessagePayload {
 
 /**
  * Kafka client configuration.
- * Replaces kafkajs KafkaConfig for the extension API.
+ *
  */
 export interface KafkaClientConfig {
     clientId?: string;

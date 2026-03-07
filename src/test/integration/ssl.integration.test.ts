@@ -16,9 +16,9 @@ import * as assert from "assert";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { Client, createKafka } from "../../client/client";
+import { Client } from "../../client/client";
 import { KafkaProducer, KafkaConsumer } from "../../client/types";
-import { createSslFixture, TestFixture } from "./kafkaContainers";
+import { createSslFixture, TestFixture, KafkaConnectionInfo } from "./kafkaContainers";
 import { createTestClient } from "./testClient";
 import { GenericContainer, Wait } from "testcontainers";
 
@@ -120,21 +120,21 @@ suite("SSL Integration Tests", function () {
 
             const truststore = await createJksTruststore(caCert!, truststorePassword);
             try {
-                const kafka = await createKafka({
-                    bootstrap: fixture.connectionInfo.bootstrap,
-                    saslOption: fixture.connectionInfo.saslOption,
-                    ssl: {
+                const jksConnectionInfo: KafkaConnectionInfo = {
+                    ...fixture.connectionInfo,
+                    sslOption: {
+                        ...fixture.connectionInfo.sslOption!,
                         truststore: truststore.truststorePath,
                         truststorePassword,
-                        rejectUnauthorized: false
-                    }
-                });
+                        rejectUnauthorized: false,
+                    } as any,
+                };
+                const jksClient = createTestClient(jksConnectionInfo, "test-ssl-jks");
+                await jksClient.connect();
 
-                const admin = kafka.admin();
-                await admin.connect();
-                const cluster = await admin.describeCluster();
-                assert.ok(cluster.brokers.length > 0, "Expected brokers when using JKS truststore");
-                await admin.disconnect();
+                const brokers = await jksClient.getBrokers();
+                assert.ok(brokers.length > 0, "Expected brokers when using JKS truststore");
+                jksClient.dispose();
             } finally {
                 truststore.cleanup();
             }

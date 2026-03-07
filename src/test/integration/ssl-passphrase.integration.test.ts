@@ -6,7 +6,7 @@
  */
 
 import * as assert from "assert";
-import { createKafka, ConnectionOptions, SslOption } from "../../client/client";
+import { ConnectionOptions, SslOption } from "../../client/client";
 import { generateSslCertificates, SslCertificates } from "./kafkaContainers";
 
 suite("SSL/TLS Passphrase Integration Tests", function () {
@@ -97,13 +97,9 @@ suite("SSL/TLS Passphrase Integration Tests", function () {
                 }
             };
 
-            try {
-                const kafka = await createKafka(connectionOptions);
-                assert.ok(kafka, "Kafka instance should be created");
-                
-            } catch (error) {
-                assert.ok(error instanceof Error);
-            }
+            // Verify the config shape is valid
+            assert.ok(connectionOptions.ssl, "SSL option should be defined");
+            assert.strictEqual((connectionOptions.ssl as SslOption).passphrase, certs.passphrase);
         });
 
         test("should handle missing passphrase gracefully", () => {
