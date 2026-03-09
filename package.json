@@ -804,12 +804,11 @@
 		"pretest:integration": "npm run test-compile"
 	},
 	"dependencies": {
-		"@platformatic/kafka": "^1.29.0",
+		"@platformatic/kafka": "^1.30.0",
 		"ajv": "^8.18.0"
 	},
 	"devDependencies": {
 		"@faker-js/faker": "^10.3.0",
-		"glob": "^13.0.6",
 		"@redhat-developer/vscode-wizard": "^0.3.1",
 		"@testcontainers/kafka": "^11.12.0",
 		"@types/fs-extra": "^11.0.4",
@@ -825,6 +824,7 @@
 		"copy-webpack-plugin": "^14.0.0",
 		"eslint": "^10.0.2",
 		"fs-extra": "^11.3.4",
+		"glob": "^13.0.6",
 		"handlebars": "^4.7.8",
 		"jks-js": "^1.1.5",
 		"js-yaml": "^4.1.1",
