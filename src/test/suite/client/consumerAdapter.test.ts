@@ -258,4 +258,104 @@ suite("PlatformaticConsumerAdapter Test Suite", () => {
             );
         });
     });
+
+    suite("error propagation", () => {
+
+        test("stream errors are forwarded to onError", async () => {
+            const mock = createMockConsumer();
+            const adapter = new PlatformaticConsumerAdapter(mock as any);
+            const errors: Error[] = [];
+
+            await adapter.subscribe({ topic: "t" });
+            await adapter.run({
+                eachMessage: async () => {},
+                onError: (err) => { errors.push(err); },
+            });
+
+            const streamError = new Error("stream failure");
+            mock.mockStream.emit("error", streamError);
+
+            assert.strictEqual(errors.length, 1);
+            assert.strictEqual(errors[0].message, "stream failure");
+        });
+
+        test("eachMessage rejections are forwarded to onError", async () => {
+            const mock = createMockConsumer();
+            const adapter = new PlatformaticConsumerAdapter(mock as any);
+            const errors: Error[] = [];
+
+            await adapter.subscribe({ topic: "t" });
+            await adapter.run({
+                eachMessage: async () => { throw new Error("processing failed"); },
+                onError: (err) => { errors.push(err); },
+            });
+
+            mock.mockStream.emit("data", {
+                topic: "t",
+                partition: 0,
+                key: null,
+                value: Buffer.from("v"),
+                timestamp: 100n,
+                offset: 0n,
+                headers: new Map(),
+            });
+
+            await new Promise(r => setTimeout(r, 10));
+
+            assert.strictEqual(errors.length, 1);
+            assert.strictEqual(errors[0].message, "processing failed");
+        });
+
+        test("errors are silently dropped when no onError is provided", async () => {
+            const mock = createMockConsumer();
+            const adapter = new PlatformaticConsumerAdapter(mock as any);
+
+            await adapter.subscribe({ topic: "t" });
+            await adapter.run({ eachMessage: async () => { throw new Error("ignored"); } });
+
+            mock.mockStream.emit("data", {
+                topic: "t",
+                partition: 0,
+                key: null,
+                value: Buffer.from("v"),
+                timestamp: 100n,
+                offset: 0n,
+                headers: new Map(),
+            });
+
+            // Should not throw
+            await new Promise(r => setTimeout(r, 10));
+        });
+
+        test("messages are processed sequentially, not concurrently", async () => {
+            const mock = createMockConsumer();
+            const adapter = new PlatformaticConsumerAdapter(mock as any);
+            const order: string[] = [];
+
+            await adapter.subscribe({ topic: "t" });
+            await adapter.run({
+                eachMessage: async (payload) => {
+                    const label = payload.message.offset;
+                    order.push(`start-${label}`);
+                    await new Promise(r => setTimeout(r, 20));
+                    order.push(`end-${label}`);
+                },
+            });
+
+            const msg = (offset: bigint) => ({
+                topic: "t", partition: 0, key: null,
+                value: Buffer.from("v"), timestamp: 100n,
+                offset, headers: new Map(),
+            });
+
+            // Emit two messages back-to-back
+            mock.mockStream.emit("data", msg(1n));
+            mock.mockStream.emit("data", msg(2n));
+
+            await new Promise(r => setTimeout(r, 80));
+
+            // Sequential: first must fully complete before second starts
+            assert.deepStrictEqual(order, ["start-1", "end-1", "start-2", "end-2"]);
+        });
+    });
 });

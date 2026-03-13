@@ -99,7 +99,7 @@ export interface KafkaConsumer {
     connect(): Promise<void>;
     disconnect(): Promise<void>;
     subscribe(options: { topic: string; fromBeginning?: boolean }): Promise<void>;
-    run(options: { eachMessage: (payload: ConsumedMessagePayload) => Promise<void> }): Promise<void>;
+    run(options: { eachMessage: (payload: ConsumedMessagePayload) => Promise<void>; onError?: (error: Error) => void }): Promise<void>;
     seek(options: { topic: string; partition: number; offset: string }): void;
 }
 

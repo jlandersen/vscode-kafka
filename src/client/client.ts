@@ -107,7 +107,7 @@ export class PlatformaticConsumerAdapter implements KafkaConsumer {
         this.fromBeginning = options.fromBeginning;
     }
 
-    async run(options: { eachMessage: (payload: { topic: string; partition: number; message: { key: Buffer | null; value: Buffer | null; timestamp: string; offset: string; headers?: any } }) => Promise<void> }): Promise<void> {
+    async run(options: { eachMessage: (payload: { topic: string; partition: number; message: { key: Buffer | null; value: Buffer | null; timestamp: string; offset: string; headers?: any } }) => Promise<void>; onError?: (error: Error) => void }): Promise<void> {
         if (!this.subscribedTopic) {
             throw new Error('Must call subscribe() before run()');
         }
@@ -139,30 +139,41 @@ export class PlatformaticConsumerAdapter implements KafkaConsumer {
 
         this.stream = await this.consumer.consume(consumeOptions);
 
-        this.stream.on('error', () => {
-            // Errors are handled through the consumer lifecycle, not the stream
+        this.stream.on('error', (err: Error) => {
+            if (options.onError) {
+                options.onError(err);
+            }
         });
 
-        this.stream.on('data', (message: any) => {
-            const headers: Record<string, Buffer | string> = {};
-            if (message.headers instanceof Map) {
-                for (const [k, v] of message.headers) {
-                    headers[typeof k === 'string' ? k : k.toString()] =
-                        typeof v === 'string' ? v : (v instanceof Buffer ? v : Buffer.from(String(v)));
-                }
-            }
+        // Sequential promise chain ensures messages are processed in order
+        let processing = Promise.resolve();
 
-            options.eachMessage({
-                topic: message.topic,
-                partition: message.partition ?? 0,
-                message: {
-                    key: message.key ?? null,
-                    value: message.value ?? null,
-                    timestamp: message.timestamp !== undefined ? message.timestamp.toString() : '',
-                    offset: message.offset !== undefined ? message.offset.toString() : '0',
-                    headers,
-                },
-            }).catch(() => {});
+        this.stream.on('data', (message: any) => {
+            processing = processing.then(async () => {
+                const headers: Record<string, Buffer | string> = {};
+                if (message.headers instanceof Map) {
+                    for (const [k, v] of message.headers) {
+                        headers[typeof k === 'string' ? k : k.toString()] =
+                            typeof v === 'string' ? v : (v instanceof Buffer ? v : Buffer.from(String(v)));
+                    }
+                }
+
+                await options.eachMessage({
+                    topic: message.topic,
+                    partition: message.partition ?? 0,
+                    message: {
+                        key: message.key ?? null,
+                        value: message.value ?? null,
+                        timestamp: message.timestamp !== undefined ? message.timestamp.toString() : '',
+                        offset: message.offset !== undefined ? message.offset.toString() : '0',
+                        headers,
+                    },
+                });
+            }).catch((err: Error) => {
+                if (options.onError) {
+                    options.onError(err);
+                }
+            });
         });
     }
 
@@ -720,7 +731,7 @@ export class PlatformaticClient implements Client {
         return {
             groupId,
             state: groupOrNull ? (stateMap[groupOrNull.state] || 'Unknown') : 'Unknown',
-            protocolType: groupOrNull?.protocol || '',
+            protocolType: groupOrNull?.protocolType || '',
             protocol: groupOrNull?.protocol || '',
             members,
             offsets: consumerGroupOffsets,

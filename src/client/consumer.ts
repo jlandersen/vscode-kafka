@@ -57,8 +57,6 @@ export interface ConsumerCollectionChangedEvent {
 }
 
 export class Consumer implements vscode.Disposable {
-    private static readonly seekRetryAttempts = 120;
-    private static readonly seekRetryDelayMs = 100;
 
     private kafkaClient?: Client;
     private consumer?: KafkaConsumer;
@@ -128,19 +126,7 @@ export class Consumer implements vscode.Disposable {
         const subscribeOptions = this.createSubscribeOptions(topic, fromOffset);
         await this.consumer.subscribe(subscribeOptions);
 
-        this.consumer.run({
-            eachMessage: async ({ topic, partition, message }) => {
-                message.key = deserialize(message.key, this.options.messageKeyFormat, this.options.messageKeyFormatSettings, this.options.kafkaFileUri);
-                message.value = deserialize(message.value, this.options.messageValueFormat, this.options.messageValueFormatSettings, this.options.kafkaFileUri);
-                this.onDidReceiveMessageEmitter.fire({
-                    uri: this.uri,
-                    record: { topic: topic, partition: partition, ...message },
-                });
-            },
-        }).catch((error: any) => {
-            this.onDidReceiveErrorEmitter.fire(error);
-        });
-
+        // Apply seeks BEFORE run() so the adapter can read them when starting consumption
         const seekByTimestamp = typeof fromTimestamp === "string" && fromTimestamp.trim().length > 0;
         const offsetAsNumber = fromOffset && subscribeOptions.fromBeginning === undefined && !seekByTimestamp;
         const reseedByConsumeMode = fromOffset === "earliest" || fromOffset === "latest";
@@ -160,35 +146,25 @@ export class Consumer implements vscode.Disposable {
                 if (!offset) {
                     offset = await this.getOffsetToSeek(topicOffsets, fromOffset, partition);
                 }
-                await this.seekWithRetry(topic, partition, offset);
-            }
-        }
-    }
-
-    private async seekWithRetry(topic: string, partition: number, offset: string): Promise<void> {
-        for (let attempt = 1; attempt <= Consumer.seekRetryAttempts; attempt++) {
-            try {
                 this.consumer?.seek({ topic, partition, offset });
-                return;
-            } catch (error) {
-                if (!this.isConsumerGroupNotInitializedError(error) || attempt === Consumer.seekRetryAttempts) {
-                    throw error;
-                }
             }
-
-            await this.delay(Consumer.seekRetryDelayMs);
         }
-    }
 
-    private isConsumerGroupNotInitializedError(error: unknown): boolean {
-        if (!(error instanceof Error)) {
-            return false;
-        }
-        return error.message.includes("Consumer group was not initialized");
-    }
-
-    private delay(ms: number): Promise<void> {
-        return new Promise((resolve) => setTimeout(resolve, ms));
+        this.consumer.run({
+            eachMessage: async ({ topic, partition, message }) => {
+                message.key = deserialize(message.key, this.options.messageKeyFormat, this.options.messageKeyFormatSettings, this.options.kafkaFileUri);
+                message.value = deserialize(message.value, this.options.messageValueFormat, this.options.messageValueFormatSettings, this.options.kafkaFileUri);
+                this.onDidReceiveMessageEmitter.fire({
+                    uri: this.uri,
+                    record: { topic: topic, partition: partition, ...message },
+                });
+            },
+            onError: (error: Error) => {
+                this.onDidReceiveErrorEmitter.fire(error);
+            },
+        }).catch((error: any) => {
+            this.onDidReceiveErrorEmitter.fire(error);
+        });
     }
 
     private async getPartitions(topic: string, partitions?: number[]): Promise<number[]> {
