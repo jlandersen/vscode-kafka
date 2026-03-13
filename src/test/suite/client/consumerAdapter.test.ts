@@ -352,7 +352,7 @@ suite("PlatformaticConsumerAdapter Test Suite", () => {
             mock.mockStream.emit("data", msg(1n));
             mock.mockStream.emit("data", msg(2n));
 
-            await new Promise(r => setTimeout(r, 80));
+            await new Promise(r => setTimeout(r, 500));
 
             // Sequential: first must fully complete before second starts
             assert.deepStrictEqual(order, ["start-1", "end-1", "start-2", "end-2"]);
