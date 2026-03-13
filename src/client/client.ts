@@ -834,11 +834,14 @@ export class PlatformaticClient implements Client {
     }
 
     dispose() {
-        if (this.adminClient) {
-            this.adminClient.close();
-        }
-        if (this.producerClient) {
-            this.producerClient.close();
+        try {
+            if (this.adminClient) {
+                this.adminClient.close();
+            }
+        } finally {
+            if (this.producerClient) {
+                this.producerClient.close();
+            }
         }
     }
 

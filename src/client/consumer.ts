@@ -163,6 +163,8 @@ export class Consumer implements vscode.Disposable {
                 this.onDidReceiveErrorEmitter.fire(error);
             },
         }).catch((error: any) => {
+            this.error = error;
+            this.state = ConsumerLaunchState.closed;
             this.onDidReceiveErrorEmitter.fire(error);
         });
     }
