@@ -99,4 +99,27 @@ suite("Convert To Client Config Test Suite", () => {
             assert.strictEqual(mechanismCount, 1);
         });
     });
+
+    suite("Timeout mapping", () => {
+
+        test("no connectTimeout when connectionTimeout is absent", () => {
+            const result = convertToClientConfig({ brokers: ["b:9092"] });
+            assert.strictEqual(result.connectTimeout, undefined);
+        });
+
+        test("maps connectionTimeout to connectTimeout", () => {
+            const result = convertToClientConfig({ brokers: ["b:9092"], connectionTimeout: 5000 });
+            assert.strictEqual(result.connectTimeout, 5000);
+        });
+
+        test("no requestTimeout when absent", () => {
+            const result = convertToClientConfig({ brokers: ["b:9092"] });
+            assert.strictEqual(result.requestTimeout, undefined);
+        });
+
+        test("maps requestTimeout", () => {
+            const result = convertToClientConfig({ brokers: ["b:9092"], requestTimeout: 30000 });
+            assert.strictEqual(result.requestTimeout, 30000);
+        });
+    });
 });

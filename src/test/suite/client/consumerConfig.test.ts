@@ -121,4 +121,30 @@ suite("Build Consumer Config Test Suite", () => {
         assert.strictEqual(result.maxBytes, 1048576);
         assert.strictEqual(result.maxWaitTime, 5000);
     });
+
+    test("maps retry.retries to retries", () => {
+        const result = buildConsumerConfig(baseConfig, { groupId: "g", retry: { retries: 5 } });
+        assert.strictEqual(result.retries, 5);
+    });
+
+    test("excludes retries when retry is undefined", () => {
+        const result = buildConsumerConfig(baseConfig, { groupId: "g" });
+        assert.strictEqual(result.hasOwnProperty("retries"), false);
+    });
+
+    test("excludes retries when retry.retries is undefined", () => {
+        const result = buildConsumerConfig(baseConfig, { groupId: "g", retry: {} });
+        assert.strictEqual(result.hasOwnProperty("retries"), false);
+    });
+
+    test("propagates connectTimeout and requestTimeout from client config", () => {
+        const clientWithTimeouts: PlatformaticClientConfig = {
+            ...baseConfig,
+            connectTimeout: 5000,
+            requestTimeout: 30000,
+        };
+        const result = buildConsumerConfig(clientWithTimeouts, { groupId: "g" });
+        assert.strictEqual(result.connectTimeout, 5000);
+        assert.strictEqual(result.requestTimeout, 30000);
+    });
 });

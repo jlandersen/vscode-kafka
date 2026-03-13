@@ -439,6 +439,8 @@ export interface PlatformaticClientConfig {
     bootstrapBrokers: string[];
     tls?: Record<string, unknown>;
     sasl?: Record<string, unknown>;
+    connectTimeout?: number;
+    requestTimeout?: number;
 }
 
 export class PlatformaticClient implements Client {
@@ -877,6 +879,8 @@ export function convertToClientConfig(config: KafkaClientConfig): PlatformaticCl
             mechanism: mechanism.toUpperCase(),
         };
     }
+    if (config.connectionTimeout !== undefined) { result.connectTimeout = config.connectionTimeout; }
+    if (config.requestTimeout !== undefined) { result.requestTimeout = config.requestTimeout; }
     return result;
 }
 
@@ -896,6 +900,7 @@ export function buildConsumerConfig(clientConfig: PlatformaticClientConfig, conf
     if (config.minBytes !== undefined) { result.minBytes = config.minBytes; }
     if (config.maxBytes !== undefined) { result.maxBytes = config.maxBytes; }
     if (config.maxWaitTimeInMs !== undefined) { result.maxWaitTime = config.maxWaitTimeInMs; }
+    if (config.retry?.retries !== undefined) { result.retries = config.retry.retries; }
     return result;
 }
 
@@ -1071,23 +1076,28 @@ async function generateAwsMskIamToken(
     const dateStamp = timestamp.toISOString().replace(/[:-]|\.\d{3}/g, '').slice(0, 8);
     const amzDate = timestamp.toISOString().replace(/[:-]|\.\d{3}/g, '');
 
-    const queryParams = new URLSearchParams({
+    const queryParamsObj: Record<string, string> = {
         'Action': 'kafka-cluster:Connect',
         'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
         'X-Amz-Credential': `${accessKeyId}/${dateStamp}/${region}/${serviceName}/aws4_request`,
         'X-Amz-Date': amzDate,
         'X-Amz-Expires': '900',
         'X-Amz-SignedHeaders': 'host',
-    });
+    };
 
     if (sessionToken) {
-        queryParams.set('X-Amz-Security-Token', sessionToken);
+        queryParamsObj['X-Amz-Security-Token'] = sessionToken;
     }
+
+    // SigV4 requires lexicographically sorted query parameters
+    const canonicalQueryString = new URLSearchParams(
+        Object.entries(queryParamsObj).sort(([a], [b]) => a.localeCompare(b))
+    ).toString();
 
     const canonicalRequest = [
         'GET',
         '/',
-        queryParams.toString(),
+        canonicalQueryString,
         `host:${host}`,
         '',
         'host',

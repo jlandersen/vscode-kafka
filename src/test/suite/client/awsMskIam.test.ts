@@ -170,6 +170,48 @@ suite("AWS MSK IAM Authentication Test Suite", () => {
             );
             assert.notStrictEqual(token1, token2);
         });
+
+        test("session token changes the signature (ordering matters)", async () => {
+            const tokenWithout = await generateAwsMskIamToken(
+                "broker.example.com",
+                AWS_CREDENTIALS.region,
+                AWS_CREDENTIALS.accessKeyId,
+                AWS_CREDENTIALS.secretAccessKey,
+                undefined,
+                FIXED_DATE
+            );
+            const tokenWith = await generateAwsMskIamToken(
+                "broker.example.com",
+                AWS_CREDENTIALS.region,
+                AWS_CREDENTIALS.accessKeyId,
+                AWS_CREDENTIALS.secretAccessKey,
+                "FwoGZXIvYXdzEBYaDHqa0AP1",
+                FIXED_DATE
+            );
+            const sigWithout = JSON.parse(Buffer.from(tokenWithout, "base64").toString("utf-8"))["x-amz-signature"];
+            const sigWith = JSON.parse(Buffer.from(tokenWith, "base64").toString("utf-8"))["x-amz-signature"];
+            assert.notStrictEqual(sigWithout, sigWith);
+        });
+
+        test("produces deterministic signature with session token", async () => {
+            const token1 = await generateAwsMskIamToken(
+                "broker.example.com",
+                AWS_CREDENTIALS.region,
+                AWS_CREDENTIALS.accessKeyId,
+                AWS_CREDENTIALS.secretAccessKey,
+                "FwoGZXIvYXdzEBYaDHqa0AP1",
+                FIXED_DATE
+            );
+            const token2 = await generateAwsMskIamToken(
+                "broker.example.com",
+                AWS_CREDENTIALS.region,
+                AWS_CREDENTIALS.accessKeyId,
+                AWS_CREDENTIALS.secretAccessKey,
+                "FwoGZXIvYXdzEBYaDHqa0AP1",
+                FIXED_DATE
+            );
+            assert.strictEqual(token1, token2);
+        });
     });
 
     suite("createAwsMskIamAuthenticator", () => {
