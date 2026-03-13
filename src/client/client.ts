@@ -37,8 +37,8 @@ export class PlatformaticProducerAdapter implements KafkaProducer {
     async send(record: ProducerRecord): Promise<RecordMetadata[]> {
         const messages = record.messages.map(m => ({
             topic: record.topic,
-            key: m.key !== null && m.key !== undefined ? Buffer.from(String(m.key)) : undefined,
-            value: m.value !== null ? Buffer.from(String(m.value)) : undefined,
+            key: m.key !== null && m.key !== undefined ? (Buffer.isBuffer(m.key) ? m.key : Buffer.from(String(m.key))) : undefined,
+            value: m.value !== null ? (Buffer.isBuffer(m.value) ? m.value : Buffer.from(String(m.value))) : undefined,
             partition: m.partition,
             headers: m.headers ? new Map(
                 Object.entries(m.headers)

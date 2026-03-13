@@ -326,4 +326,83 @@ suite("Error Message Extraction Test Suite", () => {
             assert.ok(result.includes("Group not empty"), "Should include nested error message");
         });
     });
+
+    suite("Platformatic Kafka Errors", () => {
+        test("should match protocol error by PLT_KFK_PROTOCOL code", () => {
+            const error = {
+                name: "Error",
+                message: "Invalid topic",
+                code: "PLT_KFK_PROTOCOL",
+                type: "INVALID_TOPIC_EXCEPTION"
+            };
+            const result = getErrorMessage(error);
+            assert.ok(result.includes("Invalid topic"), "Should include message");
+            assert.ok(result.includes("type: INVALID_TOPIC_EXCEPTION"), "Should include error type");
+        });
+
+        test("should match response error by PLT_KFK_RESPONSE code", () => {
+            const error = {
+                name: "AggregateError",
+                message: "Response error",
+                code: "PLT_KFK_RESPONSE",
+                type: "RESPONSE_ERROR"
+            };
+            const result = getErrorMessage(error);
+            assert.ok(result.includes("Response error"), "Should include message");
+            assert.ok(result.includes("type: RESPONSE_ERROR"), "Should include error type");
+        });
+
+        test("should match connection error by PLT_KFK_NETWORK code", () => {
+            const error = {
+                name: "Error",
+                message: "Connection refused",
+                code: "PLT_KFK_NETWORK",
+                broker: "localhost:9092"
+            };
+            const result = getErrorMessage(error);
+            assert.ok(result.includes("Connection refused"), "Should include message");
+            assert.ok(result.includes("Broker: localhost:9092"), "Should include broker");
+        });
+
+        test("should match timeout error by PLT_KFK_TIMEOUT code", () => {
+            const error = {
+                name: "Error",
+                message: "Request timed out",
+                code: "PLT_KFK_TIMEOUT",
+                broker: "localhost:9092"
+            };
+            const result = getErrorMessage(error);
+            assert.ok(result.includes("Request timed out"), "Should include message");
+            assert.ok(result.includes("broker: localhost:9092"), "Should include broker");
+        });
+
+        test("should match generic platformatic error by PLT_KFK_ prefix", () => {
+            const error = {
+                name: "Error",
+                message: "Authentication failed",
+                code: "PLT_KFK_AUTHENTICATION",
+                retriable: false
+            };
+            const result = getErrorMessage(error);
+            assert.ok(result.includes("Authentication failed"), "Should include message");
+            assert.ok(result.includes("non-retriable"), "Should indicate non-retriable");
+        });
+
+        test("should extract delete groups details structurally", () => {
+            const error = {
+                name: "Error",
+                message: "Error in Delete groups",
+                groups: [
+                    {
+                        groupId: "my-group",
+                        errorCode: 26,
+                        error: { message: "Non-empty group" }
+                    }
+                ]
+            };
+            const result = getErrorMessage(error);
+            assert.ok(result.includes("my-group"), "Should include group ID");
+            assert.ok(result.includes("Non-empty group"), "Should include error detail");
+        });
+    });
 });

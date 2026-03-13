@@ -113,4 +113,39 @@ suite("PlatformaticProducerAdapter Test Suite", () => {
         const sendCall = mock.calls["send"][0][0];
         assert.strictEqual(sendCall.acks, -1);
     });
+
+    test("send preserves Buffer key and value without coercion", async () => {
+        const mock = createMockProducer();
+        const adapter = new PlatformaticProducerAdapter(mock as any);
+
+        const binaryKey = Buffer.from([0x00, 0x01, 0x02, 0xff]);
+        const binaryValue = Buffer.from([0xde, 0xad, 0xbe, 0xef]);
+
+        await adapter.send({
+            topic: "t",
+            messages: [{ key: binaryKey as any, value: binaryValue as any }],
+        });
+
+        const msg = mock.calls["send"][0][0].messages[0];
+        assert.ok(Buffer.isBuffer(msg.key));
+        assert.ok(Buffer.isBuffer(msg.value));
+        assert.ok(msg.key.equals(binaryKey), "Binary key should be preserved exactly");
+        assert.ok(msg.value.equals(binaryValue), "Binary value should be preserved exactly");
+    });
+
+    test("send does not corrupt Buffer with null bytes", async () => {
+        const mock = createMockProducer();
+        const adapter = new PlatformaticProducerAdapter(mock as any);
+
+        const value = Buffer.from([0x00, 0x00, 0x01]);
+
+        await adapter.send({
+            topic: "t",
+            messages: [{ value: value as any }],
+        });
+
+        const msg = mock.calls["send"][0][0].messages[0];
+        assert.strictEqual(msg.value.length, 3, "Buffer length should be preserved");
+        assert.ok(msg.value.equals(value));
+    });
 });

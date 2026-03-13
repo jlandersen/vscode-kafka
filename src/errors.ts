@@ -44,39 +44,32 @@ interface KafkaJSError extends Error {
     retryTime?: number;
 }
 
-/**
- * Type guard to check if error is a KafkaJSDeleteGroupsError
- */
 function isKafkaJSDeleteGroupsError(error: any): error is KafkaJSDeleteGroupsError {
-    return error && error.name === 'KafkaJSDeleteGroupsError' && Array.isArray(error.groups);
+    return error && Array.isArray(error.groups);
 }
 
-/**
- * Type guard to check if error is a KafkaJSProtocolError
- */
 function isKafkaJSProtocolError(error: any): error is KafkaJSProtocolError {
-    return error && error.name === 'KafkaJSProtocolError' && (error.code !== undefined || error.type !== undefined);
+    if (!error) { return false; }
+    if (error.code === 'PLT_KFK_PROTOCOL' || error.code === 'PLT_KFK_RESPONSE') { return true; }
+    return error.name === 'KafkaJSProtocolError' && (error.code !== undefined || error.type !== undefined);
 }
 
-/**
- * Type guard to check if error is a KafkaJSConnectionError
- */
 function isKafkaJSConnectionError(error: any): error is KafkaJSConnectionError {
-    return error && error.name === 'KafkaJSConnectionError' && error.broker !== undefined;
+    if (!error) { return false; }
+    if (error.code === 'PLT_KFK_NETWORK' && error.broker !== undefined) { return true; }
+    return error.name === 'KafkaJSConnectionError' && error.broker !== undefined;
 }
 
-/**
- * Type guard to check if error is a KafkaJSRequestTimeoutError
- */
 function isKafkaJSRequestTimeoutError(error: any): error is KafkaJSRequestTimeoutError {
-    return error && error.name === 'KafkaJSRequestTimeoutError';
+    if (!error) { return false; }
+    if (error.code === 'PLT_KFK_TIMEOUT') { return true; }
+    return error.name === 'KafkaJSRequestTimeoutError';
 }
 
-/**
- * Type guard to check if error is a KafkaJSError with additional metadata
- */
 function isKafkaJSError(error: any): error is KafkaJSError {
-    return error && typeof error.name === 'string' && error.name.startsWith('KafkaJS');
+    if (!error) { return false; }
+    if (typeof error.code === 'string' && error.code.startsWith('PLT_KFK_')) { return true; }
+    return typeof error.name === 'string' && error.name.startsWith('KafkaJS');
 }
 
 /**
