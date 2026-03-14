@@ -1,7 +1,7 @@
 # Change Log
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
-## Unreleased
+## [0.28.0] - 2026-03-14
 
 ### Changed
 - **Kafka Client Migration**: Migrated from kafkajs to @platformatic/kafka. The extension now ships platform-specific builds (e.g. darwin-arm64, linux-x64) instead of a single universal package.
