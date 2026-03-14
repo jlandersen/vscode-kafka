@@ -42,8 +42,11 @@ export class PlatformaticProducerAdapter implements KafkaProducer {
             partition: m.partition,
             headers: m.headers ? new Map(
                 Object.entries(m.headers)
-                    .filter((entry): entry is [string, Buffer | string] => entry[1] !== undefined && !Array.isArray(entry[1]))
-                    .map(([k, v]) => [Buffer.from(k), Buffer.from(typeof v === 'string' ? v : v)])
+                    .filter((entry): entry is [string, Buffer | string | (Buffer | string)[]] => entry[1] !== undefined)
+                    .flatMap(([k, v]) => {
+                        const values = Array.isArray(v) ? v : [v];
+                        return values.map(val => [Buffer.from(k), Buffer.from(typeof val === 'string' ? val : val)] as [Buffer, Buffer]);
+                    })
             ) : undefined,
             timestamp: m.timestamp ? BigInt(m.timestamp) : undefined,
         }));

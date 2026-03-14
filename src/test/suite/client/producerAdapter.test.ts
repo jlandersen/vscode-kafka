@@ -86,6 +86,50 @@ suite("PlatformaticProducerAdapter Test Suite", () => {
         assert.strictEqual(msg.headers.size, 2);
     });
 
+    test("send converts array-valued headers", async () => {
+        const mock = createMockProducer();
+        const adapter = new PlatformaticProducerAdapter(mock as any);
+
+        await adapter.send({
+            topic: "t",
+            messages: [{
+                value: "v",
+                headers: {
+                    "x-multi": [Buffer.from("a"), Buffer.from("b")],
+                    "x-single": "solo",
+                },
+            }],
+        });
+
+        const msg = mock.calls["send"][0][0].messages[0];
+        assert.ok(msg.headers instanceof Map);
+        const entries = Array.from(msg.headers.entries()) as [Buffer, Buffer][];
+        const keys = entries.map(([k]) => k.toString());
+        assert.ok(keys.includes("x-multi"), "Array header key should be present in the Map");
+        assert.ok(keys.includes("x-single"), "Scalar header key should be present in the Map");
+    });
+
+    test("send excludes undefined headers but keeps arrays and scalars", async () => {
+        const mock = createMockProducer();
+        const adapter = new PlatformaticProducerAdapter(mock as any);
+
+        await adapter.send({
+            topic: "t",
+            messages: [{
+                value: "v",
+                headers: {
+                    "keep-string": "yes",
+                    "keep-array": [Buffer.from("a")],
+                    "drop-me": undefined,
+                },
+            }],
+        });
+
+        const msg = mock.calls["send"][0][0].messages[0];
+        assert.ok(msg.headers instanceof Map);
+        assert.strictEqual(msg.headers.size, 2, "undefined header should be dropped, array header should be kept");
+    });
+
     test("send passes compression option", async () => {
         const mock = createMockProducer();
         const adapter = new PlatformaticProducerAdapter(mock as any);
