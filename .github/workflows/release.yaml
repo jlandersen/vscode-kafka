@@ -126,17 +126,12 @@ jobs:
     needs: [build-vsix]
     runs-on: ubuntu-latest
     steps:
-      - name: Download linux-x64 VSIX
+      - name: Download all VSIX artifacts
         uses: actions/download-artifact@v4
         with:
-          name: vsix-linux-x64
-          path: vsix/linux-x64
-
-      - name: Download linux-arm64 VSIX
-        uses: actions/download-artifact@v4
-        with:
-          name: vsix-linux-arm64
-          path: vsix/linux-arm64
+          pattern: vsix-*
+          path: vsix
+          merge-multiple: true
 
       - name: Install VS Code CLI
         run: |
@@ -144,17 +139,18 @@ jobs:
           sudo dpkg -i vscode.deb || sudo apt-get install -f -y
           rm -f vscode.deb
 
-      - name: Smoke test installable linux-x64 VSIX
+      - name: Smoke test linux-x64 VSIX
         run: |
-          VSIX="$(find vsix/linux-x64 -name '*.vsix' -print -quit)"
-          code --user-data-dir "$RUNNER_TEMP/vscode-user-data" --extensions-dir "$RUNNER_TEMP/vscode-extensions" --install-extension "$VSIX" --force
+          code --user-data-dir "$RUNNER_TEMP/vscode-user-data" --extensions-dir "$RUNNER_TEMP/vscode-extensions" --install-extension vsix/vscode-kafka-linux-x64.vsix --force
           code --user-data-dir "$RUNNER_TEMP/vscode-user-data" --extensions-dir "$RUNNER_TEMP/vscode-extensions" --list-extensions | grep '^jeppeandersen\.vscode-kafka$'
 
-      - name: Validate non-host linux-arm64 artifact
+      - name: Validate non-host VSIX artifacts
         run: |
-          VSIX="$(find vsix/linux-arm64 -name '*.vsix' -print -quit)"
-          npx @vscode/vsce generate-manifest --packagePath "$VSIX" --out "$RUNNER_TEMP/linux-arm64.manifest"
-          test -s "$RUNNER_TEMP/linux-arm64.manifest"
+          for target in linux-arm64 win32-x64 win32-arm64 darwin-x64 darwin-arm64; do
+            npx @vscode/vsce generate-manifest --packagePath "vsix/vscode-kafka-$target.vsix" --out "$RUNNER_TEMP/$target.manifest"
+            test -s "$RUNNER_TEMP/$target.manifest"
+            echo "Validated $target"
+          done
 
   publish:
     needs: [build-vsix, smoke-test-vsix]
