@@ -9,7 +9,7 @@ import { ClientAccessor, ClientState } from ".";
 import { getClusterProvider } from "../kafka-extensions/registry";
 import { getWorkspaceSettings, WorkspaceSettings } from "../settings";
 import { TopicSortOption } from "../settings/workspace";
-import { ConsumerConfig, KafkaProducer, KafkaConsumer, PartitionOffset, TopicPartitionOffsets, ProducerRecord, RecordMetadata, KafkaClientConfig } from "./types";
+import { ConsumerConfig, KafkaProducer, KafkaConsumer, MessageHeaders, PartitionOffset, TopicPartitionOffsets, ProducerRecord, RecordMetadata, KafkaClientConfig } from "./types";
 
 const compressionMap: Record<number, CompressionAlgorithmValue> = {
     0: 'none',
@@ -153,11 +153,17 @@ export class PlatformaticConsumerAdapter implements KafkaConsumer {
 
         this.stream.on('data', (message: any) => {
             processing = processing.then(async () => {
-                const headers: Record<string, Buffer | string> = {};
+                const headers: MessageHeaders = {};
                 if (message.headers instanceof Map) {
                     for (const [k, v] of message.headers) {
-                        headers[typeof k === 'string' ? k : k.toString()] =
-                            typeof v === 'string' ? v : (v instanceof Buffer ? v : Buffer.from(String(v)));
+                        const key = typeof k === 'string' ? k : k.toString();
+                        const val = typeof v === 'string' ? v : (v instanceof Buffer ? v : Buffer.from(String(v)));
+                        const existing = headers[key];
+                        if (existing !== undefined) {
+                            headers[key] = Array.isArray(existing) ? [...existing, val] : [existing, val];
+                        } else {
+                            headers[key] = val;
+                        }
                     }
                 }
 

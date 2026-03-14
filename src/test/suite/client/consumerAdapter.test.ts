@@ -147,6 +147,43 @@ suite("PlatformaticConsumerAdapter Test Suite", () => {
             assert.strictEqual(msg.headers["x-custom"].toString(), "value");
         });
 
+        test("accumulates duplicate header keys into arrays", async () => {
+            const mock = createMockConsumer();
+            const adapter = new PlatformaticConsumerAdapter(mock as any);
+            const received: any[] = [];
+
+            await adapter.subscribe({ topic: "t" });
+            await adapter.run({
+                eachMessage: async (payload) => { received.push(payload); },
+            });
+
+            // Buffer keys with the same string value are distinct Map entries
+            const headers = new Map<Buffer | string, Buffer | string>();
+            headers.set(Buffer.from("x-trace"), Buffer.from("trace-1"));
+            headers.set(Buffer.from("x-trace"), Buffer.from("trace-2"));
+            headers.set("unique", "solo");
+
+            mock.mockStream.emit("data", {
+                topic: "t",
+                partition: 0,
+                key: Buffer.from("k"),
+                value: Buffer.from("v"),
+                timestamp: 100n,
+                offset: 0n,
+                headers,
+            });
+
+            await new Promise(r => setTimeout(r, 10));
+
+            assert.strictEqual(received.length, 1);
+            const msg = received[0].message;
+            assert.ok(Array.isArray(msg.headers["x-trace"]));
+            assert.strictEqual(msg.headers["x-trace"].length, 2);
+            assert.strictEqual(msg.headers["x-trace"][0].toString(), "trace-1");
+            assert.strictEqual(msg.headers["x-trace"][1].toString(), "trace-2");
+            assert.strictEqual(msg.headers["unique"], "solo");
+        });
+
         test("handles missing headers", async () => {
             const mock = createMockConsumer();
             const adapter = new PlatformaticConsumerAdapter(mock as any);
