@@ -528,12 +528,13 @@ export class PlatformaticClient implements Client {
         });
     }
 
-    public async consumer(config: ConsumerConfig): Promise<KafkaConsumer> {
+    public async consumer(config?: ConsumerConfig): Promise<KafkaConsumer> {
+        const resolvedConfig = config ?? { groupId: '' };
         const clientConfig = await this.getClientConfig();
-        const consumerConfig = buildConsumerConfig(clientConfig, config);
+        const consumerConfig = buildConsumerConfig(clientConfig, resolvedConfig);
 
         const consumer = new PlatformaticConsumer(consumerConfig as any);
-        return new PlatformaticConsumerAdapter(consumer, (config as any).partitions);
+        return new PlatformaticConsumerAdapter(consumer, (resolvedConfig as any).partitions);
     }
 
     async connect(): Promise<void> {
@@ -705,7 +706,7 @@ export class PlatformaticClient implements Client {
                 const high = latestByPartition.get(partition.partitionIndex)?.toString() ?? '?';
                 const low = earliestByPartition.get(partition.partitionIndex)?.toString() ?? '?';
                 const offset = partition.committedOffset.toString();
-                const lag = high !== '?' ? (parseInt(high) - parseInt(offset)).toString() : '?';
+                const lag = high !== '?' ? (BigInt(high) - BigInt(offset)).toString() : '?';
                 consumerGroupOffsets.push({
                     topic: topicName,
                     partition: partition.partitionIndex,
@@ -783,7 +784,7 @@ export class PlatformaticClient implements Client {
         const metadata = await admin.metadata({ topics: [topic] } as any);
         const topicMeta = metadata.topics.get(topic);
         if (!topicMeta) {
-            return [0];
+            return [];
         }
         return Array.from({ length: topicMeta.partitionsCount }, (_, i) => i);
     }
