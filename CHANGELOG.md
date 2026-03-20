@@ -1,6 +1,12 @@
 # Change Log
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- Fix SASL and SSL connections failing after 0.28.0 migration. The default cluster provider was not passing authentication and TLS settings to the Kafka client. [#258](https://github.com/jlandersen/vscode-kafka/issues/258)
+- Fixed the `sasl-plain` test cluster so Kafka starts correctly without trying to use the broker JAAS file for ZooKeeper SASL.
+
 ## [0.28.0] - 2026-03-14
 
 ### Changed
