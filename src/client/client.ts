@@ -309,6 +309,12 @@ export interface ConsumerGroupOffset {
     lag: string;
 }
 
+export interface PartitionOffsetSpec {
+    topic: string;
+    partition: number;
+    offset: string;
+}
+
 export interface Client extends Disposable {
     state: ClientState;
     cluster: Cluster;
@@ -322,6 +328,7 @@ export interface Client extends Disposable {
     getConsumerGroupIds(): Promise<string[]>;
     getConsumerGroupDetails(groupId: string): Promise<ConsumerGroup>;
     deleteConsumerGroups(groupIds: string[]): Promise<void>;
+    setConsumerGroupOffsets(groupId: string, offsets: PartitionOffsetSpec[]): Promise<void>;
     createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]>;
     deleteTopic(deleteTopicRequest: DeleteTopicRequest): Promise<void>;
     deleteTopicRecords(topic: string, partitions: PartitionOffset[]): Promise<void>;
@@ -387,6 +394,11 @@ class EnsureConnectedDecorator implements Client {
     public async deleteConsumerGroups(groupIds: string[]): Promise<void> {
         await this.waitUntilConnected();
         return await this.client.deleteConsumerGroups(groupIds);
+    }
+
+    public async setConsumerGroupOffsets(groupId: string, offsets: PartitionOffsetSpec[]): Promise<void> {
+        await this.waitUntilConnected();
+        return await this.client.setConsumerGroupOffsets(groupId, offsets);
     }
 
     public async createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]> {
@@ -755,6 +767,42 @@ export class PlatformaticClient implements Client {
     async deleteConsumerGroups(groupIds: string[]): Promise<void> {
         const admin = await this.getKafkaAdminClient();
         await admin.deleteGroups({ groups: groupIds });
+    }
+
+    private async ensureGroupInactive(admin: Admin, groupId: string): Promise<void> {
+        const groupDetails = await admin.describeGroups({ groups: [groupId] });
+        const group = groupDetails.get(groupId);
+        if (group) {
+            const state = group.state?.toUpperCase();
+            if (state !== 'EMPTY' && state !== 'DEAD') {
+                throw new Error(
+                    `Consumer group '${groupId}' is in state '${group.state}'. ` +
+                    `Offsets can only be modified when the group is Empty or Dead. Stop all consumers first.`
+                );
+            }
+        }
+    }
+
+    async setConsumerGroupOffsets(groupId: string, offsets: PartitionOffsetSpec[]): Promise<void> {
+        const admin = await this.getKafkaAdminClient();
+        await this.ensureGroupInactive(admin, groupId);
+
+        const topicMap = new Map<string, { partition: number; offset: bigint }[]>();
+        for (const spec of offsets) {
+            let arr = topicMap.get(spec.topic);
+            if (!arr) {
+                arr = [];
+                topicMap.set(spec.topic, arr);
+            }
+            arr.push({ partition: spec.partition, offset: BigInt(spec.offset) });
+        }
+
+        const topics = Array.from(topicMap.entries()).map(([name, partitionOffsets]) => ({
+            name,
+            partitionOffsets,
+        }));
+
+        await admin.alterConsumerGroupOffsets({ groupId, topics });
     }
 
     async createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]> {
