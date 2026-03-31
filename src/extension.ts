@@ -9,6 +9,8 @@ import {
     DeleteClusterRequest,
     DeleteConsumerGroupCommand,
     DeleteConsumerGroupCommandHandler,
+    EditConsumerGroupOffsetsCommand,
+    EditConsumerGroupOffsetsCommandHandler,
     DeleteTopicCommandHandler,
     DeleteTopicRecordsCommandHandler,
     DumpBrokerMetadataCommandHandler,
@@ -136,6 +138,8 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     const stopConsumerCommandHandler = new StopConsumerCommandHandler(clientAccessor, consumerCollection, explorer);
     const listConsumersCommandHandler = new ListConsumersCommandHandler(consumerCollection, consumerTableViewProvider);
     const deleteConsumerGroupCommandHandler = new DeleteConsumerGroupCommandHandler(clientAccessor, consumerCollection, explorer);
+    const editConsumerGroupOffsetsCommandHandler = new EditConsumerGroupOffsetsCommandHandler(clientAccessor, explorer, context.extensionUri);
+    context.subscriptions.push(editConsumerGroupOffsetsCommandHandler);
     const addClusterCommandHandler = new AddClusterCommandHandler(clusterSettings, schemaRegistrySettings, clientAccessor, explorer, context);
     const saveClusterCommandHandler = new SaveClusterCommandHandler(clusterSettings, explorer);
     const deleteClusterCommandHandler = new DeleteClusterCommandHandler(clusterSettings, clientAccessor, explorer, consumerCollection);
@@ -244,6 +248,9 @@ export function activate(context: vscode.ExtensionContext): KafkaExtensionPartic
     context.subscriptions.push(vscode.commands.registerCommand(
         DeleteConsumerGroupCommandHandler.commandId,
         handleErrors((command: DeleteConsumerGroupCommand) => deleteConsumerGroupCommandHandler.execute(command))));
+    context.subscriptions.push(vscode.commands.registerCommand(
+        EditConsumerGroupOffsetsCommandHandler.commandId,
+        handleErrors((command: EditConsumerGroupOffsetsCommand) => editConsumerGroupOffsetsCommandHandler.execute(command))));
     context.subscriptions.push(vscode.commands.registerCommand(ProduceRecordCommandHandler.commandId,
         handleErrors((command: ProduceRecordCommand, times: number) => produceRecordCommandHandler.execute(command, times))));
     context.subscriptions.push(vscode.commands.registerCommand(ProduceRecordWithInputCommandHandler.commandId,

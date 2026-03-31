@@ -600,6 +600,12 @@
 				"category": "Kafka"
 			},
 			{
+				"command": "vscode-kafka.consumer.editoffsets",
+				"title": "Edit Consumer Group Offsets",
+				"category": "Kafka",
+				"icon": "$(history)"
+			},
+			{
 				"command": "vscode-kafka.discover.clusterproviders",
 				"title": "Discover Cluster Providers",
 				"category": "Kafka",
@@ -726,9 +732,19 @@
 					"group": "1_kafka"
 				},
 				{
+					"command": "vscode-kafka.consumer.editoffsets",
+					"when": "view == kafkaExplorer && viewItem == consumergroupitem && !listMultiSelection",
+					"group": "1_kafka"
+				},
+				{
 					"command": "vscode-kafka.explorer.copylabel",
 					"when": "view == kafkaExplorer",
 					"group": "2_cutcopypaste"
+				},
+				{
+					"command": "vscode-kafka.consumer.editoffsets",
+					"when": "view == kafkaExplorer && viewItem == consumergroupitem && !listMultiSelection",
+					"group": "inline"
 				},
 				{
 					"command": "vscode-kafka.explorer.deleteselected",
