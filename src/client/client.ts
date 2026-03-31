@@ -447,6 +447,7 @@ export interface PlatformaticClientConfig {
     clientId: string;
     bootstrapBrokers: string[];
     tls?: Record<string, unknown>;
+    tlsServerName?: boolean | string;
     sasl?: Record<string, unknown>;
     connectTimeout?: number;
     requestTimeout?: number;
@@ -881,6 +882,7 @@ export function convertToClientConfig(config: KafkaClientConfig): PlatformaticCl
     };
     if (config.ssl) {
         result.tls = typeof config.ssl === 'boolean' ? {} : config.ssl;
+        result.tlsServerName = true;
     }
     if (config.sasl) {
         const { mechanism, ...rest } = config.sasl;
@@ -928,6 +930,7 @@ export const createDefaultKafkaConfig = (connectionOptions: ConnectionOptions): 
     const tls = createTls(connectionOptions);
     if (tls) {
         result.tls = tls;
+        result.tlsServerName = true;
     }
 
     return result;
