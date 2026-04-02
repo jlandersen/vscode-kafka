@@ -131,6 +131,7 @@ export interface KafkaClientConfig {
         cert?: Buffer | string;
         passphrase?: string;
         rejectUnauthorized?: boolean;
+        serverName?: boolean;
     };
     sasl?: {
         mechanism: string;

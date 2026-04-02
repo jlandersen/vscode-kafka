@@ -243,6 +243,7 @@ export interface SslOption {
     rejectUnauthorized?: boolean;
     truststore?: string;
     truststorePassword?: string;
+    serverName?: boolean;
 }
 
 export interface Broker {
@@ -881,8 +882,12 @@ export function convertToClientConfig(config: KafkaClientConfig): PlatformaticCl
         bootstrapBrokers: config.brokers,
     };
     if (config.ssl) {
-        result.tls = typeof config.ssl === 'boolean' ? {} : config.ssl;
-        result.tlsServerName = true;
+        const sslObj = typeof config.ssl === 'boolean' ? undefined : config.ssl;
+        result.tls = sslObj ? { ...sslObj } : {};
+        if (sslObj?.serverName) {
+            delete (result.tls as Record<string, unknown>).serverName;
+            result.tlsServerName = true;
+        }
     }
     if (config.sasl) {
         const { mechanism, ...rest } = config.sasl;
@@ -930,7 +935,10 @@ export const createDefaultKafkaConfig = (connectionOptions: ConnectionOptions): 
     const tls = createTls(connectionOptions);
     if (tls) {
         result.tls = tls;
-        result.tlsServerName = true;
+        const sslOption = typeof connectionOptions.ssl === 'object' ? connectionOptions.ssl : undefined;
+        if (sslOption?.serverName) {
+            result.tlsServerName = true;
+        }
     }
 
     return result;

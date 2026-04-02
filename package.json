@@ -281,6 +281,11 @@
 												"type": "boolean",
 												"description": "Verify SSL certificate hostname",
 												"default": true
+											},
+											"serverName": {
+												"type": "boolean",
+												"description": "Send the broker hostname during TLS handshake (SNI). Enable when connecting through a proxy or load balancer.",
+												"default": false
 											}
 										}
 									}

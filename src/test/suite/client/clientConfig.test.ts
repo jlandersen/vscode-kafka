@@ -46,6 +46,33 @@ suite("Convert To Client Config Test Suite", () => {
             const result = convertToClientConfig({ brokers: ["b:9092"], ssl: sslConfig });
             assert.deepStrictEqual(result.tls, sslConfig);
         });
+
+        test("no tlsServerName when ssl is true (boolean)", () => {
+            const result = convertToClientConfig({ brokers: ["b:9092"], ssl: true });
+            assert.strictEqual(result.tlsServerName, undefined);
+        });
+
+        test("no tlsServerName when ssl object has no serverName", () => {
+            const result = convertToClientConfig({ brokers: ["b:9092"], ssl: { ca: "cert" } });
+            assert.strictEqual(result.tlsServerName, undefined);
+        });
+
+        test("sets tlsServerName when ssl.serverName is true", () => {
+            const result = convertToClientConfig({
+                brokers: ["b:9092"],
+                ssl: { ca: "cert", serverName: true },
+            });
+            assert.strictEqual(result.tlsServerName, true);
+        });
+
+        test("strips serverName from tls object", () => {
+            const result = convertToClientConfig({
+                brokers: ["b:9092"],
+                ssl: { ca: "cert", serverName: true },
+            });
+            assert.strictEqual((result.tls as any).serverName, undefined);
+            assert.strictEqual((result.tls as any).ca, "cert");
+        });
     });
 
     suite("SASL mechanism uppercasing", () => {
