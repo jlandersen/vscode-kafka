@@ -89,6 +89,7 @@ const CLUSTER_SSL_PASSPHRASE_FIELD = "ssl.passphrase";
 const CLUSTER_SSL_TRUSTSTORE_FIELD = "ssl.truststore";
 const CLUSTER_SSL_TRUSTSTORE_PASSWORD_FIELD = "ssl.truststorePassword";
 const CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD = "ssl.rejectUnauthorized";
+const CLUSTER_SSL_SERVER_NAME_FIELD = "ssl.serverName";
 // Schema Registry fields
 const CLUSTER_SCHEMA_REGISTRY_ID_FIELD = "schemaRegistryId";
 
@@ -469,6 +470,13 @@ function createFields(schemaRegistrySettings: SchemaRegistrySettings, cluster?: 
                     description: "When disabled, accepts self-signed certificates and hostname mismatches. Use only for development!",
                     initialValue: tlsConnectionOptions?.rejectUnauthorized !== false ? 'true' : undefined,
                     type: "checkbox"
+                },
+                {
+                    id: CLUSTER_SSL_SERVER_NAME_FIELD,
+                    label: "Use Server Name Indication (SNI)",
+                    description: "Send the broker hostname during the TLS handshake. Enable when connecting through a proxy or load balancer.",
+                    initialValue: tlsConnectionOptions?.serverName ? 'true' : undefined,
+                    type: "checkbox"
                 }
             ]
         },
@@ -726,6 +734,7 @@ function createValidator(validationContext: ValidationContext) {
         setFieldState(fieldRefresh, CLUSTER_SSL_TRUSTSTORE_FIELD, { enabled: sslEnabled });
         setFieldState(fieldRefresh, CLUSTER_SSL_TRUSTSTORE_PASSWORD_FIELD, { enabled: sslEnabled });
         setFieldState(fieldRefresh, CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD, { enabled: sslEnabled });
+        setFieldState(fieldRefresh, CLUSTER_SSL_SERVER_NAME_FIELD, { enabled: sslEnabled });
 
         return { items: diagnostics, fieldRefresh };
     };
@@ -804,9 +813,10 @@ function createSsl(data: any): SslOption | boolean {
     const truststore = data[CLUSTER_SSL_TRUSTSTORE_FIELD];
     const truststorePassword = data[CLUSTER_SSL_TRUSTSTORE_PASSWORD_FIELD];
     const rejectUnauthorized = data[CLUSTER_SSL_REJECT_UNAUTHORIZED_FIELD];
+    const serverName = data[CLUSTER_SSL_SERVER_NAME_FIELD] === true || data[CLUSTER_SSL_SERVER_NAME_FIELD] === 'true';
     
     // If any SSL certificate option is configured, return SslOption object
-    if (ca || key || cert || passphrase || truststore || truststorePassword) {
+    if (ca || key || cert || passphrase || truststore || truststorePassword || serverName) {
         const sslOption: SslOption = {
             ca,
             key,
@@ -820,6 +830,10 @@ function createSsl(data: any): SslOption | boolean {
         // (defaults to true if undefined, which is secure by default)
         if (rejectUnauthorized === false || rejectUnauthorized === 'false') {
             sslOption.rejectUnauthorized = false;
+        }
+
+        if (serverName) {
+            sslOption.serverName = true;
         }
         
         return sslOption;
