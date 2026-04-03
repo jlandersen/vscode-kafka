@@ -3,6 +3,9 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **TLS SNI Setting**: Added a `serverName` SSL setting so cluster connections can opt in to sending the current broker hostname during the TLS handshake.
+
 ## [0.28.1] - 2026-03-20
 
 ### Fixed

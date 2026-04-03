@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { convertToClientConfig } from "../../../client/client";
+import { convertToClientConfig, createDefaultKafkaConfig } from "../../../client/client";
 
 suite("Convert To Client Config Test Suite", () => {
 
@@ -147,6 +147,46 @@ suite("Convert To Client Config Test Suite", () => {
         test("maps requestTimeout", () => {
             const result = convertToClientConfig({ brokers: ["b:9092"], requestTimeout: 30000 });
             assert.strictEqual(result.requestTimeout, 30000);
+        });
+    });
+});
+
+suite("Create Default Kafka Config Test Suite", () => {
+
+    suite("TLS mapping", () => {
+
+        test("no tlsServerName when ssl is true (boolean)", () => {
+            const result = createDefaultKafkaConfig({ bootstrap: "b:9092", ssl: true });
+            assert.strictEqual(result.tlsServerName, undefined);
+            assert.deepStrictEqual(result.tls, {});
+        });
+
+        test("no tlsServerName when ssl object has no serverName", () => {
+            const result = createDefaultKafkaConfig({
+                bootstrap: "b:9092",
+                ssl: { rejectUnauthorized: false },
+            });
+            assert.strictEqual(result.tlsServerName, undefined);
+            assert.deepStrictEqual(result.tls, { rejectUnauthorized: false });
+        });
+
+        test("sets tlsServerName when ssl.serverName is true", () => {
+            const result = createDefaultKafkaConfig({
+                bootstrap: "b:9092",
+                ssl: { serverName: true },
+            });
+            assert.strictEqual(result.tlsServerName, true);
+            assert.deepStrictEqual(result.tls, {});
+        });
+
+        test("keeps tls options while excluding serverName from tls", () => {
+            const result = createDefaultKafkaConfig({
+                bootstrap: "b:9092",
+                ssl: { rejectUnauthorized: false, serverName: true },
+            });
+            assert.strictEqual(result.tlsServerName, true);
+            assert.strictEqual((result.tls as any).serverName, undefined);
+            assert.deepStrictEqual(result.tls, { rejectUnauthorized: false });
         });
     });
 });
