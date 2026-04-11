@@ -798,6 +798,11 @@ export class PlatformaticClient implements Client {
                 arr = [];
                 topicMap.set(spec.topic, arr);
             }
+            if (!/^\d+$/.test(spec.offset)) {
+                throw new Error(
+                    `Invalid offset '${spec.offset}' for ${spec.topic}[${spec.partition}]. Offset must be a non-negative integer.`
+                );
+            }
             arr.push({ partition: spec.partition, offset: BigInt(spec.offset) });
         }
 
