@@ -811,7 +811,15 @@ export class PlatformaticClient implements Client {
             partitionOffsets,
         }));
 
-        await admin.alterConsumerGroupOffsets({ groupId, topics });
+        try {
+            await admin.alterConsumerGroupOffsets({ groupId, topics });
+        } catch (err: any) {
+            // The library throws MultipleErrors wrapping per-partition error codes
+            // (OFFSET_OUT_OF_RANGE, GROUP_SUBSCRIBED_TO_TOPIC, etc.).
+            // Unwrap for a clearer message.
+            const detail = err?.errors?.map((e: Error) => e.message).join('; ') ?? err?.message ?? String(err);
+            throw new Error(`Failed to alter offsets for group '${groupId}': ${detail}`);
+        }
     }
 
     async createTopic(createTopicRequest: CreateTopicRequest): Promise<any[]> {
