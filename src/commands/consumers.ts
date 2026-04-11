@@ -239,11 +239,16 @@ export interface EditConsumerGroupOffsetsCommand {
     consumerGroupId: string;
 }
 
+type OffsetsWebviewMessage = {
+    command: 'submitOffsets';
+    offsets: { topic: string; partition: number; offset: string }[];
+};
+
 export class EditConsumerGroupOffsetsCommandHandler implements vscode.Disposable {
 
     public static commandId = 'vscode-kafka.consumer.editoffsets';
 
-    private panel: vscode.WebviewPanel | undefined;
+    private panels = new Map<string, vscode.WebviewPanel>();
 
     constructor(
         private clientAccessor: ClientAccessor,
@@ -282,25 +287,28 @@ export class EditConsumerGroupOffsetsCommandHandler implements vscode.Disposable
             return a.partition - b.partition;
         });
 
-        if (this.panel) {
-            this.panel.dispose();
+        const existing = this.panels.get(groupId);
+        if (existing) {
+            existing.reveal();
+            return;
         }
 
-        this.panel = vscode.window.createWebviewPanel(
+        const panel = vscode.window.createWebviewPanel(
             'kafkaEditOffsets',
             `Edit Offsets: ${groupId}`,
             vscode.ViewColumn.Active,
-            { enableScripts: true, retainContextWhenHidden: false, localResourceRoots: [this.extensionUri] }
+            { enableScripts: true, retainContextWhenHidden: true, localResourceRoots: [this.extensionUri] }
         );
+        this.panels.set(groupId, panel);
 
-        this.panel.webview.html = this.getWebviewContent(groupId, groupDetails.state, offsets);
+        panel.webview.html = this.getWebviewContent(groupId, groupDetails.state, offsets);
 
-        const messageListener = this.panel.webview.onDidReceiveMessage(async (message: any) => {
+        const messageListener = panel.webview.onDidReceiveMessage(async (message: OffsetsWebviewMessage) => {
             if (message.command !== 'submitOffsets') {
                 return;
             }
 
-            const changed: { topic: string; partition: number; offset: string }[] = message.offsets;
+            const changed = message.offsets;
             if (!changed || changed.length === 0) {
                 vscode.window.showWarningMessage('No offsets were changed.');
                 return;
@@ -316,37 +324,41 @@ export class EditConsumerGroupOffsetsCommandHandler implements vscode.Disposable
                 });
 
                 this.explorer.refresh();
-                this.panel?.dispose();
+                panel.dispose();
                 vscode.window.showInformationMessage(
                     `Updated ${changed.length} partition offset(s) for '${groupId}' successfully`
                 );
             } catch (error) {
-                this.panel?.webview.postMessage({ command: 'error', message: getErrorMessage(error) });
+                panel.webview.postMessage({ command: 'error', message: getErrorMessage(error) });
                 vscode.window.showErrorMessage(`Error setting consumer group offsets: ${getErrorMessage(error)}`);
             }
         });
 
-        this.panel.onDidDispose(() => {
+        panel.onDidDispose(() => {
             messageListener.dispose();
-            this.panel = undefined;
+            this.panels.delete(groupId);
         });
     }
 
     private getWebviewContent(groupId: string, state: string, offsets: ConsumerGroupOffset[]): string {
+        const fmtCell = (val: string) => val === '?'
+            ? `<span class="unavailable">N/A</span>`
+            : this.escapeHtml(val);
+
         const rowsHtml = offsets.map((o, i) => `
             <tr>
                 <td>${this.escapeHtml(o.topic)}</td>
-                <td>${o.partition}</td>
-                <td class="num">${o.start}</td>
-                <td class="num">${o.end}</td>
-                <td class="num">${o.offset}</td>
-                <td class="num">${o.lag}</td>
+                <td>${this.escapeHtml(String(o.partition))}</td>
+                <td class="num">${fmtCell(o.start)}</td>
+                <td class="num">${fmtCell(o.end)}</td>
+                <td class="num">${this.escapeHtml(o.offset)}</td>
+                <td class="num">${fmtCell(o.lag)}</td>
                 <td>
                     <input type="text" class="offset-input" id="offset-${i}"
                            data-topic="${this.escapeHtml(o.topic)}"
-                           data-partition="${o.partition}"
-                           data-original="${o.offset}"
-                           placeholder="${o.offset}" />
+                           data-partition="${this.escapeHtml(String(o.partition))}"
+                           data-original="${this.escapeHtml(o.offset)}"
+                           placeholder="${this.escapeHtml(o.offset)}" />
                 </td>
             </tr>`).join('\n');
 
@@ -371,6 +383,7 @@ export class EditConsumerGroupOffsetsCommandHandler implements vscode.Disposable
         .offset-input { background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, var(--vscode-panel-border)); border-radius: 3px; padding: 3px 6px; width: 100%; box-sizing: border-box; font-family: var(--vscode-editor-font-family); font-size: 12px; }
         .offset-input.changed { border-color: var(--vscode-focusBorder); background: var(--vscode-inputValidation-infoBackground, var(--vscode-input-background)); }
         .offset-input.invalid { border-color: var(--vscode-errorForeground); }
+        .unavailable { color: var(--vscode-descriptionForeground); font-style: italic; }
         .error-bar { color: var(--vscode-errorForeground); padding: 8px; margin-bottom: 8px; display: none; }
     </style>
 </head>
@@ -418,11 +431,15 @@ export class EditConsumerGroupOffsetsCommandHandler implements vscode.Disposable
         const errorBarEl = document.getElementById('errorBar');
 
         function getStartOffset(input) {
-            return input.closest('tr').children[2].textContent;
+            return input.closest('tr').children[2].textContent.trim();
         }
 
         function getEndOffset(input) {
-            return input.closest('tr').children[3].textContent;
+            return input.closest('tr').children[3].textContent.trim();
+        }
+
+        function isAvailable(val) {
+            return val !== '' && val !== 'N/A' && /^\\d+$/.test(val);
         }
 
         function updateChangedCount() {
@@ -449,14 +466,16 @@ export class EditConsumerGroupOffsetsCommandHandler implements vscode.Disposable
 
         document.getElementById('fillEarliest').addEventListener('click', () => {
             inputs.forEach(input => {
-                input.value = getStartOffset(input);
+                const val = getStartOffset(input);
+                if (isAvailable(val)) { input.value = val; }
             });
             updateChangedCount();
         });
 
         document.getElementById('fillLatest').addEventListener('click', () => {
             inputs.forEach(input => {
-                input.value = getEndOffset(input);
+                const val = getEndOffset(input);
+                if (isAvailable(val)) { input.value = val; }
             });
             updateChangedCount();
         });
@@ -523,7 +542,10 @@ export class EditConsumerGroupOffsetsCommandHandler implements vscode.Disposable
     }
 
     dispose(): void {
-        this.panel?.dispose();
+        for (const panel of this.panels.values()) {
+            panel.dispose();
+        }
+        this.panels.clear();
     }
 }
 
