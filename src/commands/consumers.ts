@@ -1,8 +1,7 @@
 import * as vscode from "vscode";
 
 import { pickClient, pickConsumerGroupId, pickTopic } from "./common";
-import { ConsumerCollection, ClientAccessor, createConsumerUri, ConsumerInfoUri, ConsumerLaunchState } from "../client";
-import { ConsumerGroupOffset } from "../client/client";
+import { ConsumerCollection, ClientAccessor, createConsumerUri, ConsumerInfoUri, ConsumerLaunchState, ConsumerGroupOffset, ConsumerGroup } from "../client";
 import { KafkaExplorer } from "../explorer";
 import { ConsumerTableViewProvider } from "../providers";
 import { ProgressLocation, window } from "vscode";
@@ -264,7 +263,7 @@ export class EditConsumerGroupOffsetsCommandHandler implements vscode.Disposable
             return;
         }
 
-        let groupDetails;
+        let groupDetails: ConsumerGroup;
         try {
             groupDetails = await client.getConsumerGroupDetails(groupId);
         } catch (error) {
