@@ -772,14 +772,18 @@ export class PlatformaticClient implements Client {
     private async ensureGroupInactive(admin: Admin, groupId: string): Promise<void> {
         const groupDetails = await admin.describeGroups({ groups: [groupId] });
         const group = groupDetails.get(groupId);
-        if (group) {
-            const state = group.state?.toUpperCase();
-            if (state !== 'EMPTY' && state !== 'DEAD') {
-                throw new Error(
-                    `Consumer group '${groupId}' is in state '${group.state}'. ` +
-                    `Offsets can only be modified when the group is Empty or Dead. Stop all consumers first.`
-                );
-            }
+        if (!group) {
+            throw new Error(
+                `Unable to determine state of consumer group '${groupId}' — refusing to alter offsets.`
+            );
+        }
+
+        const state = group.state?.toUpperCase();
+        if (state !== 'EMPTY' && state !== 'DEAD') {
+            throw new Error(
+                `Consumer group '${groupId}' is in state '${group.state}'. ` +
+                `Offsets can only be modified when the group is Empty or Dead. Stop all consumers first.`
+            );
         }
     }
 
