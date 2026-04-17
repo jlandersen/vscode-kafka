@@ -850,7 +850,7 @@
 		"jks-js": "^1.1.5",
 		"js-yaml": "^4.1.1",
 		"mocha": "^11.7.5",
-		"protobufjs": "^8.0.0",
+		"protobufjs": "^8.0.1",
 		"testcontainers": "^11.13.0",
 		"ts-loader": "^9.5.4",
 		"typescript": "^5.9.3",
