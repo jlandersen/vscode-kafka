@@ -825,7 +825,7 @@
 		"pretest:integration": "npm run test-compile"
 	},
 	"dependencies": {
-		"@platformatic/kafka": "^1.31.0",
+		"@platformatic/kafka": "^1.33.0",
 		"ajv": "^8.18.0"
 	},
 	"devDependencies": {
@@ -850,7 +850,7 @@
 		"jks-js": "^1.1.5",
 		"js-yaml": "^4.1.1",
 		"mocha": "^11.7.5",
-		"protobufjs": "^8.0.0",
+		"protobufjs": "^8.0.1",
 		"testcontainers": "^11.13.0",
 		"ts-loader": "^9.5.4",
 		"typescript": "^5.9.3",
