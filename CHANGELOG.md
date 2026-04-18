@@ -1,6 +1,12 @@
 # Change Log
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- Hardened webview CSP handling for the consumer viewer, consumer group offset editor, and embedded documentation links.
+- Consumer message viewer now opens in the active editor column instead of beside it, working around a VS Code regression where webviews opened in a freshly-created split column did not render until the tab was switched.
+
 ## [0.30.0] - 2026-04-18
 
 ### Added

@@ -127,4 +127,93 @@ suite("ConsumerTableViewProvider Test Suite", () => {
         assert.deepStrictEqual(closedUris, [staleConsumerA.uri.toString(), staleConsumerB.uri.toString()]);
         assert.strictEqual(createdUris.length, 1);
     });
+
+    test("message viewer webview content includes CSP and ready handshake", () => {
+        const provider = new ConsumerTableViewProvider(
+            vscode.Uri.parse("file:///extension"),
+            {} as any,
+            { get: () => undefined } as any,
+            { consumerMessageViewerMaxBufferSize: 100 } as any
+        );
+        const webview = {
+            cspSource: "vscode-resource:",
+            asWebviewUri: (uri: vscode.Uri) => uri
+        };
+
+        const html = (provider as any).getWebviewContent(webview);
+
+        assert.ok(html.includes("Content-Security-Policy"));
+        assert.ok(html.includes("default-src 'none'; style-src vscode-resource: 'nonce-"));
+        assert.ok(html.includes("<style nonce=\""));
+        assert.ok(!html.includes("style=\""));
+        assert.ok(html.includes("post(\"Ready\")"));
+    });
+
+    test("ready handshake sends initial state when session exists", async () => {
+        const postedMessages: any[] = [];
+        const provider = new ConsumerTableViewProvider(
+            vscode.Uri.parse("file:///extension"),
+            { get: () => undefined } as any,
+            { get: () => ({ name: "Cluster 1" }) } as any,
+            { consumerMessageViewerMaxBufferSize: 100 } as any
+        );
+
+        (provider as any).panel = {
+            webview: {
+                postMessage: (message: any) => {
+                    postedMessages.push(message);
+                    return Promise.resolve(true);
+                }
+            }
+        };
+        (provider as any).activeConsumerUri = "kafka:cluster-1/group-1?topic=topic-1";
+        (provider as any).activeConsumerInfo = {
+            clusterId: "cluster-1",
+            consumerGroupId: "group-1",
+            topicId: "topic-1",
+            fromOffset: "latest"
+        };
+        (provider as any).session = {
+            getState: () => ({
+                streamState: "running",
+                page: 1,
+                pageSize: 100,
+                totalPages: 1,
+                totalMessages: 0,
+                filteredMessages: 0,
+                filteredBeforeTimeRange: 0,
+                maxBufferSize: 100,
+                searchQuery: "",
+                availablePartitions: [],
+                selectedFilterPartitions: [],
+                consumeMode: "latest",
+                consumeTimestamp: "",
+                consumedPartitions: ""
+            }),
+            getMessages: () => ({
+                page: 1,
+                pageSize: 100,
+                totalPages: 1,
+                messages: []
+            }),
+            getCounts: () => ({
+                total: 0,
+                filtered: 0,
+                filteredBeforeTimeRange: 0
+            }),
+            getHistogram: () => ({
+                bins: [],
+                minTimestampMs: undefined,
+                maxTimestampMs: undefined
+            })
+        };
+
+        await (provider as any).handleWebviewMessage({ command: "Ready" });
+
+        assert.ok(postedMessages.some((message) => message.command === "ConsumerInfo"));
+        assert.ok(postedMessages.some((message) => message.command === "ViewerState"));
+        assert.ok(postedMessages.some((message) => message.command === "Messages"));
+        assert.ok(postedMessages.some((message) => message.command === "MessagesCount"));
+        assert.ok(postedMessages.some((message) => message.command === "Histogram"));
+    });
 });

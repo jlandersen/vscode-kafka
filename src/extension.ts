@@ -1,4 +1,3 @@
-import * as path from 'path';
 import * as vscode from "vscode";
 import { Cluster, ConsumerCollection, getClientAccessor } from "./client";
 import { ProducerCollection } from "./client/producer";
@@ -41,7 +40,13 @@ import {
 } from "./commands";
 import { Context } from "./context";
 import { SecretsStorage } from "./settings/secretsStorage";
-import { markdownPreviewProvider } from "./docs/markdownPreviewProvider";
+import {
+    getDocumentationPagePath,
+    markdownPreviewProvider,
+    normalizeDocumentationPage,
+    normalizeDocumentationSection,
+    OPEN_DOCUMENTATION_PAGE_COMMAND
+} from "./docs/markdownPreviewProvider";
 import { BrokerItem, ExplorerRefreshTarget, KafkaExplorer, SchemaRegistryExplorer, TopicItem } from "./explorer";
 import { ClusterItem } from "./explorer/models/cluster";
 import { NodeBase } from "./explorer/models/nodeBase";
@@ -294,16 +299,24 @@ function registerVSCodeKafkaDocumentationCommands(context: vscode.ExtensionConte
     // Register commands for VSCode Kafka documentation
     context.subscriptions.push(markdownPreviewProvider);
     context.subscriptions.push(vscode.commands.registerCommand("vscode-kafka.open.docs.home", async () => {
-        const uri = 'README.md';
         const title = 'Kafka Documentation';
         const sectionId = '';
-        markdownPreviewProvider.show(context.asAbsolutePath(path.join('docs', uri)), title, sectionId, context);
+        markdownPreviewProvider.show(getDocumentationPagePath(context.extensionPath, "README"), title, sectionId, context);
     }));
-    context.subscriptions.push(vscode.commands.registerCommand("vscode-kafka.open.docs.page", async (params: { page: string, section: string }) => {
-        const page = params.page.endsWith('.md') ? params.page.substr(0, params.page.length - 3) : params.page;
-        const uri = page + '.md';
-        const sectionId = params.section || '';
+    context.subscriptions.push(vscode.commands.registerCommand(OPEN_DOCUMENTATION_PAGE_COMMAND, async (params: { page?: string, section?: string }) => {
+        const page = normalizeDocumentationPage(typeof params?.page === "string" ? params.page : "");
+        if (!page) {
+            vscode.window.showErrorMessage("Unable to open the requested documentation page.");
+            return;
+        }
+
+        const sectionId = normalizeDocumentationSection(typeof params?.section === "string" ? params.section : undefined);
+        if (sectionId === undefined) {
+            vscode.window.showErrorMessage("Unable to open the requested documentation section.");
+            return;
+        }
+
         const title = 'Kafka ' + page;
-        markdownPreviewProvider.show(context.asAbsolutePath(path.join('docs', uri)), title, sectionId, context);
+        markdownPreviewProvider.show(getDocumentationPagePath(context.extensionPath, page), title, sectionId, context);
     }));
 }

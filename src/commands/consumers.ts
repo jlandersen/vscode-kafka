@@ -7,6 +7,7 @@ import { ConsumerTableViewProvider } from "../providers";
 import { ProgressLocation, window } from "vscode";
 import { getErrorMessage } from "../errors";
 import { ConsumerValidator } from "../validators/consumer";
+import { getNonce } from "../webviewUtils";
 
 export interface LaunchConsumerCommand extends ConsumerInfoUri {
 
@@ -297,11 +298,15 @@ export class EditConsumerGroupOffsetsCommandHandler implements vscode.Disposable
             'kafkaEditOffsets',
             `Edit Offsets: ${groupId}`,
             vscode.ViewColumn.Active,
-            { enableScripts: true, retainContextWhenHidden: true, localResourceRoots: [this.extensionUri] }
+            {
+                enableScripts: true,
+                retainContextWhenHidden: true,
+                localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, "webview-resources")]
+            }
         );
         this.panels.set(groupId, panel);
 
-        panel.webview.html = this.getWebviewContent(groupId, groupDetails.state, offsets);
+        panel.webview.html = this.getWebviewContent(panel.webview, groupId, groupDetails.state, offsets);
 
         const messageListener = panel.webview.onDidReceiveMessage(async (message: OffsetsWebviewMessage) => {
             if (message.command !== 'submitOffsets') {
@@ -340,7 +345,9 @@ export class EditConsumerGroupOffsetsCommandHandler implements vscode.Disposable
         });
     }
 
-    private getWebviewContent(groupId: string, state: string, offsets: ConsumerGroupOffset[]): string {
+    private getWebviewContent(webview: vscode.Webview, groupId: string, state: string, offsets: ConsumerGroupOffset[]): string {
+        const nonce = getNonce();
+        const stylesheetUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "webview-resources", "edit-consumer-group-offsets.css"));
         const fmtCell = (val: string) => val === '?'
             ? `<span class="unavailable">N/A</span>`
             : this.escapeHtml(val);
@@ -366,26 +373,10 @@ export class EditConsumerGroupOffsetsCommandHandler implements vscode.Disposable
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Offsets: ${this.escapeHtml(groupId)}</title>
-    <style>
-        body { margin: 0; padding: 16px; color: var(--vscode-foreground); background: var(--vscode-editor-background); font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); }
-        h2 { margin: 0 0 4px 0; }
-        .subtitle { color: var(--vscode-descriptionForeground); margin-bottom: 16px; }
-        .toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
-        button { border: none; border-radius: 3px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); padding: 5px 12px; cursor: pointer; font-size: 12px; }
-        button:hover { background: var(--vscode-button-hoverBackground); }
-        button:disabled { opacity: 0.5; cursor: default; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid var(--vscode-panel-border); padding: 6px 10px; text-align: left; }
-        th { background: var(--vscode-editor-inactiveSelectionBackground); position: sticky; top: 0; z-index: 2; }
-        .num { text-align: right; font-variant-numeric: tabular-nums; }
-        .offset-input { background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, var(--vscode-panel-border)); border-radius: 3px; padding: 3px 6px; width: 100%; box-sizing: border-box; font-family: var(--vscode-editor-font-family); font-size: 12px; }
-        .offset-input.changed { border-color: var(--vscode-focusBorder); background: var(--vscode-inputValidation-infoBackground, var(--vscode-input-background)); }
-        .offset-input.invalid { border-color: var(--vscode-errorForeground); }
-        .unavailable { color: var(--vscode-descriptionForeground); font-style: italic; }
-        .error-bar { color: var(--vscode-errorForeground); padding: 8px; margin-bottom: 8px; display: none; }
-    </style>
+    <link rel="stylesheet" type="text/css" href="${stylesheetUri.toString()}">
 </head>
 <body>
     <h2>Edit Consumer Group Offsets</h2>
@@ -393,14 +384,14 @@ export class EditConsumerGroupOffsetsCommandHandler implements vscode.Disposable
         Group: <strong>${this.escapeHtml(groupId)}</strong>
         &nbsp;&middot;&nbsp;
         State: ${this.escapeHtml(state)}
-        <span id="changedCount" style="display:none; margin-left:8px"></span>
+        <span id="changedCount" class="changed-count"></span>
     </div>
 
     <div class="toolbar">
         <button id="fillEarliest" title="Set all to earliest (start) offset">Fill Earliest</button>
         <button id="fillLatest" title="Set all to latest (end) offset">Fill Latest</button>
         <button id="clearAll" title="Clear all new offset values">Clear All</button>
-        <span style="flex:1"></span>
+        <span class="toolbar-spacer"></span>
         <button id="submit">Apply Offsets</button>
     </div>
 
@@ -415,7 +406,7 @@ export class EditConsumerGroupOffsetsCommandHandler implements vscode.Disposable
                 <th>End</th>
                 <th>Current Offset</th>
                 <th>Lag</th>
-                <th style="min-width:120px">New Offset</th>
+                <th class="new-offset-column">New Offset</th>
             </tr>
         </thead>
         <tbody>
@@ -423,7 +414,7 @@ export class EditConsumerGroupOffsetsCommandHandler implements vscode.Disposable
         </tbody>
     </table>
 
-    <script>
+    <script nonce="${nonce}">
         const vscode = acquireVsCodeApi();
         const inputs = document.querySelectorAll('.offset-input');
         const submitBtn = document.getElementById('submit');

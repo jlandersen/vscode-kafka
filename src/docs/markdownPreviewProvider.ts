@@ -1,11 +1,40 @@
 import { Disposable, WebviewPanel, window, ViewColumn, commands, Uri, Webview, ExtensionContext, env } from "vscode";
 import * as fse from 'fs-extra';
 import * as path from 'path';
+import { getNonce } from "../webviewUtils";
 
 /**
      * Render markdown string to html string
      */
 const MARKDOWN_API_RENDER = 'markdown.api.render';
+const DOCUMENTATION_PAGES = ["README", "GettingStarted", "Explorer", "KafkaFile", "Producing", "Consuming"] as const;
+const VALID_DOCUMENTATION_SECTION = /^[A-Za-z0-9-]*$/;
+
+type DocumentationPage = typeof DOCUMENTATION_PAGES[number];
+
+export const OPEN_DOCUMENTATION_PAGE_COMMAND = "vscode-kafka.open.docs.page";
+
+function buildDocumentationPageUri(page: string, section: string): string {
+    return `command:${OPEN_DOCUMENTATION_PAGE_COMMAND}?${encodeURIComponent(JSON.stringify([{ page, section }]))}`;
+}
+
+export function normalizeDocumentationPage(page: string): DocumentationPage | undefined {
+    const normalizedPage = page.endsWith(".md") ? page.slice(0, -3) : page;
+    return (DOCUMENTATION_PAGES as readonly string[]).includes(normalizedPage)
+        ? normalizedPage as DocumentationPage
+        : undefined;
+}
+
+export function normalizeDocumentationSection(section: string | undefined): string | undefined {
+    const normalizedSection = section || "";
+    return VALID_DOCUMENTATION_SECTION.test(normalizedSection)
+        ? normalizedSection
+        : undefined;
+}
+
+export function getDocumentationPagePath(extensionPath: string, page: DocumentationPage): string {
+    return path.join(extensionPath, "docs", `${page}.md`);
+}
 
 class MarkdownPreviewProvider implements Disposable {
     private panel: WebviewPanel | undefined;
@@ -17,13 +46,13 @@ class MarkdownPreviewProvider implements Disposable {
         if (!this.panel) {
             this.panel = window.createWebviewPanel('vscode-kafka.markdownPreview', title, ViewColumn.Active, {
                 localResourceRoots: [
-                    Uri.file(path.join(context.extensionPath, 'webview-resources')),
-                    Uri.file(path.dirname(markdownFilePath)),
+                    Uri.joinPath(context.extensionUri, 'webview-resources'),
+                    Uri.joinPath(context.extensionUri, 'docs'),
                 ],
                 retainContextWhenHidden: true,
                 enableFindWidget: true,
                 enableScripts: true,
-                enableCommandUris: true
+                enableCommandUris: [OPEN_DOCUMENTATION_PAGE_COMMAND]
             });
         }
 
@@ -47,7 +76,7 @@ class MarkdownPreviewProvider implements Disposable {
     }
 
     protected async getHtmlContent(webview: Webview, markdownFilePath: string, section: string, context: ExtensionContext): Promise<string> {
-        const nonce: string = this.getNonce();
+        const nonce: string = getNonce();
         const styles: string = this.getStyles(webview, context);
         let body: string | undefined = this.documentCache.get(markdownFilePath);
         if (!body) {
@@ -59,7 +88,7 @@ class MarkdownPreviewProvider implements Disposable {
             // where $1, $2, $3 are non empty strings that are then passed to the replace function
             markdownString = markdownString.replace(/\[([^\]]+)\]\(([^#)]+)#([^)]*)\)/g,
                 (_match: string, linkText: string, page: string, section: string) => {
-                    return `<a href="command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22${page}%22%2C%22section%22%3A%22${section}%22%7D%5D">${linkText}</a>`;
+                    return `<a href="${buildDocumentationPageUri(page, section)}">${linkText}</a>`;
                 });
             body = await commands.executeCommand(MARKDOWN_API_RENDER, markdownString);
             if (body !== undefined) {
@@ -85,9 +114,12 @@ class MarkdownPreviewProvider implements Disposable {
                 </button>
                 <script nonce="${nonce}">
                     (function() {
-                        var element = document.querySelector('[id^="${section}"]');
-                        if (element) {
-                            element.scrollIntoView(true);
+                        const sectionPrefix = ${JSON.stringify(section)};
+                        if (sectionPrefix.length > 0) {
+                            var element = document.querySelector('[id^="' + sectionPrefix + '"]');
+                            if (element) {
+                                element.scrollIntoView(true);
+                            }
                         }
                         var backToTopBtn = document.getElementById('back-to-top-btn');
                         if (backToTopBtn) {
@@ -108,15 +140,6 @@ class MarkdownPreviewProvider implements Disposable {
         ];
         return styles.map((styleUri: Uri) => `<link rel="stylesheet" type="text/css" href="${webview.asWebviewUri(styleUri).toString()}">`).join('\n');
     }
-
-    private getNonce(): string {
-        let text = "";
-        const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        for (let i = 0; i < 32; i++) {
-            text += possible.charAt(Math.floor(Math.random() * possible.length));
-        }
-        return text;
-    }
 }
 
 export const markdownPreviewProvider: MarkdownPreviewProvider = new MarkdownPreviewProvider();
@@ -130,5 +153,5 @@ type ProducingSection = "serializer" | "kafka-file" | "randomized-content";
 export type EmbeddedSection = ConsumingSection | ProducingSection;
 
 export function getDocumentationPageUri(page: EmbeddedPage, section: EmbeddedSection) {
-    return `command:vscode-kafka.open.docs.page?%5B%7B%22page%22%3A%22${page}%22%2C%22section%22%3A%22${section}%22%7D%5D`;
+    return buildDocumentationPageUri(page, section);
 }

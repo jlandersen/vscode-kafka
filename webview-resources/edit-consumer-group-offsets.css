@@ -1,0 +1,114 @@
+body {
+    margin: 0;
+    padding: 16px;
+    color: var(--vscode-foreground);
+    background: var(--vscode-editor-background);
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+}
+
+h2 {
+    margin: 0 0 4px 0;
+}
+
+.subtitle {
+    color: var(--vscode-descriptionForeground);
+    margin-bottom: 16px;
+}
+
+.changed-count {
+    display: none;
+    margin-left: 8px;
+}
+
+.toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.toolbar-spacer {
+    flex: 1;
+}
+
+button {
+    border: none;
+    border-radius: 3px;
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+button:hover {
+    background: var(--vscode-button-hoverBackground);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    border: 1px solid var(--vscode-panel-border);
+    padding: 6px 10px;
+    text-align: left;
+}
+
+th {
+    background: var(--vscode-editor-inactiveSelectionBackground);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.new-offset-column {
+    min-width: 120px;
+}
+
+.offset-input {
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+    border-radius: 3px;
+    padding: 3px 6px;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: var(--vscode-editor-font-family);
+    font-size: 12px;
+}
+
+.offset-input.changed {
+    border-color: var(--vscode-focusBorder);
+    background: var(--vscode-inputValidation-infoBackground, var(--vscode-input-background));
+}
+
+.offset-input.invalid {
+    border-color: var(--vscode-errorForeground);
+}
+
+.unavailable {
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+}
+
+.error-bar {
+    color: var(--vscode-errorForeground);
+    padding: 8px;
+    margin-bottom: 8px;
+    display: none;
+}

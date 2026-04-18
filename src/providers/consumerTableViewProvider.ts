@@ -3,11 +3,13 @@ import { ConsumedRecord, Consumer, ConsumerCollection, ConsumerInfoUri, createCo
 import { ClusterSettings } from "../settings/clusters";
 import { WorkspaceSettings } from "../settings";
 import { ConsumerConsumeMode, ConsumerSession, ConsumerSessionConsumeSettings, ConsumerSessionMessage } from "./consumerSession";
+import { getNonce } from "../webviewUtils";
 
 const DEFAULT_BUFFER_SIZE = 5000;
 const RENDER_THROTTLE_MS = 50;
 
 type WebviewCommand =
+    | "Ready"
     | "GetMessages"
     | "GetMessagesCount"
     | "GetHistogram"
@@ -43,6 +45,7 @@ interface WebviewRequest {
 
 export class ConsumerTableViewProvider implements vscode.Disposable {
     private panel: vscode.WebviewPanel | undefined;
+    private panelReady = false;
     private disposables: vscode.Disposable[] = [];
     private consumerDisposables: vscode.Disposable[] = [];
     private session: ConsumerSession | undefined;
@@ -70,32 +73,29 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             this.createPanel();
         }
 
-        this.panel?.reveal(vscode.ViewColumn.Beside);
+        this.panel?.reveal(vscode.ViewColumn.Active);
 
         if (this.activeConsumerUri === consumerUri.toString()) {
-            this.sendConsumerInfo();
-            this.renderNow();
+            this.sendInitialStateIfReady();
             return;
         }
 
         this.bindConsumer(consumer, consumerUri.toString());
-        this.sendConsumerInfo();
-        this.renderNow();
+        this.sendInitialStateIfReady();
     }
 
     private createPanel(): void {
+        this.panelReady = false;
         this.panel = vscode.window.createWebviewPanel(
             "kafkaConsumerTable",
             "Kafka Consumer",
-            vscode.ViewColumn.Beside,
+            vscode.ViewColumn.Active,
             {
                 enableScripts: true,
                 retainContextWhenHidden: true,
-                localResourceRoots: [this.extensionUri]
+                localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, "webview-resources")]
             }
         );
-
-        this.panel.webview.html = this.getWebviewContent();
 
         this.disposables.push(
             this.panel.onDidDispose(() => {
@@ -104,12 +104,13 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 this.activeConsumerInfo = undefined;
                 this.consumer = undefined;
                 this.session = undefined;
+                this.panelReady = false;
                 this.clearRenderTimer();
                 this.disposeConsumerListeners();
             }),
             this.panel.onDidChangeViewState((event) => {
                 if (event.webviewPanel.visible) {
-                    this.renderNow();
+                    this.sendInitialStateIfReady();
                 }
             }),
             this.consumerCollection.onDidChangeCollection(() => {
@@ -119,6 +120,8 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 void this.handleWebviewMessage(message);
             })
         );
+
+        this.panel.webview.html = this.getWebviewContent(this.panel.webview);
     }
 
     private bindConsumer(consumer: Consumer, consumerUri: string): void {
@@ -161,37 +164,61 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
     }
 
     private async handleWebviewMessage(message: WebviewRequest): Promise<void> {
-        if (!this.session) {
-            return;
-        }
-
         switch (message.command) {
+            case "Ready":
+                this.panelReady = true;
+                this.sendInitialStateIfReady();
+                break;
             case "StartConsumer":
+                if (!this.session) {
+                    return;
+                }
                 await this.startActiveConsumer();
                 break;
             case "StopConsumer":
+                if (!this.session) {
+                    return;
+                }
                 await this.stopActiveConsumer();
                 break;
             case "GetMessages":
+                if (!this.session) {
+                    return;
+                }
                 this.session.setPagination(message.page, message.pageSize);
                 this.sendMessages();
                 this.sendViewerState();
                 break;
             case "GetMessagesCount":
+                if (!this.session) {
+                    return;
+                }
                 this.sendCounts();
                 break;
             case "GetHistogram":
+                if (!this.session) {
+                    return;
+                }
                 this.sendHistogram(message.binCount);
                 break;
             case "Pause":
+                if (!this.session) {
+                    return;
+                }
                 this.session.pause();
                 this.sendViewerState();
                 break;
             case "Resume":
+                if (!this.session) {
+                    return;
+                }
                 this.session.resume();
                 this.renderNow();
                 break;
             case "SearchMessages":
+                if (!this.session) {
+                    return;
+                }
                 this.session.setSearchQuery(message.query || "");
                 this.sendMessages();
                 this.sendViewerState();
@@ -199,6 +226,9 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 this.sendHistogram();
                 break;
             case "SetPartitionFilter":
+                if (!this.session) {
+                    return;
+                }
                 this.session.setPartitionFilter(message.partitions || []);
                 this.sendMessages();
                 this.sendViewerState();
@@ -206,6 +236,9 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 this.sendHistogram();
                 break;
             case "SetTimeRangeFilter":
+                if (!this.session) {
+                    return;
+                }
                 this.session.setTimeRangeFilter(message.startMs, message.endMs);
                 this.sendMessages();
                 this.sendViewerState();
@@ -213,6 +246,9 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 this.sendHistogram();
                 break;
             case "ClearTimeRangeFilter":
+                if (!this.session) {
+                    return;
+                }
                 this.session.setTimeRangeFilter(undefined, undefined);
                 this.sendMessages();
                 this.sendViewerState();
@@ -220,9 +256,15 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 this.sendHistogram();
                 break;
             case "ApplyConsumeSettings":
+                if (!this.session) {
+                    return;
+                }
                 await this.applyConsumeSettings(message);
                 break;
             case "ClearMessages":
+                if (!this.session) {
+                    return;
+                }
                 this.session.clear();
                 this.sendMessages();
                 this.sendViewerState();
@@ -230,15 +272,30 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
                 this.sendHistogram();
                 break;
             case "PreviewMessage":
+                if (!this.session) {
+                    return;
+                }
                 if (message.messageId === undefined) {
                     return;
                 }
                 this.sendPreview(message.messageId);
                 break;
             case "ExportMessages":
+                if (!this.session) {
+                    return;
+                }
                 await this.exportToCSV();
                 break;
         }
+    }
+
+    private sendInitialStateIfReady(): void {
+        if (!this.panelReady || !this.activeConsumerInfo || !this.session) {
+            return;
+        }
+
+        this.sendConsumerInfo();
+        this.renderNow();
     }
 
     private getConsumeSettingsFromConsumer(consumer: Consumer): ConsumerSessionConsumeSettings {
@@ -639,14 +696,16 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         this.consumerDisposables = [];
     }
 
-    private getWebviewContent(): string {
+    private getWebviewContent(webview: vscode.Webview): string {
+        const nonce = getNonce();
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kafka Message Viewer</title>
-    <style>
+    <style nonce="${nonce}">
         :root {
             --border: var(--vscode-panel-border);
             --bg: var(--vscode-editor-background);
@@ -792,6 +851,30 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             z-index: 2;
         }
 
+        .col-timestamp {
+            width: 16%;
+        }
+
+        .col-key {
+            width: 14%;
+        }
+
+        .col-partition {
+            width: 8%;
+        }
+
+        .col-offset {
+            width: 10%;
+        }
+
+        .col-value {
+            width: 36%;
+        }
+
+        .col-headers {
+            width: 16%;
+        }
+
         tbody tr:hover {
             background: var(--vscode-list-hoverBackground);
             cursor: pointer;
@@ -893,12 +976,12 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         <table>
             <thead>
                 <tr>
-                    <th style="width: 16%">Timestamp</th>
-                    <th style="width: 14%">Key</th>
-                    <th style="width: 8%">Partition</th>
-                    <th style="width: 10%">Offset</th>
-                    <th style="width: 36%">Value</th>
-                    <th style="width: 16%">Headers</th>
+                    <th class="col-timestamp">Timestamp</th>
+                    <th class="col-key">Key</th>
+                    <th class="col-partition">Partition</th>
+                    <th class="col-offset">Offset</th>
+                    <th class="col-value">Value</th>
+                    <th class="col-headers">Headers</th>
                 </tr>
             </thead>
             <tbody id="rows">
@@ -910,7 +993,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
         <pre id="preview">Select a message row to preview.</pre>
     </div>
 
-    <script>
+    <script nonce="${nonce}">
         const vscode = acquireVsCodeApi();
         const HISTOGRAM_BIN_COUNT = 60;
 
@@ -1395,9 +1478,7 @@ export class ConsumerTableViewProvider implements vscode.Disposable {
             renderHistogram();
         });
 
-        post("GetMessagesCount");
-        post("GetHistogram", { binCount: HISTOGRAM_BIN_COUNT });
-        requestPage(1);
+        post("Ready");
     </script>
 </body>
 </html>`;
