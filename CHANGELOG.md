@@ -1,6 +1,14 @@
 # Change Log
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
+## [0.30.0] - 2026-04-18
+
+### Added
+- **Consumer Group Offset Editing**: Added an `Edit Consumer Group Offsets` command in the Kafka explorer so committed offsets can be reviewed and updated from a dedicated webview with per-partition start/end offsets, lag, validation, and bulk fill actions for earliest/latest values. (@radaru)
+
+### Changed
+- Numerous dependency updates.
+
 ## [0.29.0] - 2026-04-03
 
 ### Added
