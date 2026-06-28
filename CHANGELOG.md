@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
+## [0.30.5] - 2026-06-28
+
+### Changed
+- Servicing release with dependency updates only.
+
 ## [0.30.4] - 2026-06-07
 
 ### Changed
