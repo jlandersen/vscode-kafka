@@ -1,6 +1,15 @@
 # Change Log
 All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
+## [Unreleased]
+
+### Changed
+- Upgraded `@platformatic/kafka` to 2.x, bringing consumer group and offset handling fixes (incremental fetch session reuse, `OFFSET_OUT_OF_RANGE` recovery, stale metadata during group rejoin, bootstrap broker failover) and Xerial Snappy decoding support.
+- The default consumer `maxBytes` is now 50 MB (previously 10 MB) when not explicitly configured, following the upgraded Kafka client default.
+
+### Removed
+- Minimum required VS Code version is now 1.110.0, as the upgraded Kafka client requires Node.js 22.22.0 or later.
+
 ## [0.30.5] - 2026-06-28
 
 ### Changed
