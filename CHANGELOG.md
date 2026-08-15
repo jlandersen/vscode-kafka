@@ -3,6 +3,8 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-08-15
+
 ### Changed
 - Upgraded `@platformatic/kafka` to 2.x, bringing consumer group and offset handling fixes (incremental fetch session reuse, `OFFSET_OUT_OF_RANGE` recovery, stale metadata during group rejoin, bootstrap broker failover) and Xerial Snappy decoding support.
 - The default consumer `maxBytes` is now 50 MB (previously 10 MB) when not explicitly configured, following the upgraded Kafka client default.
