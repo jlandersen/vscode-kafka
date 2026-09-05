@@ -3,6 +3,9 @@ All notable changes to `Tools for Apache Kafka®` are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Updated transitive dependencies to address security vulnerabilities in `fast-uri`, `browserslist`, and `qs`.
+
 ## [0.31.0] - 2026-08-15
 
 ### Changed
