@@ -834,12 +834,12 @@
 		"@testcontainers/kafka": "^12.0.1",
 		"@types/fs-extra": "^11.0.4",
 		"@types/mocha": "^10.0.10",
-		"@types/node": "^25.9.1",
+		"@types/node": "^26.6.5",
 		"@types/vscode": "1.110.0",
 		"@typescript-eslint/eslint-plugin": "^8.60.1",
 		"@typescript-eslint/parser": "^8.60.1",
 		"@vscode/test-electron": "^3.1.0",
-		"@vscode/vsce": "^3.9.1",
+		"@vscode/vsce": "^4.0.0",
 		"avsc": "^5.7.9",
 		"copy-webpack-plugin": "^14.0.0",
 		"eslint": "^10.4.1",
@@ -848,18 +848,12 @@
 		"handlebars": "^4.7.9",
 		"jks-js": "^1.1.7",
 		"js-yaml": "^5.3.0",
-		"mocha": "^11.7.6",
+		"mocha": "^12.0.3",
 		"protobufjs": "^8.5.0",
 		"testcontainers": "^12.0.1",
 		"ts-loader": "^9.6.0",
 		"typescript": "^6.0.3",
 		"webpack": "^5.107.2",
 		"webpack-cli": "^7.0.3"
-	},
-	"overrides": {
-		"mocha": {
-			"diff": "^8.0.4",
-			"serialize-javascript": "^7.0.5"
-		}
 	}
 }
